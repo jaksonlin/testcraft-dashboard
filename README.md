@@ -1,156 +1,145 @@
-# UnittestCaseInfo Annotation Extractor
+# Annotation Extractor
 
-This project provides a Java utility to extract all fields and values from the `UnittestCaseInfo` annotation using JavaParser 3.26.3 and JDK 1.8.
-
-## Project Structure
-
-```
-annotation-extractor/
-├── pom.xml
-├── README.md
-└── src/
-    ├── main/java/com/example/annotationextractor/
-    │   ├── UnittestCaseInfoData.java          # Data model class
-    │   └── UnittestCaseInfoExtractor.java     # Main extractor class
-    └── test/java/com/example/annotationextractor/
-        └── UnittestCaseInfoExtractorTest.java  # Test cases
-```
+A Java library for extracting and analyzing `UnittestCaseInfo` annotations from Java test classes. This tool can scan entire directories of Java git repositories to collect comprehensive test information.
 
 ## Features
 
-- **Complete Annotation Extraction**: Extracts all fields from `UnittestCaseInfo` annotation
-- **Type-Safe Data Model**: Structured data model for easy inspection and manipulation
-- **Flexible Input Handling**: Supports both single-member and normal annotations
-- **Array Support**: Handles string arrays for fields like `testPoints`, `tags`, etc.
-- **Default Value Handling**: Properly handles default values when fields are not specified
-- **Comprehensive Testing**: Includes unit tests for various annotation scenarios
+- **Annotation Extraction**: Parse `UnittestCaseInfo` annotations and extract structured data
+- **Repository Scanning**: Automatically discover and scan Java git repositories
+- **Test Discovery**: Find test classes and methods following standard Java conventions
+- **Comprehensive Data Model**: Organized collection of test information across multiple repositories
+- **Standard Test Directory Support**: Recognizes common test directory patterns (`src/test/java`, `test`, etc.)
 
-## Dependencies
+## Data Models
 
-- **Java**: JDK 1.8
-- **JavaParser**: 3.26.3
-- **JUnit**: 4.13.2 (for testing)
+The system uses a hierarchical data model to organize collected information:
+
+- **`TestMethodInfo`**: Individual test method details including annotations
+- **`TestClassInfo`**: Test class information with all its test methods
+- **`RepositoryTestInfo`**: Repository-level test information
+- **`TestCollectionSummary`**: Top-level summary of all scanned repositories
 
 ## Usage
 
-### Basic Usage
+### Basic Annotation Extraction
 
 ```java
-import com.example.annotationextractor.UnittestCaseInfoExtractor;
-import com.example.annotationextractor.UnittestCaseInfoData;
-import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.example.annotationextractor.*;
 
-// Get your AnnotationExpr from JavaParser
-AnnotationExpr annotation = // ... your annotation expression
-
-// Extract all values
-UnittestCaseInfoData extractedData = UnittestCaseInfoExtractor.extractAnnotationValues(annotation);
-
-// Now you can inspect all the extracted values
-System.out.println("Author: " + extractedData.getAuthor());
-System.out.println("Title: " + extractedData.getTitle());
-System.out.println("Test Points: " + Arrays.toString(extractedData.getTestPoints()));
+// Extract annotation values
+UnittestCaseInfoData data = UnittestCaseInfoExtractor.extractAnnotationValues(annotationExpr);
+System.out.println("Title: " + data.getTitle());
+System.out.println("Author: " + data.getAuthor());
 ```
 
-### Example with Real Java Code
+### Repository Scanning
 
 ```java
-import com.github.javaparser.JavaParser;
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.body.MethodDeclaration;
+import com.example.annotationextractor.*;
 
-// Parse Java source code
-String javaCode = 
-    "public class TestClass {\n" +
-    "    @UnittestCaseInfo(\n" +
-    "        author = \"John Doe\",\n" +
-    "        title = \"Test User Login\",\n" +
-    "        testPoints = {\"auth\", \"login\"}\n" +
-    "    )\n" +
-    "    public void testMethod() {}\n" +
-    "}";
+// Scan a directory for Java git repositories
+String directoryPath = "/path/to/repositories";
+TestCollectionSummary summary = RepositoryScanner.scanRepositories(directoryPath);
 
-JavaParser parser = new JavaParser();
-CompilationUnit cu = parser.parse(javaCode).getResult().get();
-
-// Find method with annotation
-MethodDeclaration method = cu.findFirst(MethodDeclaration.class).get();
-AnnotationExpr annotation = method.getAnnotationByName("UnittestCaseInfo").get();
-
-// Extract values
-UnittestCaseInfoData data = UnittestCaseInfoExtractor.extractAnnotationValues(annotation);
+// Access collected information
+System.out.println("Total repositories: " + summary.getTotalRepositories());
+System.out.println("Total test classes: " + summary.getTotalTestClasses());
+System.out.println("Total test methods: " + summary.getTotalTestMethods());
 ```
 
-## Data Model
+### Command Line Usage
 
-The `UnittestCaseInfoData` class contains all the fields from the annotation:
+```bash
+# Run the main collection runner
+java -cp target/annotation-extractor-1.0.0.jar com.example.annotationextractor.TestCollectionRunner /path/to/repositories
 
-### Required Fields
-- `author` (String) - Author information
-- `title` (String) - Test case title
-
-### Optional Fields
-- `targetClass` (String) - Target class for the test case
-- `targetMethod` (String) - Target method for the test case
-- `testPoints` (String[]) - Test points involved
-- `description` (String) - Test case description
-- `tags` (String[]) - Test case tags
-- `status` (String) - Test case status (defaults to "TODO")
-- `relatedRequirements` (String[]) - Related requirements
-- `relatedDefects` (String[]) - Related defects
-- `relatedTestcases` (String[]) - Related test cases
-- `lastUpdateTime` (String) - Last update time
-- `lastUpdateAuthor` (String) - Last maintainer
-- `methodSignature` (String) - Method signature
-
-## Supported Annotation Formats
-
-### Normal Annotation
-```java
-@UnittestCaseInfo(
-    author = "John Doe",
-    title = "Test Title",
-    testPoints = {"point1", "point2"}
-)
+# Run the example usage class
+java -cp target/annotation-extractor-1.0.0.jar com.example.annotationextractor.ExampleUsage /path/to/repositories
 ```
 
-### Single Member Annotation
-```java
-@UnittestCaseInfo("Simple Test Title")
-```
+## Test Directory Recognition
 
-## Building and Testing
+The scanner automatically recognizes standard Java test directory patterns:
 
-### Build the Project
+- `src/test/java` (Maven/Gradle standard)
+- `src/test`
+- `test`
+- `tests`
+- `test/java`
+- `tests/java`
+
+## Test Class Detection
+
+A class is considered a test class if it:
+- Has a name ending with "Test" or "Tests"
+- Is annotated with `@Test` (JUnit 4/5)
+- Is in a recognized test directory
+
+## Test Method Detection
+
+A method is considered a test method if it:
+- Is annotated with `@Test` (JUnit 4/5)
+- Is in a recognized test class
+
+## Dependencies
+
+- Java 8 or higher
+- JavaParser 3.26.3+ for Java code parsing
+- JUnit 4.13.2+ for testing
+
+## Building
+
 ```bash
 mvn clean compile
-```
-
-### Run Tests
-```bash
 mvn test
-```
-
-### Package
-```bash
 mvn package
 ```
 
-## Error Handling
+## Example Output
 
-The extractor handles various edge cases:
-- **Null AnnotationExpr**: Throws `IllegalArgumentException`
-- **Missing Fields**: Uses default values (empty strings/arrays)
-- **Unknown Fields**: Ignored silently
-- **Type Mismatches**: Attempts to convert to string representation
+```
+================================================================================
+TEST COLLECTION SUMMARY
+================================================================================
+Scan Directory: /path/to/repositories
+Scan Timestamp: Mon Jan 20 10:30:00 UTC 2024
+Total Repositories: 3
+Total Test Classes: 15
+Total Test Methods: 127
+Total Annotated Test Methods: 45
 
-## Extensibility
+--------------------------------------------------------------------------------
+REPOSITORY DETAILS
+--------------------------------------------------------------------------------
 
-The extractor is designed to be easily extensible:
-- Add new fields to `UnittestCaseInfoData`
-- Update the switch statement in `processNormalAnnotation`
-- Add new extraction methods for different data types
+Repository: user-service
+Path: /path/to/repositories/user-service
+Test Classes: 8
+Test Methods: 67
+Annotated Methods: 23
 
-## License
+  Test Classes:
+    UserServiceTest (com.example.userservice)
+      File: /path/to/repositories/user-service/src/test/java/com/example/userservice/UserServiceTest.java
+      Methods: 12 (Annotated: 5)
+        testUserRegistration - Test user registration with valid data
+        testUserLogin - Test user login functionality
+```
 
-This project is provided as-is for educational and development purposes.
+## Architecture
+
+The system is designed with a clear separation of concerns:
+
+1. **`UnittestCaseInfoExtractor`**: Core annotation parsing logic
+2. **`TestClassParser`**: Java file parsing and test method extraction
+3. **`RepositoryScanner`**: Directory traversal and repository discovery
+4. **Data Models**: Hierarchical organization of collected information
+5. **`TestCollectionRunner`**: Main entry point for command-line usage
+
+## Future Enhancements
+
+- Report generation in various formats (HTML, PDF, Excel)
+- Test coverage analysis
+- Test execution history integration
+- Custom test directory pattern configuration
+- Parallel processing for large repositories
