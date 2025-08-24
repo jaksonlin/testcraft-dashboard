@@ -75,7 +75,7 @@
             <configuration>
               <transformers>
                 <transformer>
-                  <mainClass>com.example.annotationextractor.TestCollectionRunner</mainClass>
+                  <mainClass>com.example.annotationextractor.RepositoryHubRunner</mainClass>
                 </transformer>
               </transformers>
               <filters>

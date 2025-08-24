@@ -1,0 +1,18 @@
+# Sample Repository List for Annotation Extractor
+# Add your git repository URLs here, one per line
+# Lines starting with # are comments and will be ignored
+# Empty lines are also ignored
+
+# Example repositories (replace with your actual repositories):
+# https://github.com/example/repo1.git
+# https://github.com/example/repo2
+# git@github.com:example/repo3.git
+
+# For testing purposes, you can use these public repositories:
+# https://github.com/junit-team/junit4.git
+# https://github.com/mockito/mockito.git
+# https://github.com/hamcrest/JavaHamcrest.git
+
+# Note: Make sure you have proper access to private repositories
+# For private repositories, you'll need to provide username and password/token
+# when running the RepositoryHubRunner
