@@ -18,7 +18,7 @@ public class DatabaseConfig {
     private static final int DEFAULT_PORT = 5432;
     private static final String DEFAULT_DATABASE = "test_analytics";
     private static final String DEFAULT_USERNAME = "postgres";
-    private static final String DEFAULT_PASSWORD = "password";
+    private static final String DEFAULT_PASSWORD = "postgres";
     
     /**
      * Initialize the database connection pool

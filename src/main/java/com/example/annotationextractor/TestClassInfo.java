@@ -14,6 +14,14 @@ public class TestClassInfo {
     private int totalTestMethods;
     private int annotatedTestMethods;
 
+    public void setTotalTestMethods(int totalTestMethods) {
+        this.totalTestMethods = totalTestMethods;
+    }
+
+    public void setAnnotatedTestMethods(int annotatedTestMethods) {
+        this.annotatedTestMethods = annotatedTestMethods;
+    }
+
     public TestClassInfo() {
         this.className = "";
         this.packageName = "";

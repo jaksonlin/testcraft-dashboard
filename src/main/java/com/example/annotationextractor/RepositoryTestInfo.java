@@ -11,6 +11,18 @@ public class RepositoryTestInfo {
     private String repositoryPath;
     private List<TestClassInfo> testClasses;
     private int totalTestClasses;
+    public void setTotalTestClasses(int totalTestClasses) {
+        this.totalTestClasses = totalTestClasses;
+    }
+
+    public void setTotalTestMethods(int totalTestMethods) {
+        this.totalTestMethods = totalTestMethods;
+    }
+
+    public void setTotalAnnotatedTestMethods(int totalAnnotatedTestMethods) {
+        this.totalAnnotatedTestMethods = totalAnnotatedTestMethods;
+    }
+
     private int totalTestMethods;
     private int totalAnnotatedTestMethods;
 
