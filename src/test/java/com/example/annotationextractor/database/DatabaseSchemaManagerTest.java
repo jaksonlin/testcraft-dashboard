@@ -17,10 +17,16 @@ import static org.junit.Assert.*;
  */
 public class DatabaseSchemaManagerTest {
 
+    private static final String TEST_HOST = "localhost";
+    private static final int TEST_PORT = 5432;
+    private static final String TEST_DATABASE = "test_analytics_test";
+    private static final String TEST_USERNAME = "postgres";
+    private static final String TEST_PASSWORD = "postgres";
+
     @Before
     public void setUp() {
         // Initialize database connection
-        DatabaseConfig.initialize();
+        DatabaseConfig.initialize(TEST_HOST, TEST_PORT, TEST_DATABASE, TEST_USERNAME, TEST_PASSWORD);
         // Clean up database
         try {
             DatabaseSchemaManager.dropAllTables();
