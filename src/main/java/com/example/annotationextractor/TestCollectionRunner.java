@@ -111,9 +111,9 @@ public class TestCollectionRunner {
      * Display the collected test information in a formatted way
      */
     private static void displayResults(TestCollectionSummary summary, long scanDuration) {
-        System.out.println("\n" + "=".repeat(80));
+        System.out.println("\n" + repeatChar('=', 80));
         System.out.println("TEST COLLECTION SUMMARY");
-        System.out.println("=".repeat(80));
+        System.out.println(repeatChar('=', 80));
         System.out.println("Scan Directory: " + summary.getScanDirectory());
         System.out.println("Scan Timestamp: " + new java.util.Date(summary.getScanTimestamp()));
         System.out.println("Scan Duration: " + scanDuration + " ms");
@@ -132,9 +132,9 @@ public class TestCollectionRunner {
             return;
         }
         
-        System.out.println("\n" + "-".repeat(80));
+        System.out.println("\n" + repeatChar('-', 80));
         System.out.println("REPOSITORY DETAILS");
-        System.out.println("-".repeat(80));
+        System.out.println(repeatChar('-', 80));
         
         for (RepositoryTestInfo repo : summary.getRepositories()) {
             System.out.println("\nRepository: " + repo.getRepositoryName());
@@ -174,8 +174,19 @@ public class TestCollectionRunner {
             }
         }
         
-        System.out.println("\n" + "=".repeat(80));
+        System.out.println("\n" + repeatChar('=', 80));
         System.out.println("SCAN COMPLETED SUCCESSFULLY");
-        System.out.println("=".repeat(80));
+        System.out.println(repeatChar('=', 80));
+    }
+
+    /**
+     * Helper method to repeat a character for a given count (for Java < 11 compatibility)
+     */
+    private static String repeatChar(char c, int count) {
+        StringBuilder sb = new StringBuilder(count);
+        for (int i = 0; i < count; i++) {
+            sb.append(c);
+        }
+        return sb.toString();
     }
 }

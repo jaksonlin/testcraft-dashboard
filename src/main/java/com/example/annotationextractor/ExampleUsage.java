@@ -18,7 +18,7 @@ public class ExampleUsage {
         // Example 1: Extract annotation from a single annotation expression
         demonstrateAnnotationExtraction();
         
-        System.out.println("\n" + "=".repeat(50));
+        System.out.println("\n" + new String(new char[50]).replace('\0', '='));
         
         // Example 2: Scan repositories (if directory is provided)
         if (args.length > 0) {
