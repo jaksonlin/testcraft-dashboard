@@ -7,6 +7,8 @@ import com.example.annotationextractor.reporting.ExcelReportGenerator;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Main class to demonstrate the test collection system with database integration
@@ -21,7 +23,12 @@ public class TestCollectionRunner {
             System.out.println("  --init-db          Initialize database schema");
             System.out.println("  --generate-report  Generate Excel report after scan");
             System.out.println("  --report-path <path>  Specify report output path");
-            System.out.println("Example: java TestCollectionRunner /path/to/repositories --init-db --generate-report");
+            System.out.println("  --include <pattern>  Include repositories matching pattern (can be used multiple times)");
+            System.out.println("  --exclude <pattern>  Exclude repositories matching pattern (can be used multiple times)");
+            System.out.println("Examples:");
+            System.out.println("  java TestCollectionRunner /path/to/repositories --init-db --generate-report");
+            System.out.println("  java TestCollectionRunner /path/to/repositories --include \"**/repository_group_finance_*/sub_project_for_view\" --include \"**/repository_group_finance_*/sub_project_for_dao\"");
+            System.out.println("  java TestCollectionRunner /path/to/repositories --exclude \"**/expired_project*\" --exclude \"**/legacy_*\"");
             return;
         }
         
@@ -29,6 +36,8 @@ public class TestCollectionRunner {
         boolean initDb = false;
         boolean generateReport = false;
         String reportPath = "test_analytics_report.xlsx";
+        List<String> includePatterns = new ArrayList<>();
+        List<String> excludePatterns = new ArrayList<>();
         
         // Parse command line options
         for (int i = 1; i < args.length; i++) {
@@ -38,6 +47,10 @@ public class TestCollectionRunner {
                 generateReport = true;
             } else if ("--report-path".equals(args[i]) && i + 1 < args.length) {
                 reportPath = args[++i];
+            } else if ("--include".equals(args[i]) && i + 1 < args.length) {
+                includePatterns.add(args[++i]);
+            } else if ("--exclude".equals(args[i]) && i + 1 < args.length) {
+                excludePatterns.add(args[++i]);
             }
         }
         
@@ -53,11 +66,29 @@ public class TestCollectionRunner {
             System.out.println("Starting test collection scan...");
             System.out.println("Scanning directory: " + directoryPath);
             
+            // Display pattern filtering information
+            if (!includePatterns.isEmpty() || !excludePatterns.isEmpty()) {
+                System.out.println("Path pattern filtering:");
+                if (!includePatterns.isEmpty()) {
+                    System.out.println("  Include patterns:");
+                    for (String pattern : includePatterns) {
+                        System.out.println("    " + pattern);
+                    }
+                }
+                if (!excludePatterns.isEmpty()) {
+                    System.out.println("  Exclude patterns:");
+                    for (String pattern : excludePatterns) {
+                        System.out.println("    " + pattern);
+                    }
+                }
+                System.out.println();
+            }
+            
             // Record start time
             long startTime = System.currentTimeMillis();
             
             // Scan the directory for repositories and collect test information
-            TestCollectionSummary summary = RepositoryScanner.scanRepositories(directoryPath);
+            TestCollectionSummary summary = RepositoryScanner.scanRepositories(directoryPath, includePatterns, excludePatterns);
             
             // Calculate scan duration
             long scanDuration = System.currentTimeMillis() - startTime;
