@@ -6,6 +6,7 @@ import com.example.annotationextractor.database.DataPersistenceService;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -32,6 +33,7 @@ public class RepositoryHubScanner {
     
     public boolean executeFullScan() {
         try {
+            long startTime = System.currentTimeMillis();
             System.out.println("Starting Repository Hub Scan");
             System.out.println("============================");
             System.out.println("Repository Hub: " + gitManager.getRepositoryHubPath());
@@ -56,18 +58,39 @@ public class RepositoryHubScanner {
             for (String gitUrl : repositoryUrls) {
                 if (gitManager.cloneOrUpdateRepository(gitUrl)) {
                     successfulRepos++;
+                } else {
+                    System.out.println("Failed to clone/update repository: " + gitUrl);
                 }
             }
+            System.out.println("Successfully cloned/updated " + successfulRepos + " repositories");
             
             // Scan repositories
             TestCollectionSummary scanSummary = scanAllRepositories();
             if (scanSummary != null) {
                 storeScanResults(scanSummary);
                 System.out.println("Repository Hub Scan Completed Successfully!");
-                return true;
+            } else {
+                System.out.println("Repository Hub Scan Failed!");
+                return false;
             }
-            
-            return false;
+
+            // Persist data to database
+            long endTime = System.currentTimeMillis();
+            long duration = endTime - startTime;
+            System.out.println("Scan completed in " + duration + " milliseconds");
+
+           if (!DatabaseSchemaManager.schemaExists()) {
+                DatabaseSchemaManager.initializeSchema();
+            }
+            System.out.println("\nPersisting data to database...");
+            try {
+                long scanSessionId = DataPersistenceService.persistScanSession(scanSummary, duration);
+                System.out.println("Data persisted successfully. Scan Session ID: " + scanSessionId);
+            } catch (SQLException e) {
+                System.err.println("Error persisting to database: " + e.getMessage());
+                e.printStackTrace();
+            }
+            return true;
             
         } catch (Exception e) {
             System.err.println("Repository Hub Scan failed: " + e.getMessage());

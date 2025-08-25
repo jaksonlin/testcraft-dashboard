@@ -4,7 +4,7 @@ import com.example.annotationextractor.*;
  * Demo script for Repository Hub Scanner
  * Run with: java -cp target/classes demo-repository-hub.java
  */
-public class demo-repository-hub {
+public class DemoRepositoryHub {
     
     public static void main(String[] args) {
         System.out.println("Repository Hub Scanner Demo");
