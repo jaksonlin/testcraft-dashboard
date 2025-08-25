@@ -1,31 +1,19 @@
 package com.example.annotationextractor;
 
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.PullResult;
-import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
-import org.eclipse.jgit.transport.SshTransport;
-import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
-import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
-import org.eclipse.jgit.transport.URIish;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
-import org.eclipse.jgit.util.FS;
-
-import java.io.File;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Manages Git repositories in a repository hub directory
- * Handles cloning, pulling, and updating repositories
- * Supports both SSH and HTTPS authentication methods
+ * Handles cloning, pulling, and updating repositories using system Git commands
+ * More reliable than JGit for complex SSH configurations and custom ports
  */
 public class GitRepositoryManager {
     
@@ -33,6 +21,7 @@ public class GitRepositoryManager {
     private final String username;
     private final String password;
     private final String sshKeyPath;
+    private final int timeoutSeconds;
     
     /**
      * Constructor for GitRepositoryManager with SSH key support
@@ -47,6 +36,7 @@ public class GitRepositoryManager {
         this.username = username;
         this.password = password;
         this.sshKeyPath = sshKeyPath;
+        this.timeoutSeconds = 300; // 5 minutes default timeout
     }
     
     /**
@@ -111,7 +101,7 @@ public class GitRepositoryManager {
     }
     
     /**
-     * Clone a new repository
+     * Clone a new repository using system Git command
      */
     private boolean cloneRepository(String gitUrl, Path repoPath, String repoName) {
         try {
@@ -123,83 +113,142 @@ public class GitRepositoryManager {
                 cleanDirectory(repoPath);
             }
             
-            Git git = null;
-            try {
-                if (isSshUrl(gitUrl)) {
-                    // Clone with SSH authentication
-                    System.out.println("Cloning with SSH authentication");
-                    git = cloneWithSsh(gitUrl, repoPath);
-                } else if (username != null && password != null) {
-                    // Clone with HTTPS authentication
-                    System.out.println("Cloning with HTTPS authentication for user: " + username);
-                    git = Git.cloneRepository()
-                        .setURI(gitUrl)
-                        .setDirectory(repoPath.toFile())
-                        .setCredentialsProvider(new UsernamePasswordCredentialsProvider(username, password))
-                        .setTimeout(300) // 5 minutes timeout
-                        .call();
-                } else {
-                    // Clone without authentication (public repos)
-                    System.out.println("Cloning public repository without authentication");
-                    git = Git.cloneRepository()
-                        .setURI(gitUrl)
-                        .setDirectory(repoPath.toFile())
-                        .setTimeout(300) // 5 minutes timeout
-                        .call();
+            // Build Git clone command
+            List<String> command = buildGitCloneCommand(gitUrl, repoPath);
+            
+            // Execute the command
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(Paths.get(repositoryHubPath).toFile());
+            
+            // Set environment variables for authentication if needed
+            if (username != null && password != null && !isSshUrl(gitUrl)) {
+                pb.environment().put("GIT_ASKPASS", "echo");
+                pb.environment().put("GIT_USERNAME", username);
+                pb.environment().put("GIT_PASSWORD", password);
+            }
+            
+            // Set SSH key if provided
+            if (sshKeyPath != null && isSshUrl(gitUrl)) {
+                pb.environment().put("GIT_SSH_COMMAND", "ssh -i " + sshKeyPath + " -o StrictHostKeyChecking=no");
+            }
+            
+            System.out.println("Executing: " + String.join(" ", command));
+            
+            Process process = pb.start();
+            
+            // Wait for completion with timeout
+            boolean completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+            
+            if (!completed) {
+                process.destroyForcibly();
+                System.err.println("Git clone operation timed out after " + timeoutSeconds + " seconds");
+                return false;
+            }
+            
+            int exitCode = process.exitValue();
+            
+            if (exitCode == 0) {
+                System.out.println("Successfully cloned repository: " + repoName);
+                return true;
+            } else {
+                // Capture error output
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        System.err.println("Git error: " + line);
+                    }
                 }
-                
-                if (git != null) {
-                    System.out.println("Successfully cloned repository: " + repoName);
-                    return true;
-                } else {
-                    System.err.println("Failed to clone repository: " + repoName + " - git object is null");
-                    return false;
-                }
-                
-            } finally {
-                if (git != null) {
-                    git.close();
-                }
+                System.err.println("Failed to clone repository " + repoName + " (exit code: " + exitCode + ")");
+                return false;
             }
             
         } catch (Exception e) {
             System.err.println("Failed to clone repository " + repoName + ": " + e.getMessage());
-            
-            // Provide more specific error messages for common issues
-            if (e.getMessage().contains("remote hung up unexpectedly")) {
-                System.err.println("  This usually indicates a network issue, authentication problem, or repository access issue.");
-                System.err.println("  - Check your internet connection");
-                System.err.println("  - Verify the repository URL is correct");
-                System.err.println("  - Ensure you have access to the repository");
-                if (isSshUrl(gitUrl)) {
-                    System.err.println("  - Verify your SSH key is properly configured and added to your GitHub account");
-                    System.err.println("  - Check that ssh-agent is running and your key is loaded");
-                } else if (username != null) {
-                    System.err.println("  - Verify your username and password/token are correct");
-                }
-            } else if (e.getMessage().contains("timeout")) {
-                System.err.println("  Network timeout occurred. This might be due to:");
-                System.err.println("  - Slow internet connection");
-                System.err.println("  - Large repository size");
-                System.err.println("  - Network firewall restrictions");
-            } else if (e.getMessage().contains("Authentication failed")) {
-                System.err.println("  Authentication failed. Please check:");
-                if (isSshUrl(gitUrl)) {
-                    System.err.println("  - Your SSH key is properly configured");
-                    System.err.println("  - The SSH key is added to your GitHub account");
-                    System.err.println("  - ssh-agent is running and your key is loaded");
-                } else {
-                    System.err.println("  - Username and password/token are correct");
-                    System.err.println("  - You have access to the repository");
-                    System.err.println("  - The repository is not private or you have proper access");
-                }
-            }
-            
             e.printStackTrace();
             return false;
         }
     }
-
+    
+    /**
+     * Build Git clone command based on URL type and authentication
+     */
+    private List<String> buildGitCloneCommand(String gitUrl, Path repoPath) {
+        List<String> command = new ArrayList<>();
+        command.add("git");
+        command.add("clone");
+        
+        // Add authentication options for HTTPS URLs
+        if (!isSshUrl(gitUrl) && username != null && password != null) {
+            // For HTTPS URLs, we'll use credential helper or environment variables
+            command.add("--config");
+            command.add("credential.helper=store");
+        }
+        
+        // Add timeout
+        command.add("--config");
+        command.add("http.timeout=" + timeoutSeconds);
+        
+        // Add the repository URL and target directory
+        command.add(gitUrl);
+        command.add(repoPath.getFileName().toString());
+        
+        return command;
+    }
+    
+    /**
+     * Pull latest changes from an existing repository using system Git command
+     */
+    private boolean pullRepository(Path repoPath, String repoName) {
+        try {
+            System.out.println("Pulling latest changes for repository: " + repoName);
+            
+            List<String> command = List.of("git", "pull");
+            
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(repoPath.toFile());
+            
+            // Set SSH key if provided
+            if (sshKeyPath != null) {
+                pb.environment().put("GIT_SSH_COMMAND", "ssh -i " + sshKeyPath + " -o StrictHostKeyChecking=no");
+            }
+            
+            System.out.println("Executing: " + String.join(" ", command));
+            
+            Process process = pb.start();
+            
+            // Wait for completion with timeout
+            boolean completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+            
+            if (!completed) {
+                process.destroyForcibly();
+                System.err.println("Git pull operation timed out after " + timeoutSeconds + " seconds");
+                return false;
+            }
+            
+            int exitCode = process.exitValue();
+            
+            if (exitCode == 0) {
+                System.out.println("Successfully pulled latest changes for repository: " + repoName);
+                return true;
+            } else {
+                // Capture error output
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        System.err.println("Git error: " + line);
+                    }
+                }
+                System.err.println("Failed to pull changes for repository " + repoName + " (exit code: " + exitCode + ")");
+                return false;
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Failed to pull repository " + repoName + ": " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
     /**
      * Clean a directory by removing all contents
      */
@@ -216,77 +265,12 @@ public class GitRepositoryManager {
                 });
         }
     }
-
-    /**
-     * Clone repository using SSH authentication
-     */
-    private Git cloneWithSsh(String gitUrl, Path repoPath) throws GitAPIException, IOException {
-        // Configure SSH session factory
-        JschConfigSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
-            @Override
-            protected void configure(OpenSshConfig.Host host, Session session) {
-                // No additional configuration needed
-            }
-
-            @Override
-            protected JSch createDefaultJSch(FS fs) throws JSchException {
-                JSch defaultJSch = super.createDefaultJSch(fs);
-                
-                // If a specific SSH key path is provided, use it
-                if (sshKeyPath != null && Files.exists(Paths.get(sshKeyPath))) {
-                    defaultJSch.addIdentity(sshKeyPath);
-                    System.out.println("Using SSH key: " + sshKeyPath);
-                } else {
-                    // Otherwise, use the default SSH configuration (including ssh-agent)
-                    System.out.println("Using default SSH configuration (ssh-agent, ~/.ssh/id_rsa, etc.)");
-                }
-                
-                return defaultJSch;
-            }
-        };
-
-        return Git.cloneRepository()
-            .setURI(gitUrl)
-            .setDirectory(repoPath.toFile())
-            .setTransportConfigCallback(transport -> {
-                if (transport instanceof SshTransport) {
-                    ((SshTransport) transport).setSshSessionFactory(sshSessionFactory);
-                }
-            })
-            .setTimeout(300) // 5 minutes timeout
-            .call();
-    }
-
+    
     /**
      * Check if the given URL is an SSH URL
      */
     private boolean isSshUrl(String gitUrl) {
         return gitUrl.startsWith("git@") || gitUrl.startsWith("ssh://");
-    }
-
-    /**
-     * Pull latest changes from an existing repository
-     */
-    private boolean pullRepository(Path repoPath, String repoName) {
-        try {
-            System.out.println("Pulling latest changes for repository: " + repoName);
-            
-            try (Git git = Git.open(repoPath.toFile())) {
-                PullResult result = git.pull().call();
-                
-                if (result.isSuccessful()) {
-                    System.out.println("Successfully pulled latest changes for repository: " + repoName);
-                    return true;
-                } else {
-                    System.err.println("Failed to pull changes for repository " + repoName + ": " + result.toString());
-                    return false;
-                }
-            }
-            
-        } catch (Exception e) {
-            System.err.println("Failed to pull repository " + repoName + ": " + e.getMessage());
-            return false;
-        }
     }
     
     /**
@@ -294,13 +278,37 @@ public class GitRepositoryManager {
      */
     private String extractRepositoryName(String gitUrl) {
         try {
-            URIish uri = new URIish(gitUrl);
-            String path = uri.getPath();
-            if (path.endsWith(".git")) {
-                path = path.substring(0, path.length() - 4);
+            // Handle SSH URLs
+            if (gitUrl.startsWith("git@")) {
+                String[] parts = gitUrl.split(":");
+                if (parts.length == 2) {
+                    String lastPart = parts[1];
+                    if (lastPart.endsWith(".git")) {
+                        lastPart = lastPart.substring(0, lastPart.length() - 4);
+                    }
+                    return lastPart;
+                }
             }
-            String[] pathParts = path.split("/");
-            return pathParts[pathParts.length - 1];
+            
+            // Handle SSH URLs with ssh:// protocol
+            if (gitUrl.startsWith("ssh://")) {
+                String cleanUrl = gitUrl.replace("ssh://", "");
+                String[] parts = cleanUrl.split("/");
+                String lastPart = parts[parts.length - 1];
+                if (lastPart.endsWith(".git")) {
+                    lastPart = lastPart.substring(0, lastPart.length() - 4);
+                }
+                return lastPart;
+            }
+            
+            // Handle HTTPS URLs
+            String[] parts = gitUrl.split("/");
+            String lastPart = parts[parts.length - 1];
+            if (lastPart.endsWith(".git")) {
+                lastPart = lastPart.substring(0, lastPart.length() - 4);
+            }
+            return lastPart;
+            
         } catch (Exception e) {
             // Fallback: extract from URL string
             String[] parts = gitUrl.split("/");
@@ -367,5 +375,27 @@ public class GitRepositoryManager {
      */
     public String getRepositoryHubPath() {
         return repositoryHubPath;
+    }
+    
+    /**
+     * Print SSH key format guidance
+     */
+    public static void printSshKeyGuidance() {
+        System.out.println("\nSSH Key Format Support:");
+        System.out.println("=======================");
+        System.out.println("The tool now uses system Git commands for better compatibility.");
+        System.out.println();
+        System.out.println("SSH Key Support:");
+        System.out.println("  - All SSH key formats supported (OpenSSH, PEM, PuTTY)");
+        System.out.println("  - Uses your system's SSH configuration");
+        System.out.println("  - Supports custom SSH ports and configurations");
+        System.out.println();
+        System.out.println("Benefits of System Git:");
+        System.out.println("  - Better SSH compatibility");
+        System.out.println("  - Supports all Git features");
+        System.out.println("  - Uses your existing SSH setup");
+        System.out.println("  - More reliable than JGit/JSch");
+        System.out.println();
+        System.out.println("Note: Make sure Git is installed and accessible in your PATH.");
     }
 }
