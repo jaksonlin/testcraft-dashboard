@@ -251,18 +251,182 @@ public class GitRepositoryManager {
     
     /**
      * Clean a directory by removing all contents
+     * Handles Git repositories and read-only files properly
      */
     private void cleanDirectory(Path dir) throws IOException {
-        if (Files.exists(dir)) {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        
+        System.out.println("Cleaning directory: " + dir);
+        
+        try {
+            // First, try to remove .git directory specifically (this is often the problem)
+            Path gitDir = dir.resolve(".git");
+            if (Files.exists(gitDir)) {
+                System.out.println("Removing .git directory...");
+                removeGitDirectory(gitDir);
+            }
+            
+            // Now remove the rest of the directory contents
             Files.walk(dir)
                 .sorted((a, b) -> b.compareTo(a)) // Sort in reverse order to delete files before directories
                 .forEach(path -> {
-                    try {
-                        Files.delete(path);
-                    } catch (IOException e) {
-                        System.err.println("Warning: Could not delete " + path + ": " + e.getMessage());
+                    if (!path.equals(dir)) { // Don't try to delete the root directory itself
+                        try {
+                            if (Files.isDirectory(path)) {
+                                Files.deleteIfExists(path);
+                            } else {
+                                // For files, try to make them writable first
+                                try {
+                                    path.toFile().setWritable(true);
+                                } catch (Exception e) {
+                                    // Ignore if we can't change permissions
+                                }
+                                Files.deleteIfExists(path);
+                            }
+                        } catch (IOException e) {
+                            System.err.println("Warning: Could not delete " + path + ": " + e.getMessage());
+                        }
                     }
                 });
+                
+        } catch (Exception e) {
+            System.err.println("Error during directory cleanup: " + e.getMessage());
+            // Fallback: try to use system commands for stubborn directories
+            try {
+                forceRemoveDirectory(dir);
+            } catch (Exception fallbackError) {
+                System.err.println("Fallback cleanup also failed: " + fallbackError.getMessage());
+                throw new IOException("Failed to clean directory: " + dir, e);
+            }
+        }
+    }
+    
+    /**
+     * Remove Git directory contents with proper handling of read-only files
+     */
+    private void removeGitDirectory(Path gitDir) throws IOException {
+        if (!Files.exists(gitDir)) {
+            return;
+        }
+        
+        try {
+            // Remove Git index and other files first
+            Path indexFile = gitDir.resolve("index");
+            if (Files.exists(indexFile)) {
+                try {
+                    indexFile.toFile().setWritable(true);
+                    Files.deleteIfExists(indexFile);
+                } catch (Exception e) {
+                    System.err.println("Warning: Could not delete Git index: " + e.getMessage());
+                }
+            }
+            
+            // Remove objects directory (often contains read-only files)
+            Path objectsDir = gitDir.resolve("objects");
+            if (Files.exists(objectsDir)) {
+                removeDirectoryRecursively(objectsDir);
+            }
+            
+            // Remove refs directory
+            Path refsDir = gitDir.resolve("refs");
+            if (Files.exists(refsDir)) {
+                removeDirectoryRecursively(refsDir);
+            }
+            
+            // Remove other Git files
+            String[] gitFiles = {"HEAD", "config", "description", "hooks", "info", "logs"};
+            for (String gitFile : gitFiles) {
+                Path filePath = gitDir.resolve(gitFile);
+                if (Files.exists(filePath)) {
+                    try {
+                        if (Files.isDirectory(filePath)) {
+                            removeDirectoryRecursively(filePath);
+                        } else {
+                            filePath.toFile().setWritable(true);
+                            Files.deleteIfExists(filePath);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Warning: Could not delete Git file " + gitFile + ": " + e.getMessage());
+                    }
+                }
+            }
+            
+            // Finally remove the .git directory itself
+            Files.deleteIfExists(gitDir);
+            
+        } catch (Exception e) {
+            System.err.println("Error removing Git directory: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    /**
+     * Remove directory recursively with proper permission handling
+     */
+    private void removeDirectoryRecursively(Path dir) throws IOException {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        
+        Files.walk(dir)
+            .sorted((a, b) -> b.compareTo(a))
+            .forEach(path -> {
+                try {
+                    if (Files.isDirectory(path)) {
+                        Files.deleteIfExists(path);
+                    } else {
+                        // Make file writable before deletion
+                        try {
+                            path.toFile().setWritable(true);
+                        } catch (Exception e) {
+                            // Ignore permission errors
+                        }
+                        Files.deleteIfExists(path);
+                    }
+                } catch (IOException e) {
+                    System.err.println("Warning: Could not delete " + path + ": " + e.getMessage());
+                }
+            });
+    }
+    
+    /**
+     * Force remove directory using system commands (fallback method)
+     */
+    private void forceRemoveDirectory(Path dir) throws IOException {
+        try {
+            String os = System.getProperty("os.name").toLowerCase();
+            ProcessBuilder pb;
+            
+            if (os.contains("win")) {
+                // Windows: use rmdir /s /q
+                pb = new ProcessBuilder("cmd", "/c", "rmdir", "/s", "/q", dir.toString());
+            } else {
+                // Unix/Linux: use rm -rf
+                pb = new ProcessBuilder("rm", "-rf", dir.toString());
+            }
+            
+            Process process = pb.start();
+            
+            // Wait for completion with timeout (30 seconds)
+            boolean completed = process.waitFor(30, TimeUnit.SECONDS);
+            
+            if (!completed) {
+                process.destroyForcibly();
+                throw new IOException("System command timed out after 30 seconds");
+            }
+            
+            int exitCode = process.exitValue();
+            
+            if (exitCode != 0) {
+                throw new IOException("System command failed with exit code: " + exitCode);
+            }
+            
+            System.out.println("Directory removed using system command: " + dir);
+            
+        } catch (Exception e) {
+            throw new IOException("Failed to force remove directory using system command: " + e.getMessage(), e);
         }
     }
     
@@ -519,5 +683,59 @@ public class GitRepositoryManager {
         System.out.println("  - More reliable than JGit/JSch");
         System.out.println();
         System.out.println("Note: Make sure Git is installed and accessible in your PATH.");
+    }
+    
+    /**
+     * Get available disk space for the repository hub directory
+     * 
+     * @return Available space in bytes, or -1 if calculation fails
+     */
+    public long getAvailableDiskSpace() {
+        try {
+            Path hubPath = Paths.get(repositoryHubPath);
+            if (!Files.exists(hubPath)) {
+                return -1;
+            }
+            
+            return hubPath.toFile().getFreeSpace();
+        } catch (Exception e) {
+            System.err.println("Error calculating available disk space: " + e.getMessage());
+            return -1;
+        }
+    }
+    
+    /**
+     * Get disk space information for the repository hub directory
+     * 
+     * @return Formatted string with disk space information
+     */
+    public String getDiskSpaceInfo() {
+        try {
+            Path hubPath = Paths.get(repositoryHubPath);
+            if (!Files.exists(hubPath)) {
+                return "Repository hub directory does not exist";
+            }
+            
+            long totalSpace = hubPath.toFile().getTotalSpace();
+            long freeSpace = hubPath.toFile().getFreeSpace();
+            long usedSpace = totalSpace - freeSpace;
+            
+            StringBuilder info = new StringBuilder();
+            info.append("Disk Space Information:\n");
+            info.append("Repository Hub: ").append(repositoryHubPath).append("\n");
+            info.append("Total Space: ").append(formatFileSize(totalSpace)).append("\n");
+            info.append("Used Space: ").append(formatFileSize(usedSpace)).append("\n");
+            info.append("Free Space: ").append(formatFileSize(freeSpace)).append("\n");
+            
+            if (totalSpace > 0) {
+                double usagePercent = (double) usedSpace / totalSpace * 100;
+                info.append("Usage: ").append(String.format("%.1f%%", usagePercent)).append("\n");
+            }
+            
+            return info.toString();
+            
+        } catch (Exception e) {
+            return "Error getting disk space information: " + e.getMessage();
+        }
     }
 }
