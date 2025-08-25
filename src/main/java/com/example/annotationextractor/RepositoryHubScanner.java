@@ -22,6 +22,7 @@ public class RepositoryHubScanner {
     private final GitRepositoryManager gitManager;
     private final DataPersistenceService dataService;
     private final String repositoryListPath;
+    private boolean tempCloneMode = false;
     
     public RepositoryHubScanner(String repositoryHubPath, String repositoryListPath, String username, String password, String sshKeyPath) {
         this.gitManager = new GitRepositoryManager(repositoryHubPath, username, password, sshKeyPath);
@@ -37,6 +38,14 @@ public class RepositoryHubScanner {
         this(repositoryHubPath, repositoryListPath, null, null, null);
     }
     
+    /**
+     * Set temporary clone mode
+     * When enabled, repositories will be deleted after scanning to save disk space
+     */
+    public void setTempCloneMode(boolean tempCloneMode) {
+        this.tempCloneMode = tempCloneMode;
+    }
+    
     public boolean executeFullScan() {
         try {
             long startTime = System.currentTimeMillis();
@@ -45,6 +54,7 @@ public class RepositoryHubScanner {
             System.out.println("Repository Hub: " + gitManager.getRepositoryHubPath());
             System.out.println("Repository List: " + repositoryListPath);
             System.out.println("Timestamp: " + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            System.out.println("Temporary Clone Mode: " + (tempCloneMode ? "ENABLED" : "DISABLED"));
             System.out.println();
             
             // Initialize database schema
@@ -59,63 +69,180 @@ public class RepositoryHubScanner {
             List<String> repositoryUrls = RepositoryListProcessor.readRepositoryUrls(repositoryListPath);
             System.out.println("Found " + repositoryUrls.size() + " repositories to process");
             
-            // Clone/update repositories
-            int successfulRepos = 0;
-            for (String gitUrl : repositoryUrls) {
-                if (gitManager.cloneOrUpdateRepository(gitUrl)) {
-                    successfulRepos++;
-                } else {
-                    System.out.println("Failed to clone/update repository: " + gitUrl);
-                }
-            }
-            System.out.println("Successfully cloned/updated " + successfulRepos + " repositories");
-            
-            // Scan repositories
-            TestCollectionSummary scanSummary = scanAllRepositories();
-            if (scanSummary != null) {
-                storeScanResults(scanSummary);
-                System.out.println("Repository Hub Scan Completed Successfully!");
+            // Process repositories one by one in temporary clone mode
+            if (tempCloneMode) {
+                return processRepositoriesTemporarily(repositoryUrls, startTime);
             } else {
-                System.out.println("Repository Hub Scan Failed!");
-                return false;
+                // Original behavior: clone all repositories first, then scan
+                return processRepositoriesNormally(repositoryUrls, startTime);
             }
-
-            // Persist data to database
-            long endTime = System.currentTimeMillis();
-            long duration = endTime - startTime;
-            System.out.println("Scan completed in " + duration + " milliseconds");
-
-           if (!DatabaseSchemaManager.schemaExists()) {
-                DatabaseSchemaManager.initializeSchema();
-            }
-            System.out.println("\nPersisting data to database...");
-            try {
-                long scanSessionId = DataPersistenceService.persistScanSession(scanSummary, duration);
-                System.out.println("Data persisted successfully. Scan Session ID: " + scanSessionId);
-            } catch (SQLException e) {
-                System.err.println("Error persisting to database: " + e.getMessage());
-                e.printStackTrace();
-            }
-            // Generate report
-            try {
-                String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
-                // create directory if it doesn't exist
-                Path reportDir = Paths.get(reportPath).getParent();
-                if (!Files.exists(reportDir)) {
-                    Files.createDirectories(reportDir);
-                }
-                ExcelReportGenerator.generateWeeklyReport(reportPath);
-                System.out.println("Report generated successfully: " + reportPath);
-            } catch (Exception e) {
-                System.err.println("Error generating report: " + e.getMessage());
-                e.printStackTrace();
-            }
-            return true;
             
         } catch (Exception e) {
             System.err.println("Repository Hub Scan failed: " + e.getMessage());
             e.printStackTrace();
             return false;
+        }
+    }
+    
+    /**
+     * Process repositories in temporary clone mode: clone, scan, delete
+     */
+    private boolean processRepositoriesTemporarily(List<String> repositoryUrls, long startTime) {
+        int successfulRepos = 0;
+        int totalRepos = repositoryUrls.size();
+        
+        for (int i = 0; i < repositoryUrls.size(); i++) {
+            String gitUrl = repositoryUrls.get(i);
+            System.out.println("\nProcessing repository " + (i + 1) + " of " + totalRepos + ": " + gitUrl);
+            
+            try {
+                // Clone the repository
+                if (gitManager.cloneOrUpdateRepository(gitUrl)) {
+                    successfulRepos++;
+                    System.out.println("Successfully cloned repository: " + gitUrl);
+                    
+                    // Scan this single repository
+                    TestCollectionSummary scanSummary = scanSingleRepository(gitUrl);
+                    if (scanSummary != null) {
+                        storeScanResults(scanSummary);
+                        System.out.println("Repository scanned successfully");
+                    } else {
+                        System.out.println("Failed to scan repository: " + gitUrl);
+                    }
+                    
+                    // Delete the repository to save disk space
+                    if (gitManager.deleteRepository(gitUrl)) {
+                        System.out.println("Repository deleted to save disk space");
+                    } else {
+                        System.err.println("Warning: Failed to delete repository: " + gitUrl);
+                    }
+                    
+                } else {
+                    System.err.println("Failed to clone repository: " + gitUrl);
+                }
+                
+            } catch (Exception e) {
+                System.err.println("Error processing repository " + gitUrl + ": " + e.getMessage());
+                // Try to clean up even if scanning failed
+                try {
+                    gitManager.deleteRepository(gitUrl);
+                } catch (Exception cleanupError) {
+                    System.err.println("Warning: Failed to cleanup repository " + gitUrl + ": " + cleanupError.getMessage());
+                }
+            }
+        }
+        
+        System.out.println("\nTemporary clone mode completed!");
+        System.out.println("Successfully processed " + successfulRepos + " out of " + totalRepos + " repositories");
+        
+        // Generate final report
+        try {
+            String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+            Path reportDir = Paths.get(reportPath).getParent();
+            if (!Files.exists(reportDir)) {
+                Files.createDirectories(reportDir);
+            }
+            ExcelReportGenerator.generateWeeklyReport(reportPath);
+            System.out.println("Report generated successfully: " + reportPath);
+        } catch (Exception e) {
+            System.err.println("Error generating report: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        long endTime = System.currentTimeMillis();
+        long duration = endTime - startTime;
+        System.out.println("Scan completed in " + duration + " milliseconds");
+        
+        // Persist data to database if schema exists
+        if (DatabaseSchemaManager.schemaExists()) {
+            System.out.println("\nPersisting data to database...");
+            try {
+                long scanSessionId = DataPersistenceService.persistScanSession(null, duration);
+                System.out.println("Data persisted successfully. Scan Session ID: " + scanSessionId);
+            } catch (SQLException e) {
+                System.err.println("Error persisting to database: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("\nDatabase schema not found. Skipping data persistence.");
+        }
+        
+        return successfulRepos > 0;
+    }
+    
+    /**
+     * Process repositories in normal mode: clone all, then scan all
+     */
+    private boolean processRepositoriesNormally(List<String> repositoryUrls, long startTime) {
+        // Clone/update repositories
+        int successfulRepos = 0;
+        for (String gitUrl : repositoryUrls) {
+            if (gitManager.cloneOrUpdateRepository(gitUrl)) {
+                successfulRepos++;
+            } else {
+                System.out.println("Failed to clone/update repository: " + gitUrl);
+            }
+        }
+        System.out.println("Successfully cloned/updated " + successfulRepos + " repositories");
+        
+        // Scan repositories
+        TestCollectionSummary scanSummary = scanAllRepositories();
+        if (scanSummary != null) {
+            storeScanResults(scanSummary);
+            System.out.println("Repository Hub Scan Completed Successfully!");
+        } else {
+            System.out.println("Repository Hub Scan Failed!");
+            return false;
+        }
+
+        // Persist data to database
+        long endTime = System.currentTimeMillis();
+        long duration = endTime - startTime;
+        System.out.println("Scan completed in " + duration + " milliseconds");
+
+       
+        try {
+            if (!DatabaseSchemaManager.schemaExists()) {
+                DatabaseSchemaManager.initializeSchema();
+            }
+            System.out.println("\nPersisting data to database...");
+            long scanSessionId = DataPersistenceService.persistScanSession(scanSummary, duration);
+            System.out.println("Data persisted successfully. Scan Session ID: " + scanSessionId);
+        } catch (SQLException e) {
+            System.err.println("Error persisting to database: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        // Generate report
+        try {
+            String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+            // create directory if it doesn't exist
+            Path reportDir = Paths.get(reportPath).getParent();
+            if (!Files.exists(reportDir)) {
+                Files.createDirectories(reportDir);
+            }
+            ExcelReportGenerator.generateWeeklyReport(reportPath);
+            System.out.println("Report generated successfully: " + reportPath);
+        } catch (Exception e) {
+            System.err.println("Error generating report: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return true;
+    }
+    
+    /**
+     * Scan a single repository
+     */
+    private TestCollectionSummary scanSingleRepository(String gitUrl) {
+        try {
+            Path repoPath = gitManager.getRepositoryPath(gitUrl);
+            if (repoPath != null) {
+                return RepositoryScanner.scanRepositories(repoPath.toString());
+            }
+            return null;
+        } catch (Exception e) {
+            System.err.println("Error scanning single repository " + gitUrl + ": " + e.getMessage());
+            return null;
         }
     }
     

@@ -25,6 +25,7 @@ public class TestCollectionRunner {
             System.out.println("  --report-path <path>  Specify report output path");
             System.out.println("  --include <pattern>  Include repositories matching pattern (can be used multiple times)");
             System.out.println("  --exclude <pattern>  Exclude repositories matching pattern (can be used multiple times)");
+            System.out.println("  --temp-clone        Note: Not applicable for TestCollectionRunner (scans existing directories)");
             System.out.println("Database Options (override database.properties):");
             System.out.println("  --db-host <host>     Database host (default: localhost)");
             System.out.println("  --db-port <port>     Database port (default: 5432)");
@@ -36,6 +37,7 @@ public class TestCollectionRunner {
             System.out.println("  java TestCollectionRunner /path/to/repositories --include \"**/repository_group_finance_*/sub_project_for_view\" --include \"**/repository_group_finance_*/sub_project_for_dao\"");
             System.out.println("  java TestCollectionRunner /path/to/repositories --exclude \"**/expired_project*\" --exclude \"**/legacy_*\"");
             System.out.println("  java TestCollectionRunner /path/to/repositories --init-db --db-host mydb.example.com --db-name production_db");
+            System.out.println("Note: TestCollectionRunner scans existing directories and does not clone repositories");
             return;
         }
         
@@ -65,6 +67,9 @@ public class TestCollectionRunner {
                 includePatterns.add(args[++i]);
             } else if ("--exclude".equals(args[i]) && i + 1 < args.length) {
                 excludePatterns.add(args[++i]);
+            } else if ("--temp-clone".equals(args[i])) {
+                // Note: TestCollectionRunner doesn't clone repositories, so this is just for compatibility
+                System.out.println("Note: --temp-clone option is not applicable for TestCollectionRunner (it scans existing directories)");
             } else if ("--db-host".equals(args[i]) && i + 1 < args.length) {
                 dbHost = args[++i];
             } else if ("--db-port".equals(args[i]) && i + 1 < args.length) {

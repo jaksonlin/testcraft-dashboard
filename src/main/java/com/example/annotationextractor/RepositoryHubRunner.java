@@ -34,6 +34,7 @@ public class RepositoryHubRunner {
         String username = null;
         String password = null;
         String sshKeyPath = null;
+        boolean tempCloneMode = false;
         
         // Database connection parameters
         String dbHost = null;
@@ -54,6 +55,8 @@ public class RepositoryHubRunner {
                 dbUser = args[++i];
             } else if (args[i].equals("--db-pass") && i + 1 < args.length) {
                 dbPass = args[++i];
+            } else if (args[i].equals("--temp-clone")) {
+                tempCloneMode = true;
             } else if (sshKeyPath == null && !args[i].startsWith("--")) {
                 // First non-flag argument is username, second is password, third is ssh key
                 if (username == null) {
@@ -108,6 +111,12 @@ public class RepositoryHubRunner {
                 System.out.println("No authentication - cloning public repositories only");
             }
             
+            // Set temporary clone mode if specified
+            if (tempCloneMode) {
+                scanner.setTempCloneMode(true);
+                System.out.println("Temporary clone mode enabled - repositories will be deleted after scanning to save disk space");
+            }
+            
             // Execute the full scan
             boolean success = scanner.executeFullScan();
             
@@ -125,7 +134,7 @@ public class RepositoryHubRunner {
     }
     
     private static void printUsage() {
-        System.out.println("Usage: java RepositoryHubRunner <repository_hub_path> <repository_list_file> [username] [password] [ssh_key_path] [database_options]");
+        System.out.println("Usage: java RepositoryHubRunner <repository_hub_path> <repository_list_file> [username] [password] [ssh_key_path] [database_options] [--temp-clone]");
         System.out.println("       java RepositoryHubRunner --ssh-help");
         System.out.println();
         System.out.println("Arguments:");
@@ -135,16 +144,17 @@ public class RepositoryHubRunner {
         System.out.println("  password             Git password/token for private repositories (optional)");
         System.out.println("  ssh_key_path         Path to SSH private key for SSH authentication (optional)");
         System.out.println();
+        System.out.println("Options:");
+        System.out.println("  --temp-clone          Clone, scan, and delete repositories to save disk space");
+        System.out.println("  --help, -h            Show this help message");
+        System.out.println("  --ssh-help            Show SSH key format guidance and conversion instructions");
+        System.out.println();
         System.out.println("Database Options (override database.properties):");
         System.out.println("  --db-host <host>     Database host (default: localhost)");
         System.out.println("  --db-port <port>     Database port (default: 5432)");
         System.out.println("  --db-name <name>     Database name (default: test_analytics)");
         System.out.println("  --db-user <user>     Database username (default: postgres)");
         System.out.println("  --db-pass <pass>     Database password (default: postgres)");
-        System.out.println();
-        System.out.println("Options:");
-        System.out.println("  --help, -h            Show this help message");
-        System.out.println("  --ssh-help            Show SSH key format guidance and conversion instructions");
         System.out.println();
         System.out.println("Authentication Methods:");
         System.out.println("  1. SSH (recommended if you have SSH keys configured):");
@@ -159,7 +169,13 @@ public class RepositoryHubRunner {
         System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt --db-host mydb.example.com --db-port 5433 --db-name mydb --db-user myuser --db-pass mypass");
         System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt --db-host localhost --db-name production_db");
         System.out.println();
-        System.out.println("Note: Database parameters not specified via CLI will use values from database.properties file");
+        System.out.println("Temporary Clone Mode Examples:");
+        System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt --temp-clone");
+        System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt --temp-clone --db-host localhost --db-name test_db");
+        System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt myuser mytoken --temp-clone");
+        System.out.println();
+        System.out.println("Note: Database parameters not specified via CLI will use values from database.properties");
+        System.out.println("Note: --temp-clone mode processes repositories one by one, deleting each after scanning to save disk space");
     }
     
     private static boolean validatePaths(String repositoryHubPath, String repositoryListPath) {

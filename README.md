@@ -213,6 +213,56 @@ The system generates comprehensive Excel reports with:
 - **Trends & Analysis**: Historical data and trends
 - **Annotation Coverage**: Coverage analysis and recommendations
 
+## Temporary Clone Mode
+
+To save disk space when dealing with large repositories or limited storage, the system supports a temporary clone mode that:
+
+- **Clones repositories one by one** instead of all at once
+- **Scans each repository immediately** after cloning
+- **Deletes each repository** after scanning to free up disk space
+- **Processes repositories sequentially** to minimize peak disk usage
+
+### Usage
+
+#### Option 1: Use --temp-clone flag with RepositoryHubRunner
+```bash
+java RepositoryHubRunner ./repos ./repo-list.txt --temp-clone
+java RepositoryHubRunner ./repos ./repo-list.txt myuser mytoken --temp-clone
+java RepositoryHubRunner ./repos ./repo-list.txt --temp-clone --db-host localhost --db-name test_db
+```
+
+#### Option 2: Use dedicated TempCloneRunner
+```bash
+java TempCloneRunner ./temp-repos ./repo-list.txt
+java TempCloneRunner ./temp-repos ./repo-list.txt myuser mytoken
+java TempCloneRunner ./temp-repos ./repo-list.txt --db-host localhost --db-name test_db
+```
+
+#### Option 3: Use provided scripts
+**Windows:**
+```cmd
+run-temp-clone.bat ./temp-repos ./repo-list.txt
+```
+
+**Linux/Mac:**
+```bash
+./run-temp-clone.sh ./temp-repos ./repo-list.txt
+```
+
+### Benefits
+
+- **Minimal disk usage**: Only one repository exists on disk at a time
+- **Scalable**: Can process repositories of any size without exhausting disk space
+- **Efficient**: No need to wait for all repositories to clone before starting analysis
+- **Safe**: Automatic cleanup ensures disk space is always available
+
+### When to Use
+
+- **Limited disk space**: When you don't have enough space for all repositories
+- **Large repositories**: When individual repositories are very large (GB+)
+- **Batch processing**: When you want to process repositories sequentially
+- **CI/CD environments**: When disk space is limited in build environments
+
 ## Dependencies
 
 - Java 8 or higher

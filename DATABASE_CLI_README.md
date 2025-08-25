@@ -174,3 +174,56 @@ test-database-connection.bat
 ```
 
 These scripts demonstrate various connection scenarios and can be modified for your specific needs.
+
+## Temporary Clone Mode
+
+The system now supports a temporary clone mode that helps save disk space by processing repositories one at a time:
+
+### How It Works
+
+1. **Clone**: Clone one repository from the list
+2. **Scan**: Immediately scan the cloned repository for test information
+3. **Delete**: Delete the repository to free up disk space
+4. **Repeat**: Move to the next repository in the list
+
+### Usage with Database Connections
+
+Temporary clone mode works seamlessly with database CLI parameters:
+
+```bash
+# Basic temporary clone with custom database
+java RepositoryHubRunner ./temp-repos ./repo-list.txt --temp-clone --db-host mydb.example.com --db-name production_db
+
+# Full database override with temporary clone
+java RepositoryHubRunner ./temp-repos ./repo-list.txt --temp-clone --db-host 192.168.1.100 --db-port 5433 --db-name mydb --db-user myuser --db-pass mypass
+
+# Using dedicated TempCloneRunner
+java TempCloneRunner ./temp-repos ./repo-list.txt --db-host localhost --db-name test_db
+```
+
+### Benefits for Database Operations
+
+- **Consistent connections**: Database connection is maintained throughout the process
+- **Efficient processing**: Each repository is processed and stored immediately
+- **Memory management**: No accumulation of repository data in memory
+- **Error recovery**: If one repository fails, others can still be processed
+
+### Scripts for Temporary Clone Mode
+
+**Windows:**
+```cmd
+run-temp-clone.bat ./temp-repos ./repo-list.txt --db-host localhost --db-name test_db
+```
+
+**Linux/Mac:**
+```bash
+./run-temp-clone.sh ./temp-repos ./repo-list.txt --db-host localhost --db-name test_db
+```
+
+### Use Cases
+
+- **Limited disk space**: When you can't store all repositories simultaneously
+- **Large repositories**: When individual repositories are several GB in size
+- **Batch processing**: When you want to process repositories sequentially
+- **CI/CD environments**: When disk space is constrained in build environments
+- **Production scanning**: When you need to scan many repositories without exhausting storage

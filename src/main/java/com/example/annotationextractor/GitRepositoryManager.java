@@ -361,6 +361,128 @@ public class GitRepositoryManager {
     }
     
     /**
+     * Delete a repository to free up disk space
+     * 
+     * @param gitUrl Git repository URL
+     * @return true if successful, false otherwise
+     */
+    public boolean deleteRepository(String gitUrl) {
+        try {
+            String repoName = extractRepositoryName(gitUrl);
+            Path repoPath = Paths.get(repositoryHubPath, repoName);
+            
+            if (!Files.exists(repoPath)) {
+                System.out.println("Repository directory does not exist: " + repoPath);
+                return true; // Consider it "deleted" if it doesn't exist
+            }
+            
+            if (!Files.exists(repoPath.resolve(".git"))) {
+                System.out.println("Not a git repository: " + repoPath);
+                return false;
+            }
+            
+            System.out.println("Deleting repository: " + repoName + " from " + repoPath);
+            
+            // Clean the directory completely
+            cleanDirectory(repoPath);
+            
+            System.out.println("Successfully deleted repository: " + repoName);
+            return true;
+            
+        } catch (Exception e) {
+            System.err.println("Failed to delete repository " + gitUrl + ": " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * Get the total disk usage of all repositories in the hub
+     * 
+     * @return Total size in bytes, or -1 if calculation fails
+     */
+    public long getTotalDiskUsage() {
+        try {
+            List<Path> repositories = getAllRepositoryPaths();
+            long totalSize = 0;
+            
+            for (Path repoPath : repositories) {
+                totalSize += calculateDirectorySize(repoPath);
+            }
+            
+            return totalSize;
+        } catch (Exception e) {
+            System.err.println("Error calculating disk usage: " + e.getMessage());
+            return -1;
+        }
+    }
+    
+    /**
+     * Calculate the size of a directory recursively
+     * 
+     * @param dir Directory to calculate size for
+     * @return Size in bytes
+     */
+    private long calculateDirectorySize(Path dir) {
+        try {
+            return Files.walk(dir)
+                .filter(path -> Files.isRegularFile(path))
+                .mapToLong(path -> {
+                    try {
+                        return Files.size(path);
+                    } catch (IOException e) {
+                        return 0;
+                    }
+                })
+                .sum();
+        } catch (IOException e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Get disk usage information for all repositories
+     * 
+     * @return Formatted string with disk usage information
+     */
+    public String getDiskUsageInfo() {
+        long totalSize = getTotalDiskUsage();
+        if (totalSize < 0) {
+            return "Unable to calculate disk usage";
+        }
+        
+        List<Path> repositories = getAllRepositoryPaths();
+        StringBuilder info = new StringBuilder();
+        info.append("Disk Usage Information:\n");
+        info.append("Total repositories: ").append(repositories.size()).append("\n");
+        info.append("Total size: ").append(formatFileSize(totalSize)).append("\n\n");
+        
+        for (Path repoPath : repositories) {
+            try {
+                long repoSize = calculateDirectorySize(repoPath);
+                info.append(repoPath.getFileName()).append(": ").append(formatFileSize(repoSize)).append("\n");
+            } catch (Exception e) {
+                info.append(repoPath.getFileName()).append(": Error calculating size\n");
+            }
+        }
+        
+        return info.toString();
+    }
+    
+    /**
+     * Format file size in human-readable format
+     * 
+     * @param bytes Size in bytes
+     * @return Formatted size string
+     */
+    private String formatFileSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+        return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+    }
+    
+    /**
      * Check if a repository exists in the hub
      * 
      * @param gitUrl Git repository URL
