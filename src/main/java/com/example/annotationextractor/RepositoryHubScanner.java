@@ -23,14 +23,18 @@ public class RepositoryHubScanner {
     private final DataPersistenceService dataService;
     private final String repositoryListPath;
     
-    public RepositoryHubScanner(String repositoryHubPath, String repositoryListPath, String username, String password) {
-        this.gitManager = new GitRepositoryManager(repositoryHubPath, username, password);
+    public RepositoryHubScanner(String repositoryHubPath, String repositoryListPath, String username, String password, String sshKeyPath) {
+        this.gitManager = new GitRepositoryManager(repositoryHubPath, username, password, sshKeyPath);
         this.dataService = new DataPersistenceService();
         this.repositoryListPath = repositoryListPath;
     }
     
+    public RepositoryHubScanner(String repositoryHubPath, String repositoryListPath, String username, String password) {
+        this(repositoryHubPath, repositoryListPath, username, password, null);
+    }
+    
     public RepositoryHubScanner(String repositoryHubPath, String repositoryListPath) {
-        this(repositoryHubPath, repositoryListPath, null, null);
+        this(repositoryHubPath, repositoryListPath, null, null, null);
     }
     
     public boolean executeFullScan() {

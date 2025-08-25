@@ -3,8 +3,9 @@
 # Lines starting with # are comments and will be ignored
 # Empty lines are also ignored
 
-# Note: Using HTTPS URLs instead of SSH for better compatibility
-# SSH URLs like git@github.com:username/repo.git will be automatically converted to HTTPS
+# Note: This file now supports both SSH and HTTPS URLs
+# SSH URLs (git@github.com:username/repo.git) will use SSH authentication
+# HTTPS URLs will use username/password if provided, or no auth for public repos
 
 # Example repositories (replace with your actual repositories):
 # https://github.com/example/repo1.git
@@ -16,10 +17,14 @@
 # https://github.com/mockito/mockito.git
 # https://github.com/hamcrest/JavaHamcrest.git
 
-# Your repositories (converted to HTTPS for better compatibility):
-https://github.com/jaksonlin/testcraft-dashboard.git
-https://github.com/jaksonlin/db2h2.git
+# Your repositories (using SSH URLs for SSH authentication):
+git@github.com:jaksonlin/testcraft-dashboard.git
+git@github.com:jaksonlin/db2h2.git
 
-# Note: Make sure you have proper access to private repositories
-# For private repositories, you'll need to provide username and password/token
-# when running the RepositoryHubRunner
+# Note: For SSH authentication, you can either:
+# 1. Use default SSH configuration (ssh-agent, ~/.ssh/id_rsa, etc.):
+#    java RepositoryHubRunner ./repos ./repo-list.txt
+# 2. Specify a specific SSH key:
+#    java RepositoryHubRunner ./repos ./repo-list.txt ~/.ssh/github_key
+# 3. Use HTTPS with username/password:
+#    java RepositoryHubRunner ./repos ./repo-list.txt myuser mytoken

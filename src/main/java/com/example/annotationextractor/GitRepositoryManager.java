@@ -5,7 +5,14 @@ import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
+import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
+import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
 import org.eclipse.jgit.transport.URIish;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+import org.eclipse.jgit.util.FS;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,13 +25,29 @@ import java.util.List;
 /**
  * Manages Git repositories in a repository hub directory
  * Handles cloning, pulling, and updating repositories
- * Automatically converts SSH URLs to HTTPS for better compatibility
+ * Supports both SSH and HTTPS authentication methods
  */
 public class GitRepositoryManager {
     
     private final String repositoryHubPath;
     private final String username;
     private final String password;
+    private final String sshKeyPath;
+    
+    /**
+     * Constructor for GitRepositoryManager with SSH key support
+     * 
+     * @param repositoryHubPath Path to the repository hub directory
+     * @param username Git username (can be null for public repos)
+     * @param password Git password/token (can be null for public repos)
+     * @param sshKeyPath Path to SSH private key (can be null to use default SSH config)
+     */
+    public GitRepositoryManager(String repositoryHubPath, String username, String password, String sshKeyPath) {
+        this.repositoryHubPath = repositoryHubPath;
+        this.username = username;
+        this.password = password;
+        this.sshKeyPath = sshKeyPath;
+    }
     
     /**
      * Constructor for GitRepositoryManager
@@ -34,9 +57,7 @@ public class GitRepositoryManager {
      * @param password Git password/token (can be null for public repos)
      */
     public GitRepositoryManager(String repositoryHubPath, String username, String password) {
-        this.repositoryHubPath = repositoryHubPath;
-        this.username = username;
-        this.password = password;
+        this(repositoryHubPath, username, password, null);
     }
     
     /**
@@ -45,7 +66,7 @@ public class GitRepositoryManager {
      * @param repositoryHubPath Path to the repository hub directory
      */
     public GitRepositoryManager(String repositoryHubPath) {
-        this(repositoryHubPath, null, null);
+        this(repositoryHubPath, null, null, null);
     }
     
     /**
@@ -96,12 +117,6 @@ public class GitRepositoryManager {
         try {
             System.out.println("Cloning repository: " + repoName + " from " + gitUrl);
             
-            // Convert SSH URL to HTTPS if needed
-            String convertedUrl = convertSshToHttps(gitUrl);
-            if (!convertedUrl.equals(gitUrl)) {
-                System.out.println("Converted SSH URL to HTTPS: " + convertedUrl);
-            }
-            
             // Check if repository directory already exists and clean it if needed
             if (Files.exists(repoPath)) {
                 System.out.println("Repository directory already exists, cleaning: " + repoPath);
@@ -110,11 +125,15 @@ public class GitRepositoryManager {
             
             Git git = null;
             try {
-                if (username != null && password != null) {
-                    // Clone with authentication
-                    System.out.println("Cloning with authentication for user: " + username);
+                if (isSshUrl(gitUrl)) {
+                    // Clone with SSH authentication
+                    System.out.println("Cloning with SSH authentication");
+                    git = cloneWithSsh(gitUrl, repoPath);
+                } else if (username != null && password != null) {
+                    // Clone with HTTPS authentication
+                    System.out.println("Cloning with HTTPS authentication for user: " + username);
                     git = Git.cloneRepository()
-                        .setURI(convertedUrl)
+                        .setURI(gitUrl)
                         .setDirectory(repoPath.toFile())
                         .setCredentialsProvider(new UsernamePasswordCredentialsProvider(username, password))
                         .setTimeout(300) // 5 minutes timeout
@@ -123,7 +142,7 @@ public class GitRepositoryManager {
                     // Clone without authentication (public repos)
                     System.out.println("Cloning public repository without authentication");
                     git = Git.cloneRepository()
-                        .setURI(convertedUrl)
+                        .setURI(gitUrl)
                         .setDirectory(repoPath.toFile())
                         .setTimeout(300) // 5 minutes timeout
                         .call();
@@ -152,7 +171,10 @@ public class GitRepositoryManager {
                 System.err.println("  - Check your internet connection");
                 System.err.println("  - Verify the repository URL is correct");
                 System.err.println("  - Ensure you have access to the repository");
-                if (username != null) {
+                if (isSshUrl(gitUrl)) {
+                    System.err.println("  - Verify your SSH key is properly configured and added to your GitHub account");
+                    System.err.println("  - Check that ssh-agent is running and your key is loaded");
+                } else if (username != null) {
                     System.err.println("  - Verify your username and password/token are correct");
                 }
             } else if (e.getMessage().contains("timeout")) {
@@ -162,9 +184,15 @@ public class GitRepositoryManager {
                 System.err.println("  - Network firewall restrictions");
             } else if (e.getMessage().contains("Authentication failed")) {
                 System.err.println("  Authentication failed. Please check:");
-                System.err.println("  - Username and password/token are correct");
-                System.err.println("  - You have access to the repository");
-                System.err.println("  - The repository is not private or you have proper access");
+                if (isSshUrl(gitUrl)) {
+                    System.err.println("  - Your SSH key is properly configured");
+                    System.err.println("  - The SSH key is added to your GitHub account");
+                    System.err.println("  - ssh-agent is running and your key is loaded");
+                } else {
+                    System.err.println("  - Username and password/token are correct");
+                    System.err.println("  - You have access to the repository");
+                    System.err.println("  - The repository is not private or you have proper access");
+                }
             }
             
             e.printStackTrace();
@@ -190,29 +218,52 @@ public class GitRepositoryManager {
     }
 
     /**
-     * Convert SSH URL to HTTPS URL for better compatibility
-     * Example: git@github.com:username/repo.git -> https://github.com/username/repo.git
+     * Clone repository using SSH authentication
      */
-    private String convertSshToHttps(String gitUrl) {
-        if (gitUrl.startsWith("git@")) {
-            // Convert git@github.com:username/repo.git to https://github.com/username/repo.git
-            String[] parts = gitUrl.split(":");
-            if (parts.length == 2) {
-                String host = parts[0].substring(4); // Remove "git@" prefix
-                String repoPath = parts[1];
-                return "https://" + host + "/" + repoPath;
+    private Git cloneWithSsh(String gitUrl, Path repoPath) throws GitAPIException, IOException {
+        // Configure SSH session factory
+        JschConfigSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
+            @Override
+            protected void configure(OpenSshConfig.Host host, Session session) {
+                // No additional configuration needed
             }
-        } else if (gitUrl.startsWith("ssh://")) {
-            // Convert ssh://git@github.com/username/repo.git to https://github.com/username/repo.git
-            String cleanUrl = gitUrl.replace("ssh://", "");
-            if (cleanUrl.startsWith("git@")) {
-                cleanUrl = cleanUrl.substring(4); // Remove "git@" prefix
+
+            @Override
+            protected JSch createDefaultJSch(FS fs) throws JSchException {
+                JSch defaultJSch = super.createDefaultJSch(fs);
+                
+                // If a specific SSH key path is provided, use it
+                if (sshKeyPath != null && Files.exists(Paths.get(sshKeyPath))) {
+                    defaultJSch.addIdentity(sshKeyPath);
+                    System.out.println("Using SSH key: " + sshKeyPath);
+                } else {
+                    // Otherwise, use the default SSH configuration (including ssh-agent)
+                    System.out.println("Using default SSH configuration (ssh-agent, ~/.ssh/id_rsa, etc.)");
+                }
+                
+                return defaultJSch;
             }
-            return "https://" + cleanUrl;
-        }
-        return gitUrl; // Return original URL if not SSH
+        };
+
+        return Git.cloneRepository()
+            .setURI(gitUrl)
+            .setDirectory(repoPath.toFile())
+            .setTransportConfigCallback(transport -> {
+                if (transport instanceof SshTransport) {
+                    ((SshTransport) transport).setSshSessionFactory(sshSessionFactory);
+                }
+            })
+            .setTimeout(300) // 5 minutes timeout
+            .call();
     }
-    
+
+    /**
+     * Check if the given URL is an SSH URL
+     */
+    private boolean isSshUrl(String gitUrl) {
+        return gitUrl.startsWith("git@") || gitUrl.startsWith("ssh://");
+    }
+
     /**
      * Pull latest changes from an existing repository
      */
