@@ -3,6 +3,9 @@
 # Lines starting with # are comments and will be ignored
 # Empty lines are also ignored
 
+# Note: Using HTTPS URLs instead of SSH for better compatibility
+# SSH URLs like git@github.com:username/repo.git will be automatically converted to HTTPS
+
 # Example repositories (replace with your actual repositories):
 # https://github.com/example/repo1.git
 # https://github.com/example/repo2
@@ -12,6 +15,10 @@
 # https://github.com/junit-team/junit4.git
 # https://github.com/mockito/mockito.git
 # https://github.com/hamcrest/JavaHamcrest.git
+
+# Your repositories (converted to HTTPS for better compatibility):
+https://github.com/jaksonlin/testcraft-dashboard.git
+https://github.com/jaksonlin/db2h2.git
 
 # Note: Make sure you have proper access to private repositories
 # For private repositories, you'll need to provide username and password/token

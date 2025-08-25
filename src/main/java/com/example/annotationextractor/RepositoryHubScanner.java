@@ -1,9 +1,11 @@
 package com.example.annotationextractor;
 
 import com.example.annotationextractor.database.DatabaseSchemaManager;
+import com.example.annotationextractor.reporting.ExcelReportGenerator;
 import com.example.annotationextractor.database.DataPersistenceService;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
@@ -88,6 +90,20 @@ public class RepositoryHubScanner {
                 System.out.println("Data persisted successfully. Scan Session ID: " + scanSessionId);
             } catch (SQLException e) {
                 System.err.println("Error persisting to database: " + e.getMessage());
+                e.printStackTrace();
+            }
+            // Generate report
+            try {
+                String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+                // create directory if it doesn't exist
+                Path reportDir = Paths.get(reportPath).getParent();
+                if (!Files.exists(reportDir)) {
+                    Files.createDirectories(reportDir);
+                }
+                ExcelReportGenerator.generateWeeklyReport(reportPath);
+                System.out.println("Report generated successfully: " + reportPath);
+            } catch (Exception e) {
+                System.err.println("Error generating report: " + e.getMessage());
                 e.printStackTrace();
             }
             return true;

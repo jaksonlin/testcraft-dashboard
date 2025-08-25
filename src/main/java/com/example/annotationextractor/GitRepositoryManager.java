@@ -18,6 +18,7 @@ import java.util.List;
 /**
  * Manages Git repositories in a repository hub directory
  * Handles cloning, pulling, and updating repositories
+ * Automatically converts SSH URLs to HTTPS for better compatibility
  */
 public class GitRepositoryManager {
     
@@ -95,25 +96,46 @@ public class GitRepositoryManager {
         try {
             System.out.println("Cloning repository: " + repoName + " from " + gitUrl);
             
+            // Convert SSH URL to HTTPS if needed
+            String convertedUrl = convertSshToHttps(gitUrl);
+            if (!convertedUrl.equals(gitUrl)) {
+                System.out.println("Converted SSH URL to HTTPS: " + convertedUrl);
+            }
+            
+            // Check if repository directory already exists and clean it if needed
+            if (Files.exists(repoPath)) {
+                System.out.println("Repository directory already exists, cleaning: " + repoPath);
+                cleanDirectory(repoPath);
+            }
+            
             Git git = null;
             try {
                 if (username != null && password != null) {
                     // Clone with authentication
+                    System.out.println("Cloning with authentication for user: " + username);
                     git = Git.cloneRepository()
-                        .setURI(gitUrl)
+                        .setURI(convertedUrl)
                         .setDirectory(repoPath.toFile())
                         .setCredentialsProvider(new UsernamePasswordCredentialsProvider(username, password))
+                        .setTimeout(300) // 5 minutes timeout
                         .call();
                 } else {
-                    // Clone without authentication
+                    // Clone without authentication (public repos)
+                    System.out.println("Cloning public repository without authentication");
                     git = Git.cloneRepository()
-                        .setURI(gitUrl)
+                        .setURI(convertedUrl)
                         .setDirectory(repoPath.toFile())
+                        .setTimeout(300) // 5 minutes timeout
                         .call();
                 }
                 
-                System.out.println("Successfully cloned repository: " + repoName);
-                return true;
+                if (git != null) {
+                    System.out.println("Successfully cloned repository: " + repoName);
+                    return true;
+                } else {
+                    System.err.println("Failed to clone repository: " + repoName + " - git object is null");
+                    return false;
+                }
                 
             } finally {
                 if (git != null) {
@@ -121,10 +143,74 @@ public class GitRepositoryManager {
                 }
             }
             
-        } catch (GitAPIException e) {
+        } catch (Exception e) {
             System.err.println("Failed to clone repository " + repoName + ": " + e.getMessage());
+            
+            // Provide more specific error messages for common issues
+            if (e.getMessage().contains("remote hung up unexpectedly")) {
+                System.err.println("  This usually indicates a network issue, authentication problem, or repository access issue.");
+                System.err.println("  - Check your internet connection");
+                System.err.println("  - Verify the repository URL is correct");
+                System.err.println("  - Ensure you have access to the repository");
+                if (username != null) {
+                    System.err.println("  - Verify your username and password/token are correct");
+                }
+            } else if (e.getMessage().contains("timeout")) {
+                System.err.println("  Network timeout occurred. This might be due to:");
+                System.err.println("  - Slow internet connection");
+                System.err.println("  - Large repository size");
+                System.err.println("  - Network firewall restrictions");
+            } else if (e.getMessage().contains("Authentication failed")) {
+                System.err.println("  Authentication failed. Please check:");
+                System.err.println("  - Username and password/token are correct");
+                System.err.println("  - You have access to the repository");
+                System.err.println("  - The repository is not private or you have proper access");
+            }
+            
+            e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Clean a directory by removing all contents
+     */
+    private void cleanDirectory(Path dir) throws IOException {
+        if (Files.exists(dir)) {
+            Files.walk(dir)
+                .sorted((a, b) -> b.compareTo(a)) // Sort in reverse order to delete files before directories
+                .forEach(path -> {
+                    try {
+                        Files.delete(path);
+                    } catch (IOException e) {
+                        System.err.println("Warning: Could not delete " + path + ": " + e.getMessage());
+                    }
+                });
+        }
+    }
+
+    /**
+     * Convert SSH URL to HTTPS URL for better compatibility
+     * Example: git@github.com:username/repo.git -> https://github.com/username/repo.git
+     */
+    private String convertSshToHttps(String gitUrl) {
+        if (gitUrl.startsWith("git@")) {
+            // Convert git@github.com:username/repo.git to https://github.com/username/repo.git
+            String[] parts = gitUrl.split(":");
+            if (parts.length == 2) {
+                String host = parts[0].substring(4); // Remove "git@" prefix
+                String repoPath = parts[1];
+                return "https://" + host + "/" + repoPath;
+            }
+        } else if (gitUrl.startsWith("ssh://")) {
+            // Convert ssh://git@github.com/username/repo.git to https://github.com/username/repo.git
+            String cleanUrl = gitUrl.replace("ssh://", "");
+            if (cleanUrl.startsWith("git@")) {
+                cleanUrl = cleanUrl.substring(4); // Remove "git@" prefix
+            }
+            return "https://" + cleanUrl;
+        }
+        return gitUrl; // Return original URL if not SSH
     }
     
     /**
