@@ -25,10 +25,17 @@ public class TestCollectionRunner {
             System.out.println("  --report-path <path>  Specify report output path");
             System.out.println("  --include <pattern>  Include repositories matching pattern (can be used multiple times)");
             System.out.println("  --exclude <pattern>  Exclude repositories matching pattern (can be used multiple times)");
+            System.out.println("Database Options (override database.properties):");
+            System.out.println("  --db-host <host>     Database host (default: localhost)");
+            System.out.println("  --db-port <port>     Database port (default: 5432)");
+            System.out.println("  --db-name <name>     Database name (default: test_analytics)");
+            System.out.println("  --db-user <user>     Database username (default: postgres)");
+            System.out.println("  --db-pass <pass>     Database password (default: postgres)");
             System.out.println("Examples:");
             System.out.println("  java TestCollectionRunner /path/to/repositories --init-db --generate-report");
             System.out.println("  java TestCollectionRunner /path/to/repositories --include \"**/repository_group_finance_*/sub_project_for_view\" --include \"**/repository_group_finance_*/sub_project_for_dao\"");
             System.out.println("  java TestCollectionRunner /path/to/repositories --exclude \"**/expired_project*\" --exclude \"**/legacy_*\"");
+            System.out.println("  java TestCollectionRunner /path/to/repositories --init-db --db-host mydb.example.com --db-name production_db");
             return;
         }
         
@@ -38,6 +45,13 @@ public class TestCollectionRunner {
         String reportPath = "test_analytics_report.xlsx";
         List<String> includePatterns = new ArrayList<>();
         List<String> excludePatterns = new ArrayList<>();
+        
+        // Database connection parameters
+        String dbHost = null;
+        String dbPort = null;
+        String dbName = null;
+        String dbUser = null;
+        String dbPass = null;
         
         // Parse command line options
         for (int i = 1; i < args.length; i++) {
@@ -51,6 +65,16 @@ public class TestCollectionRunner {
                 includePatterns.add(args[++i]);
             } else if ("--exclude".equals(args[i]) && i + 1 < args.length) {
                 excludePatterns.add(args[++i]);
+            } else if ("--db-host".equals(args[i]) && i + 1 < args.length) {
+                dbHost = args[++i];
+            } else if ("--db-port".equals(args[i]) && i + 1 < args.length) {
+                dbPort = args[++i];
+            } else if ("--db-name".equals(args[i]) && i + 1 < args.length) {
+                dbName = args[++i];
+            } else if ("--db-user".equals(args[i]) && i + 1 < args.length) {
+                dbUser = args[++i];
+            } else if ("--db-pass".equals(args[i]) && i + 1 < args.length) {
+                dbPass = args[++i];
             }
         }
         
@@ -58,7 +82,26 @@ public class TestCollectionRunner {
             // Initialize database if requested
             if (initDb) {
                 System.out.println("Initializing database...");
-                DatabaseConfig.initialize();
+                
+                // Initialize database connection with CLI parameters if provided
+                if (dbHost != null || dbPort != null || dbName != null || dbUser != null || dbPass != null) {
+                    // Use CLI parameters, fall back to properties file for missing values
+                    String finalDbHost = dbHost != null ? dbHost : "localhost";
+                    String finalDbPort = dbPort != null ? dbPort : "5432";
+                    String finalDbName = dbName != null ? dbName : "test_analytics";
+                    String finalDbUser = dbUser != null ? dbUser : "postgres";
+                    String finalDbPass = dbPass != null ? dbPass : "postgres";
+                    
+                    System.out.println("Initializing database connection with CLI parameters...");
+                    DatabaseConfig.initializeFromCli(
+                        finalDbHost, finalDbPort, finalDbName, finalDbUser, finalDbPass
+                    );
+                } else {
+                    // Use properties file
+                    System.out.println("Initializing database connection from properties file...");
+                    DatabaseConfig.initialize();
+                }
+                
                 DatabaseSchemaManager.initializeSchema();
                 System.out.println("Database initialized successfully!");
             }

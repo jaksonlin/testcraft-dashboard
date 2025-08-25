@@ -3,8 +3,11 @@ package com.example.annotationextractor.database;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Properties;
 
 /**
  * Database configuration and connection management for PostgreSQL
@@ -12,19 +15,62 @@ import java.sql.SQLException;
 public class DatabaseConfig {
     
     private static HikariDataSource dataSource;
+    private static Properties dbProperties;
     
     // Default database configuration
     private static final String DEFAULT_HOST = "localhost";
-    private static final int DEFAULT_PORT = 5432;
+    private static final String DEFAULT_PORT = "5432";
     private static final String DEFAULT_DATABASE = "test_analytics";
     private static final String DEFAULT_USERNAME = "postgres";
     private static final String DEFAULT_PASSWORD = "postgres";
     
+    static {
+        loadProperties();
+    }
+    
     /**
-     * Initialize the database connection pool
+     * Load database properties from the properties file
+     */
+    private static void loadProperties() {
+        dbProperties = new Properties();
+        try (InputStream input = DatabaseConfig.class.getClassLoader().getResourceAsStream("database.properties")) {
+            if (input != null) {
+                dbProperties.load(input);
+            }
+        } catch (IOException e) {
+            System.err.println("Warning: Could not load database.properties, using defaults: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Get a property value with fallback to default
+     */
+    private static String getProperty(String key, String defaultValue) {
+        return dbProperties != null ? dbProperties.getProperty(key, defaultValue) : defaultValue;
+    }
+    
+    /**
+     * Get an integer property value with fallback to default
+     */
+    private static int getIntProperty(String key, int defaultValue) {
+        try {
+            return Integer.parseInt(getProperty(key, String.valueOf(defaultValue)));
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+    
+    /**
+     * Initialize the database connection pool using properties file
      */
     public static void initialize() {
-        initialize(DEFAULT_HOST, DEFAULT_PORT, DEFAULT_DATABASE, DEFAULT_USERNAME, DEFAULT_PASSWORD);
+        String host = getProperty("db.host", DEFAULT_HOST);
+        int port = getIntProperty("db.port", Integer.parseInt(DEFAULT_PORT));
+        String database = getProperty("db.name", DEFAULT_DATABASE);
+        String username = getProperty("db.username", DEFAULT_USERNAME);
+        String password = getProperty("db.password", DEFAULT_PASSWORD);
+        
+        initialize(host, port, database, username, password);
     }
     
     /**
@@ -38,26 +84,46 @@ public class DatabaseConfig {
         config.setUsername(username);
         config.setPassword(password);
         
-        // Connection pool settings
-        config.setMaximumPoolSize(10);
-        config.setMinimumIdle(5);
-        config.setIdleTimeout(300000); // 5 minutes
-        config.setMaxLifetime(1800000); // 30 minutes
-        config.setConnectionTimeout(30000); // 30 seconds
+        // Connection pool settings from properties or defaults
+        config.setMaximumPoolSize(getIntProperty("db.pool.maxSize", 10));
+        config.setMinimumIdle(getIntProperty("db.pool.minIdle", 5));
+        config.setIdleTimeout(getIntProperty("db.pool.idleTimeout", 300000)); // 5 minutes
+        config.setMaxLifetime(getIntProperty("db.pool.maxLifetime", 1800000)); // 30 minutes
+        config.setConnectionTimeout(getIntProperty("db.pool.connectionTimeout", 30000)); // 30 seconds
         
         // PostgreSQL specific settings
-        config.addDataSourceProperty("cachePrepStmts", "true");
-        config.addDataSourceProperty("prepStmtCacheSize", "250");
-        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-        config.addDataSourceProperty("useServerPrepStmts", "true");
-        config.addDataSourceProperty("useLocalSessionState", "true");
-        config.addDataSourceProperty("rewriteBatchedStatements", "true");
-        config.addDataSourceProperty("cacheResultSetMetadata", "true");
-        config.addDataSourceProperty("cacheServerConfiguration", "true");
-        config.addDataSourceProperty("elideSetAutoCommits", "true");
-        config.addDataSourceProperty("maintainTimeStats", "false");
+        config.addDataSourceProperty("cachePrepStmts", getProperty("db.postgres.cachePrepStmts", "true"));
+        config.addDataSourceProperty("prepStmtCacheSize", getProperty("db.postgres.prepStmtCacheSize", "250"));
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", getProperty("db.postgres.prepStmtCacheSqlLimit", "2048"));
+        config.addDataSourceProperty("useServerPrepStmts", getProperty("db.postgres.useServerPrepStmts", "true"));
+        config.addDataSourceProperty("useLocalSessionState", getProperty("db.postgres.useLocalSessionState", "true"));
+        config.addDataSourceProperty("rewriteBatchedStatements", getProperty("db.postgres.rewriteBatchedStatements", "true"));
+        config.addDataSourceProperty("cacheResultSetMetadata", getProperty("db.postgres.cacheResultSetMetadata", "true"));
+        config.addDataSourceProperty("cacheServerConfiguration", getProperty("db.postgres.cacheServerConfiguration", "true"));
+        config.addDataSourceProperty("elideSetAutoCommits", getProperty("db.postgres.elideSetAutoCommits", "true"));
+        config.addDataSourceProperty("maintainTimeStats", getProperty("db.postgres.maintainTimeStats", "false"));
         
         dataSource = new HikariDataSource(config);
+        
+        System.out.println("Database connection initialized:");
+        System.out.println("  Host: " + host);
+        System.out.println("  Port: " + port);
+        System.out.println("  Database: " + database);
+        System.out.println("  Username: " + username);
+    }
+    
+    /**
+     * Initialize database with CLI parameters (overrides properties file)
+     */
+    public static void initializeFromCli(String host, String port, String database, String username, String password) {
+        int portNum;
+        try {
+            portNum = Integer.parseInt(port);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid port number: " + port + ", using default: 5432");
+            portNum = 5432;
+        }
+        initialize(host, portNum, database, username, password);
     }
     
     /**

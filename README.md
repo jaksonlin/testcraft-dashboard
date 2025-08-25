@@ -110,6 +110,76 @@ db.username=test_user
 db.password=123456
 ```
 
+### Command Line Database Options
+
+You can override database connection settings from the command line using the following options:
+
+#### RepositoryHubRunner
+```bash
+java RepositoryHubRunner <repository_hub_path> <repository_list_file> [options] [database_options]
+
+# Database options:
+--db-host <host>     Database host (default: localhost)
+--db-port <port>     Database port (default: 5432)
+--db-name <name>     Database name (default: test_analytics)
+--db-user <user>     Database username (default: postgres)
+--db-pass <pass>     Database password (default: postgres)
+```
+
+**Examples:**
+```bash
+# Use custom database
+java RepositoryHubRunner ./repos ./repo-list.txt --db-host mydb.example.com --db-port 5433 --db-name mydb --db-user myuser --db-pass mypass
+
+# Override only specific parameters
+java RepositoryHubRunner ./repos ./repo-list.txt --db-host localhost --db-name production_db
+```
+
+#### TestCollectionRunner
+```bash
+java TestCollectionRunner <directory_path> [options] [database_options]
+
+# Database options:
+--db-host <host>     Database host (default: localhost)
+--db-port <port>     Database port (default: 5432)
+--db-name <name>     Database name (default: test_analytics)
+--db-user <user>     Database username (default: postgres)
+--db-pass <pass>     Database password (default: postgres)
+```
+
+**Examples:**
+```bash
+# Initialize database with custom connection
+java TestCollectionRunner /path/to/repositories --init-db --db-host mydb.example.com --db-name production_db
+
+# Full example with all options
+java TestCollectionRunner /path/to/repositories --init-db --generate-report --db-host localhost --db-port 5433 --db-name test_db --db-user testuser --db-pass testpass
+```
+
+#### DatabaseConnectionTester
+Test database connections directly:
+```bash
+java DatabaseConnectionTester [options]
+
+# Options:
+--host <host>     Database host (default: localhost)
+--port <port>     Database port (default: 5432)
+--db <name>       Database name (default: test_analytics)
+--user <user>     Database username (default: postgres)
+--pass <pass>     Database password (default: postgres)
+```
+
+**Examples:**
+```bash
+# Test default connection
+java DatabaseConnectionTester
+
+# Test custom connection
+java DatabaseConnectionTester --host mydb.example.com --port 5433 --db mydb --user myuser --pass mypass
+```
+
+**Note:** CLI parameters override values from `database.properties`. Parameters not specified will use defaults or values from the properties file.
+
 ## Test Directory Recognition
 
 The scanner automatically recognizes standard Java test directory patterns:

@@ -5,7 +5,7 @@ import java.nio.file.Paths;
 
 /**
  * Main command-line interface for Repository Hub Scanner
- * Usage: java RepositoryHubRunner <repository_hub_path> <repository_list_file> [username] [password]
+ * Usage: java RepositoryHubRunner <repository_hub_path> <repository_list_file> [username] [password] [ssh_key_path] [--db-host host] [--db-port port] [--db-name database] [--db-user dbuser] [--db-pass dbpass]
  */
 public class RepositoryHubRunner {
     
@@ -31,14 +31,64 @@ public class RepositoryHubRunner {
         
         String repositoryHubPath = args[0];
         String repositoryListPath = args[1];
-        String username = args.length > 2 ? args[2] : null;
-        String password = args.length > 3 ? args[3] : null;
-        String sshKeyPath = args.length > 4 ? args[4] : null;
+        String username = null;
+        String password = null;
+        String sshKeyPath = null;
+        
+        // Database connection parameters
+        String dbHost = null;
+        String dbPort = null;
+        String dbName = null;
+        String dbUser = null;
+        String dbPass = null;
+        
+        // Parse arguments
+        for (int i = 2; i < args.length; i++) {
+            if (args[i].equals("--db-host") && i + 1 < args.length) {
+                dbHost = args[++i];
+            } else if (args[i].equals("--db-port") && i + 1 < args.length) {
+                dbPort = args[++i];
+            } else if (args[i].equals("--db-name") && i + 1 < args.length) {
+                dbName = args[++i];
+            } else if (args[i].equals("--db-user") && i + 1 < args.length) {
+                dbUser = args[++i];
+            } else if (args[i].equals("--db-pass") && i + 1 < args.length) {
+                dbPass = args[++i];
+            } else if (sshKeyPath == null && !args[i].startsWith("--")) {
+                // First non-flag argument is username, second is password, third is ssh key
+                if (username == null) {
+                    username = args[i];
+                } else if (password == null) {
+                    password = args[i];
+                } else if (sshKeyPath == null) {
+                    sshKeyPath = args[i];
+                }
+            }
+        }
         
         try {
             // Validate paths
             if (!validatePaths(repositoryHubPath, repositoryListPath)) {
                 return;
+            }
+            
+            // Initialize database connection if CLI parameters are provided
+            if (dbHost != null || dbPort != null || dbName != null || dbUser != null || dbPass != null) {
+                // Use CLI parameters, fall back to properties file for missing values
+                String finalDbHost = dbHost != null ? dbHost : "localhost";
+                String finalDbPort = dbPort != null ? dbPort : "5432";
+                String finalDbName = dbName != null ? dbName : "test_analytics";
+                String finalDbUser = dbUser != null ? dbUser : "postgres";
+                String finalDbPass = dbPass != null ? dbPass : "postgres";
+                
+                System.out.println("Initializing database connection with CLI parameters...");
+                com.example.annotationextractor.database.DatabaseConfig.initializeFromCli(
+                    finalDbHost, finalDbPort, finalDbName, finalDbUser, finalDbPass
+                );
+            } else {
+                // Use properties file
+                System.out.println("Initializing database connection from properties file...");
+                com.example.annotationextractor.database.DatabaseConfig.initialize();
             }
             
             // Create and run the scanner
@@ -75,7 +125,7 @@ public class RepositoryHubRunner {
     }
     
     private static void printUsage() {
-        System.out.println("Usage: java RepositoryHubRunner <repository_hub_path> <repository_list_file> [username] [password] [ssh_key_path]");
+        System.out.println("Usage: java RepositoryHubRunner <repository_hub_path> <repository_list_file> [username] [password] [ssh_key_path] [database_options]");
         System.out.println("       java RepositoryHubRunner --ssh-help");
         System.out.println();
         System.out.println("Arguments:");
@@ -84,6 +134,13 @@ public class RepositoryHubRunner {
         System.out.println("  username             Git username for private repositories (optional)");
         System.out.println("  password             Git password/token for private repositories (optional)");
         System.out.println("  ssh_key_path         Path to SSH private key for SSH authentication (optional)");
+        System.out.println();
+        System.out.println("Database Options (override database.properties):");
+        System.out.println("  --db-host <host>     Database host (default: localhost)");
+        System.out.println("  --db-port <port>     Database port (default: 5432)");
+        System.out.println("  --db-name <name>     Database name (default: test_analytics)");
+        System.out.println("  --db-user <user>     Database username (default: postgres)");
+        System.out.println("  --db-pass <pass>     Database password (default: postgres)");
         System.out.println();
         System.out.println("Options:");
         System.out.println("  --help, -h            Show this help message");
@@ -98,31 +155,11 @@ public class RepositoryHubRunner {
         System.out.println("  3. No authentication (public repos only):");
         System.out.println("     java RepositoryHubRunner ./repos ./repo-list.txt");
         System.out.println();
-        System.out.println("SSH Key Support:");
-        System.out.println("  - OpenSSH format: id_rsa, id_ed25519 (recommended)");
-        System.out.println("  - PEM format: .pem, .key files");
-        System.out.println("  - PuTTY format: .ppk files (limited support)");
-        System.out.println("  - Use --ssh-help for detailed SSH key guidance");
+        System.out.println("Database Connection Examples:");
+        System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt --db-host mydb.example.com --db-port 5433 --db-name mydb --db-user myuser --db-pass mypass");
+        System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt --db-host localhost --db-name production_db");
         System.out.println();
-        System.out.println("Examples:");
-        System.out.println("  # SSH authentication (uses default SSH config)");
-        System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt");
-        System.out.println("  # SSH authentication with specific key");
-        System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt ~/.ssh/github_key");
-        System.out.println("  # HTTPS authentication");
-        System.out.println("  java RepositoryHubRunner ./repo-list.txt myuser mytoken");
-        System.out.println("  # Show SSH key help");
-        System.out.println("  java RepositoryHubRunner --ssh-help");
-        System.out.println();
-        System.out.println("Repository List File Format:");
-        System.out.println("  # Comments start with #");
-        System.out.println("  https://github.com/example/repo1.git");
-        System.out.println("  https://github.com/example/repo2");
-        System.out.println("  git@github.com:example/repo3.git");
-        System.out.println();
-        System.out.println("Note: SSH URLs (git@github.com:...) will use SSH authentication.");
-        System.out.println("      HTTPS URLs will use username/password if provided, or no auth for public repos.");
-        System.out.println("      For SSH issues, run: java RepositoryHubRunner --ssh-help");
+        System.out.println("Note: Database parameters not specified via CLI will use values from database.properties file");
     }
     
     private static boolean validatePaths(String repositoryHubPath, String repositoryListPath) {
