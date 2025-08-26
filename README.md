@@ -74,6 +74,14 @@ import com.example.annotationextractor.reporting.*;
 ExcelReportGenerator.generateWeeklyReport("weekly_report.xlsx");
 ```
 
+The Excel report includes the following sheets:
+- **Weekly Summary**: Overview of test analytics metrics
+- **Repository Details**: Repository-level test coverage information
+- **Trends & Analysis**: Historical coverage trends over time
+- **Annotation Coverage**: Coverage analysis with recommendations
+- **Test Method Details**: Comprehensive test method information with annotations for review
+
+
 ### Command Line Usage
 
 ```bash
