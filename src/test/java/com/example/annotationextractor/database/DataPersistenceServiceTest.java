@@ -290,6 +290,8 @@ public class DataPersistenceServiceTest {
         for (int i = 1; i <= 5; i++) {
             TestMethodInfo method = new TestMethodInfo();
             method.setMethodName("testMethod" + i);
+            method.setClassName(className);
+            method.setPackageName(packageName);
             method.setLineNumber(10 + i);
             method.setAnnotationData(i <= 3 ? createTestAnnotation() : null);
             methods.add(method);
@@ -314,6 +316,8 @@ public class DataPersistenceServiceTest {
         for (int i = 1; i <= 4; i++) {
             TestMethodInfo method = new TestMethodInfo();
             method.setMethodName("testMethod" + i);
+            method.setClassName(className);
+            method.setPackageName(packageName);
             method.setLineNumber(20 + i);
             method.setAnnotationData(i <= 2 ? createTestAnnotation() : null);
             methods.add(method);
@@ -338,6 +342,8 @@ public class DataPersistenceServiceTest {
         for (int i = 1; i <= 3; i++) {
             TestMethodInfo method = new TestMethodInfo();
             method.setMethodName("testMethod" + i);
+            method.setClassName(className);
+            method.setPackageName(packageName);
             method.setLineNumber(30 + i);
             method.setAnnotationData(createTestAnnotation());
             methods.add(method);

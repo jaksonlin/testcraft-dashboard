@@ -3,6 +3,7 @@ package com.example.annotationextractor.reporting;
 import com.example.annotationextractor.database.DatabaseConfig;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 
 import java.io.FileOutputStream;
@@ -13,17 +14,23 @@ import java.util.Date;
 
 /**
  * Generates Excel reports for test analytics data
+ * Optimized with streaming for large-scale datasets
  */
 public class ExcelReportGenerator {
     
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     
-        /**
-     * Generate a comprehensive weekly report
+    // Streaming settings for large datasets
+    private static final int STREAMING_WINDOW_SIZE = 100;
+    private static final int MAX_ROWS_PER_SHEET = 100000; // Excel limit is ~1M rows
+    
+    /**
+     * Generate a comprehensive weekly report using streaming for large datasets
      */
     public static void generateWeeklyReport(String outputPath) throws IOException, SQLException {
-        try (Workbook workbook = new XSSFWorkbook()) {
+        // Use streaming workbook for large datasets
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(STREAMING_WINDOW_SIZE)) {
             
             // Create summary sheet
             Sheet summarySheet = workbook.createSheet("Weekly Summary");
@@ -41,14 +48,17 @@ public class ExcelReportGenerator {
             Sheet coverageSheet = workbook.createSheet("Annotation Coverage");
             createCoverageSheet(workbook, coverageSheet);
             
-            // Create test method details sheet
+            // Create test method details sheet with streaming
             Sheet testMethodSheet = workbook.createSheet("Test Method Details");
-            createTestMethodDetailsSheet(workbook, testMethodSheet);
+            createTestMethodDetailsSheetStreaming(workbook, testMethodSheet);
             
             // Write to file
             try (FileOutputStream fileOut = new FileOutputStream(outputPath)) {
                 workbook.write(fileOut);
             }
+            
+            // Clean up temporary files created by streaming
+            workbook.dispose();
             
             System.out.println("Weekly report generated successfully: " + outputPath);
         }
@@ -354,35 +364,33 @@ public class ExcelReportGenerator {
     }
     
     /**
-     * Create test method details sheet with comprehensive annotation information
+     * Create test method details sheet with streaming for large datasets
      */
-    private static void createTestMethodDetailsSheet(Workbook workbook, Sheet sheet) throws SQLException {
-        // Set column widths for comprehensive test method information
-        sheet.setColumnWidth(0, 3000);  // Repository
-        sheet.setColumnWidth(1, 4000);  // Test Class
-        sheet.setColumnWidth(2, 4000);  // Test Method
-        sheet.setColumnWidth(3, 3000);  // Line Number
-        sheet.setColumnWidth(4, 4000);  // Title
-        sheet.setColumnWidth(5, 3000);  // Author
-        sheet.setColumnWidth(6, 3000);  // Status
-        sheet.setColumnWidth(7, 4000);  // Target Class
-        sheet.setColumnWidth(8, 4000);  // Target Method
-        sheet.setColumnWidth(9, 6000);  // Description
-        sheet.setColumnWidth(10, 4000); // Test Points
-        sheet.setColumnWidth(11, 4000); // Tags
-        sheet.setColumnWidth(12, 4000); // Requirements
-        sheet.setColumnWidth(13, 4000); // Test Case IDs
-        sheet.setColumnWidth(14, 4000); // Defects
-        sheet.setColumnWidth(15, 4000); // Last Update
-        sheet.setColumnWidth(16, 3000); // Last Update Author
+    private static void createTestMethodDetailsSheetStreaming(Workbook workbook, Sheet sheet) throws SQLException {
+        // Set column widths
+        sheet.setColumnWidth(0, 3000); // Repository
+        sheet.setColumnWidth(1, 3000); // Class
+        sheet.setColumnWidth(2, 3000); // Method
+        sheet.setColumnWidth(3, 2000); // Line
+        sheet.setColumnWidth(4, 4000); // Title
+        sheet.setColumnWidth(5, 2000); // Author
+        sheet.setColumnWidth(6, 2000); // Status
+        sheet.setColumnWidth(7, 3000); // Target Class
+        sheet.setColumnWidth(8, 3000); // Target Method
+        sheet.setColumnWidth(9, 5000); // Description
+        sheet.setColumnWidth(10, 3000); // Test Points
+        sheet.setColumnWidth(11, 3000); // Tags
+        sheet.setColumnWidth(12, 3000); // Requirements
+        sheet.setColumnWidth(13, 3000); // Test Cases
+        sheet.setColumnWidth(14, 3000); // Defects
+        sheet.setColumnWidth(15, 3000); // Last Modified
+        sheet.setColumnWidth(16, 2000); // Last Author
         
         // Create headers
         Row headerRow = sheet.createRow(0);
-        String[] headers = {
-            "Repository", "Test Class", "Test Method", "Line", "Title", "Author", "Status",
-            "Target Class", "Target Method", "Description", "Test Points", "Tags", 
-            "Requirements", "Test Case IDs", "Defects", "Last Update", "Last Update Author"
-        };
+        String[] headers = {"Repository", "Class", "Method", "Line", "Title", "Author", "Status", 
+                           "Target Class", "Target Method", "Description", "Test Points", "Tags", 
+                           "Requirements", "Test Cases", "Defects", "Last Modified", "Last Author"};
         
         CellStyle headerStyle = createHeaderStyle(workbook);
         for (int i = 0; i < headers.length; i++) {
@@ -391,7 +399,7 @@ public class ExcelReportGenerator {
             cell.setCellStyle(headerStyle);
         }
         
-        // Get comprehensive test method data with annotations
+        // Get test method data with streaming approach
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
                  "SELECT " +
@@ -409,20 +417,38 @@ public class ExcelReportGenerator {
                  "    tm.annotation_test_points, " +
                  "    tm.annotation_tags, " +
                  "    tm.annotation_requirements, " +
-                 "    tm.annotation_data, " +
-                 "    tm.last_modified_date " +
+                 "    tm.annotation_testcases, " +
+                 "    tm.annotation_defects, " +
+                 "    tm.last_modified_date, " +
+                 "    tm.annotation_last_update_author " +
                  "FROM test_methods tm " +
                  "JOIN test_classes tc ON tm.test_class_id = tc.id " +
                  "JOIN repositories r ON tc.repository_id = r.id " +
                  "WHERE tm.has_annotation = true " +
-                 "ORDER BY r.repository_name, tc.class_name, tm.method_name")) {
+                 "ORDER BY r.repository_name, tc.class_name, tm.method_name",
+                 ResultSet.TYPE_FORWARD_ONLY,
+                 ResultSet.CONCUR_READ_ONLY)) {
+            
+            // Set fetch size for streaming
+            stmt.setFetchSize(1000);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;
+                int totalRows = 0;
                 boolean hasData = false;
+                
                 while (rs.next()) {
                     hasData = true;
+                    
+                    // Check if we're approaching Excel row limit
+                    if (rowNum >= MAX_ROWS_PER_SHEET) {
+                        System.out.println("⚠️ Warning: Reached Excel row limit (" + MAX_ROWS_PER_SHEET + "). " +
+                                         "Consider splitting report into multiple files for very large datasets.");
+                        break;
+                    }
+                    
                     Row row = sheet.createRow(rowNum++);
+                    totalRows++;
                     
                     // Repository and class information
                     row.createCell(0).setCellValue(rs.getString("repository_name"));
@@ -448,22 +474,24 @@ public class ExcelReportGenerator {
                     String[] requirements = (String[]) rs.getArray("annotation_requirements").getArray();
                     row.createCell(12).setCellValue(arrayToString(requirements));
                     
-                    // Extract test case IDs from JSONB data if available
-                    String testCaseIds = extractTestCaseIdsFromJson(rs.getString("annotation_data"));
-                    row.createCell(13).setCellValue(testCaseIds);
+                    String[] testCases = (String[]) rs.getArray("annotation_testcases").getArray();
+                    row.createCell(13).setCellValue(arrayToString(testCases));
                     
-                    // Extract defects from JSONB data if available
-                    String defects = extractDefectsFromJson(rs.getString("annotation_data"));
-                    row.createCell(14).setCellValue(defects);
+                    String[] defects = (String[]) rs.getArray("annotation_defects").getArray();
+                    row.createCell(14).setCellValue(arrayToString(defects));
                     
                     // Timestamp information
                     if (rs.getTimestamp("last_modified_date") != null) {
                         row.createCell(15).setCellValue(rs.getTimestamp("last_modified_date").toString());
                     }
                     
-                    // Last update author from JSONB data if available
-                    String lastUpdateAuthor = extractLastUpdateAuthorFromJson(rs.getString("annotation_data"));
-                    row.createCell(16).setCellValue(lastUpdateAuthor);
+                    // Last update author
+                    row.createCell(16).setCellValue(rs.getString("annotation_last_update_author"));
+                    
+                    // Progress indicator for large datasets
+                    if (totalRows % 1000 == 0) {
+                        System.out.println("📊 Processed " + totalRows + " test methods for report...");
+                    }
                 }
                 
                 if (!hasData) {
@@ -483,6 +511,8 @@ public class ExcelReportGenerator {
                     messageStyle.setFont(messageFont);
                     messageStyle.setAlignment(HorizontalAlignment.CENTER);
                     noDataCell.setCellStyle(messageStyle);
+                } else {
+                    System.out.println("✅ Report generated with " + totalRows + " test method rows");
                 }
             }
         }

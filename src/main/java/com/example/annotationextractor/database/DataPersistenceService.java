@@ -1,6 +1,7 @@
 package com.example.annotationextractor.database;
 
 import com.example.annotationextractor.*;
+import com.example.annotationextractor.PerformanceMonitor;
 import org.postgresql.util.PGobject;
 
 import java.sql.*;
@@ -8,30 +9,59 @@ import java.util.List;
 
 /**
  * Service for persisting scan results to the database
+ * Optimized with batch operations for large-scale scanning
  */
 public class DataPersistenceService {
     
+    // Batch size for optimal performance
+    private static final int BATCH_SIZE = 1000;
+    
     /**
-     * Persist a complete scan session with all its data
+     * Persist a complete scan session with all its data using batch operations
      */
     public static long persistScanSession(TestCollectionSummary summary, long scanDurationMs) throws SQLException {
+        PerformanceMonitor.startOperation("Database Persistence");
+        
         try (Connection conn = DatabaseConfig.getConnection()) {
             conn.setAutoCommit(false);
             
             try {
-                // Insert scan session
-                long scanSessionId = insertScanSession(conn, summary, scanDurationMs);
+                long startTime = System.currentTimeMillis();
+                int totalMethods = 0;
                 
-                // Persist repositories and their data
+                // Insert scan session
+                PerformanceMonitor.startOperation("Insert Scan Session");
+                long scanSessionId = insertScanSession(conn, summary, scanDurationMs);
+                PerformanceMonitor.endOperation("Insert Scan Session");
+                
+                // Persist repositories and their data using batch operations
+                PerformanceMonitor.startOperation("Persist Repositories");
                 for (RepositoryTestInfo repo : summary.getRepositories()) {
+                    PerformanceMonitor.startOperation("Repository: " + repo.getRepositoryName());
                     long repositoryId = persistRepository(conn, repo, scanSessionId);
-                    persistTestClasses(conn, repo, repositoryId, scanSessionId);
+                    
+                    // Use batch operations for test classes and methods
+                    persistTestClassesBatch(conn, repo, repositoryId, scanSessionId);
+                    
+                    totalMethods += repo.getTotalTestMethods();
+                    PerformanceMonitor.endOperation("Repository: " + repo.getRepositoryName());
+                    PerformanceMonitor.incrementCounter("Repositories Processed");
+                    PerformanceMonitor.incrementCounter("Total Test Methods");
                 }
+                PerformanceMonitor.endOperation("Persist Repositories");
                 
                 // Update daily metrics
+                PerformanceMonitor.startOperation("Update Daily Metrics");
                 updateDailyMetrics(conn, summary);
+                PerformanceMonitor.endOperation("Update Daily Metrics");
                 
                 conn.commit();
+                
+                long totalTime = System.currentTimeMillis() - startTime;
+                System.out.println("Total database persistence: " + totalTime + "ms for " + totalMethods + " methods");
+                System.out.println("Average time per method: " + (totalTime / (double) totalMethods) + "ms");
+                
+                PerformanceMonitor.endOperation("Database Persistence");
                 return scanSessionId;
                 
             } catch (SQLException e) {
@@ -105,139 +135,196 @@ public class DataPersistenceService {
     }
     
     /**
-     * Persist test classes for a repository
+     * Persist test classes for a repository using batch operations
      */
-    private static void persistTestClasses(Connection conn, RepositoryTestInfo repo, long repositoryId, long scanSessionId) throws SQLException {
+    private static void persistTestClassesBatch(Connection conn, RepositoryTestInfo repo, long repositoryId, long scanSessionId) throws SQLException {
+        if (repo.getTestClasses().isEmpty()) {
+            return;
+        }
+        
+        // Batch insert test classes
+        String testClassSql = "INSERT INTO test_classes (repository_id, class_name, package_name, file_path, " +
+                             "total_test_methods, annotated_test_methods, coverage_rate, scan_session_id) " +
+                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+                             "ON CONFLICT (repository_id, class_name, package_name) DO UPDATE SET " +
+                             "total_test_methods = EXCLUDED.total_test_methods, " +
+                             "annotated_test_methods = EXCLUDED.annotated_test_methods, " +
+                             "coverage_rate = EXCLUDED.coverage_rate, " +
+                             "last_modified_date = CURRENT_TIMESTAMP " +
+                             "RETURNING id";
+        
+        try (PreparedStatement testClassStmt = conn.prepareStatement(testClassSql)) {
+            int batchCount = 0;
+            
+            for (TestClassInfo testClass : repo.getTestClasses()) {
+                // Set parameters for test class
+                testClassStmt.setLong(1, repositoryId);
+                testClassStmt.setString(2, testClass.getClassName());
+                testClassStmt.setString(3, testClass.getPackageName());
+                testClassStmt.setString(4, testClass.getFilePath());
+                testClassStmt.setInt(5, testClass.getTotalTestMethods());
+                testClassStmt.setInt(6, testClass.getAnnotatedTestMethods());
+                
+                double coverageRate = testClass.getTotalTestMethods() > 0 ? 
+                    (double) testClass.getAnnotatedTestMethods() / testClass.getTotalTestMethods() * 100 : 0.0;
+                testClassStmt.setDouble(7, coverageRate);
+                testClassStmt.setLong(8, scanSessionId);
+                
+                // Add to batch
+                testClassStmt.addBatch();
+                batchCount++;
+                
+                // Execute batch when it reaches the batch size
+                if (batchCount % BATCH_SIZE == 0) {
+                    testClassStmt.executeBatch();
+                    testClassStmt.clearBatch();
+                }
+            }
+            
+            // Execute remaining items in batch
+            if (batchCount % BATCH_SIZE != 0) {
+                testClassStmt.executeBatch();
+            }
+        }
+        
+        // Now batch insert all test methods for this repository
+        persistTestMethodsBatch(conn, repo, repositoryId, scanSessionId);
+    }
+    
+    /**
+     * Persist test methods for a repository using batch operations
+     */
+    private static void persistTestMethodsBatch(Connection conn, RepositoryTestInfo repo, long repositoryId, long scanSessionId) throws SQLException {
+        if (repo.getTestClasses().isEmpty()) {
+            return;
+        }
+        
+        // Collect all test methods from all test classes
+        List<TestMethodInfo> allMethods = new java.util.ArrayList<>();
         for (TestClassInfo testClass : repo.getTestClasses()) {
-            long testClassId = insertTestClass(conn, testClass, repositoryId, scanSessionId);
-            persistTestMethods(conn, testClass, testClassId, scanSessionId);
+            allMethods.addAll(testClass.getTestMethods());
+        }
+        
+        if (allMethods.isEmpty()) {
+            return;
+        }
+        
+        // Batch insert test methods
+        String testMethodSql = "INSERT INTO test_methods (test_class_id, method_name, line_number, has_annotation, " +
+                              "annotation_data, annotation_title, annotation_author, annotation_status, " +
+                              "annotation_target_class, annotation_target_method, annotation_description, " +
+                              "annotation_tags, annotation_test_points, annotation_requirements, " +
+                              "annotation_defects, annotation_testcases, annotation_last_update_time, " +
+                              "annotation_last_update_author, scan_session_id) " +
+                              "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                              "ON CONFLICT (test_class_id, method_name, method_signature) DO UPDATE SET " +
+                              "has_annotation = EXCLUDED.has_annotation, " +
+                              "annotation_data = EXCLUDED.annotation_data, " +
+                              "annotation_title = EXCLUDED.annotation_title, " +
+                              "annotation_author = EXCLUDED.annotation_author, " +
+                              "annotation_status = EXCLUDED.annotation_status, " +
+                              "annotation_target_class = EXCLUDED.annotation_target_class, " +
+                              "annotation_target_method = EXCLUDED.annotation_target_method, " +
+                              "annotation_description = EXCLUDED.annotation_description, " +
+                              "annotation_tags = EXCLUDED.annotation_tags, " +
+                              "annotation_test_points = EXCLUDED.annotation_test_points, " +
+                              "annotation_requirements = EXCLUDED.annotation_requirements, " +
+                              "annotation_defects = EXCLUDED.annotation_defects, " +
+                              "annotation_testcases = EXCLUDED.annotation_testcases, " +
+                              "annotation_last_update_time = EXCLUDED.annotation_last_update_time, " +
+                              "annotation_last_update_author = EXCLUDED.annotation_last_update_author, " +
+                              "last_modified_date = CURRENT_TIMESTAMP";
+        
+        try (PreparedStatement testMethodStmt = conn.prepareStatement(testMethodSql)) {
+            int batchCount = 0;
+            
+            for (TestMethodInfo method : allMethods) {
+                // Get test class ID for this method
+                long testClassId = getTestClassId(conn, repositoryId, method.getClassName(), method.getPackageName());
+                
+                // Set basic parameters
+                testMethodStmt.setLong(1, testClassId);
+                testMethodStmt.setString(2, method.getMethodName());
+                testMethodStmt.setInt(3, method.getLineNumber());
+                
+                // Handle annotation data
+                UnittestCaseInfoData annotationData = method.getAnnotationData();
+                boolean hasAnnotation = annotationData != null && !annotationData.getTitle().isEmpty();
+                testMethodStmt.setBoolean(4, hasAnnotation);
+                if (hasAnnotation) {
+                    PGobject jsonObject = new PGobject();
+                    jsonObject.setType("jsonb");
+                    jsonObject.setValue(convertToJson(annotationData));
+                    testMethodStmt.setObject(5, jsonObject);
+                    
+                    testMethodStmt.setString(6, annotationData.getTitle());
+                    testMethodStmt.setString(7, annotationData.getAuthor());
+                    testMethodStmt.setString(8, annotationData.getStatus());
+                    testMethodStmt.setString(9, annotationData.getTargetClass());
+                    testMethodStmt.setString(10, annotationData.getTargetMethod());
+                    testMethodStmt.setString(11, annotationData.getDescription());
+                    
+                    // Convert arrays to PostgreSQL arrays
+                    testMethodStmt.setArray(12, conn.createArrayOf("text", annotationData.getTags()));
+                    testMethodStmt.setArray(13, conn.createArrayOf("text", annotationData.getTestPoints()));
+                    testMethodStmt.setArray(14, conn.createArrayOf("text", annotationData.getRelatedRequirements()));
+                    testMethodStmt.setArray(15, conn.createArrayOf("text", annotationData.getRelatedDefects()));
+                    testMethodStmt.setArray(16, conn.createArrayOf("text", annotationData.getRelatedTestcases()));
+                    testMethodStmt.setString(17, annotationData.getLastUpdateTime());
+                    testMethodStmt.setString(18, annotationData.getLastUpdateAuthor());
+                } else {
+                    testMethodStmt.setObject(5, null);
+                    testMethodStmt.setString(6, null);
+                    testMethodStmt.setString(7, null);
+                    testMethodStmt.setString(8, null);
+                    testMethodStmt.setString(9, null);
+                    testMethodStmt.setString(10, null);
+                    testMethodStmt.setString(11, null);
+                    testMethodStmt.setArray(12, null);
+                    testMethodStmt.setArray(13, null);
+                    testMethodStmt.setArray(14, null);
+                    testMethodStmt.setArray(15, null);
+                    testMethodStmt.setArray(16, null);
+                    testMethodStmt.setString(17, null);
+                    testMethodStmt.setString(18, null);
+                }
+                
+                testMethodStmt.setLong(19, scanSessionId);
+                
+                // Add to batch
+                testMethodStmt.addBatch();
+                batchCount++;
+                
+                // Execute batch when it reaches the batch size
+                if (batchCount % BATCH_SIZE == 0) {
+                    testMethodStmt.executeBatch();
+                    testMethodStmt.clearBatch();
+                }
+            }
+            
+            // Execute remaining items in batch
+            if (batchCount % BATCH_SIZE != 0) {
+                testMethodStmt.executeBatch();
+            }
         }
     }
     
     /**
-     * Insert test class record
+     * Get test class ID for a given repository, class name, and package
      */
-    private static long insertTestClass(Connection conn, TestClassInfo testClass, long repositoryId, long scanSessionId) throws SQLException {
-        String sql = "INSERT INTO test_classes (repository_id, class_name, package_name, file_path, " +
-                     "total_test_methods, annotated_test_methods, coverage_rate, scan_session_id) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
-                     "ON CONFLICT (repository_id, class_name, package_name) DO UPDATE SET " +
-                     "total_test_methods = EXCLUDED.total_test_methods, " +
-                     "annotated_test_methods = EXCLUDED.annotated_test_methods, " +
-                     "coverage_rate = EXCLUDED.coverage_rate, " +
-                     "last_modified_date = CURRENT_TIMESTAMP " +
-                     "RETURNING id";
-        
+    private static long getTestClassId(Connection conn, long repositoryId, String className, String packageName) throws SQLException {
+        String sql = "SELECT id FROM test_classes WHERE repository_id = ? AND class_name = ? AND package_name = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, repositoryId);
-            stmt.setString(2, testClass.getClassName());
-            stmt.setString(3, testClass.getPackageName());
-            stmt.setString(4, testClass.getFilePath());
-            stmt.setInt(5, testClass.getTotalTestMethods());
-            stmt.setInt(6, testClass.getAnnotatedTestMethods());
-            
-            double coverageRate = testClass.getTotalTestMethods() > 0 ? 
-                (double) testClass.getAnnotatedTestMethods() / testClass.getTotalTestMethods() * 100 : 0.0;
-            stmt.setDouble(7, coverageRate);
-            stmt.setLong(8, scanSessionId);
+            stmt.setString(2, className);
+            stmt.setString(3, packageName);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getLong(1);
                 }
-                throw new SQLException("Failed to get test class ID");
+                throw new SQLException("Test class not found: " + packageName + "." + className);
             }
-        }
-    }
-    
-    /**
-     * Persist test methods for a test class
-     */
-    private static void persistTestMethods(Connection conn, TestClassInfo testClass, long testClassId, long scanSessionId) throws SQLException {
-        for (TestMethodInfo method : testClass.getTestMethods()) {
-            insertTestMethod(conn, method, testClassId, scanSessionId);
-        }
-    }
-    
-    /**
-     * Insert test method record
-     */
-    private static void insertTestMethod(Connection conn, TestMethodInfo method, long testClassId, long scanSessionId) throws SQLException {
-        String sql = "INSERT INTO test_methods (test_class_id, method_name, line_number, has_annotation, " +
-                     "annotation_data, annotation_title, annotation_author, annotation_status, " +
-                     "annotation_target_class, annotation_target_method, annotation_description, " +
-                     "annotation_tags, annotation_test_points, annotation_requirements, " +
-                     "annotation_defects, annotation_testcases, annotation_last_update_time, " +
-                     "annotation_last_update_author, scan_session_id) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                     "ON CONFLICT (test_class_id, method_name, method_signature) DO UPDATE SET " +
-                     "has_annotation = EXCLUDED.has_annotation, " +
-                     "annotation_data = EXCLUDED.annotation_data, " +
-                     "annotation_title = EXCLUDED.annotation_title, " +
-                     "annotation_author = EXCLUDED.annotation_author, " +
-                     "annotation_status = EXCLUDED.annotation_status, " +
-                     "annotation_target_class = EXCLUDED.annotation_target_class, " +
-                     "annotation_target_method = EXCLUDED.annotation_target_method, " +
-                     "annotation_description = EXCLUDED.annotation_description, " +
-                     "annotation_tags = EXCLUDED.annotation_tags, " +
-                     "annotation_test_points = EXCLUDED.annotation_test_points, " +
-                     "annotation_requirements = EXCLUDED.annotation_requirements, " +
-                     "annotation_defects = EXCLUDED.annotation_defects, " +
-                     "annotation_testcases = EXCLUDED.annotation_testcases, " +
-                     "annotation_last_update_time = EXCLUDED.annotation_last_update_time, " +
-                     "annotation_last_update_author = EXCLUDED.annotation_last_update_author, " +
-                     "last_modified_date = CURRENT_TIMESTAMP";
-        
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, testClassId);
-            stmt.setString(2, method.getMethodName());
-            stmt.setInt(3, method.getLineNumber());
-            
-            UnittestCaseInfoData annotationData = method.getAnnotationData();
-            boolean hasAnnotation = annotationData != null && !annotationData.getTitle().isEmpty();
-            stmt.setBoolean(4, hasAnnotation);
-            
-            // Set annotation data as JSONB
-            if (hasAnnotation) {
-                PGobject jsonObject = new PGobject();
-                jsonObject.setType("jsonb");
-                jsonObject.setValue(convertToJson(annotationData));
-                stmt.setObject(5, jsonObject);
-                
-                stmt.setString(6, annotationData.getTitle());
-                stmt.setString(7, annotationData.getAuthor());
-                stmt.setString(8, annotationData.getStatus());
-                stmt.setString(9, annotationData.getTargetClass());
-                stmt.setString(10, annotationData.getTargetMethod());
-                stmt.setString(11, annotationData.getDescription());
-                
-                // Convert arrays to PostgreSQL arrays
-                stmt.setArray(12, conn.createArrayOf("text", annotationData.getTags()));
-                stmt.setArray(13, conn.createArrayOf("text", annotationData.getTestPoints()));
-                stmt.setArray(14, conn.createArrayOf("text", annotationData.getRelatedRequirements()));
-                stmt.setArray(15, conn.createArrayOf("text", annotationData.getRelatedDefects()));
-                stmt.setArray(16, conn.createArrayOf("text", annotationData.getRelatedTestcases()));
-                stmt.setString(17, annotationData.getLastUpdateTime());
-                stmt.setString(18, annotationData.getLastUpdateAuthor());
-            } else {
-                stmt.setObject(5, null);
-                stmt.setString(6, null);
-                stmt.setString(7, null);
-                stmt.setString(8, null);
-                stmt.setString(9, null);
-                stmt.setString(10, null);
-                stmt.setString(11, null);
-                stmt.setArray(12, null);
-                stmt.setArray(13, null);
-                stmt.setArray(14, null);
-                stmt.setArray(15, null);
-                stmt.setArray(16, null);
-                stmt.setString(17, null);
-                stmt.setString(18, null);
-            }
-            
-            stmt.setLong(19, scanSessionId);
-            stmt.executeUpdate();
         }
     }
     

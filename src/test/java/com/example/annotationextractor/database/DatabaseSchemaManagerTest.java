@@ -24,10 +24,10 @@ public class DatabaseSchemaManagerTest {
     private static final String TEST_PASSWORD = "postgres";
 
     @Before
-    public void setUp() {
-        // Initialize database connection
+    public void setUp() throws SQLException {
+        // Initialize database connection only
         DatabaseConfig.initialize(TEST_HOST, TEST_PORT, TEST_DATABASE, TEST_USERNAME, TEST_PASSWORD);
-        // Clean up database
+        // Clean up any existing tables from previous test runs
         try {
             DatabaseSchemaManager.dropAllTables();
         } catch (SQLException e) {
@@ -37,7 +37,12 @@ public class DatabaseSchemaManagerTest {
 
     @After
     public void tearDown() {
-        
+        // Clean up tables after each test
+        try {
+            DatabaseSchemaManager.dropAllTables();
+        } catch (SQLException e) {
+            // Ignore cleanup errors
+        }
         DatabaseConfig.close();
     }
 
@@ -45,6 +50,39 @@ public class DatabaseSchemaManagerTest {
     public void testInitializeSchema() throws SQLException {
         // Test schema initialization
         DatabaseSchemaManager.initializeSchema();
+        
+        // Debug: Check what tables actually exist after initialization
+        System.out.println("=== DEBUG: Checking tables after initialization ===");
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            DatabaseMetaData metaData = conn.getMetaData();
+            ResultSet tables = metaData.getTables(null, null, "%", null);
+            System.out.println("Tables found:");
+            while (tables.next()) {
+                String tableName = tables.getString("TABLE_NAME");
+                String schemaName = tables.getString("TABLE_SCHEM");
+                System.out.println("  - " + schemaName + "." + tableName);
+            }
+        }
+        
+        // Debug: Try to create a table directly to see if it works
+        System.out.println("=== DEBUG: Testing direct table creation ===");
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            Statement stmt = conn.createStatement();
+            
+            // Try to create a simple test table
+            stmt.execute("CREATE TABLE IF NOT EXISTS public.test_table (id INT PRIMARY KEY)");
+            System.out.println("Direct table creation successful");
+            
+            // Check if it exists
+            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'test_table' AND table_schema = 'public'");
+            if (rs.next()) {
+                int count = rs.getInt(1);
+                System.out.println("Test table count: " + count);
+            }
+            
+            // Clean up
+            stmt.execute("DROP TABLE IF EXISTS public.test_table");
+        }
         
         // Verify all tables were created
         assertTrue("Repositories table should exist", tableExists("repositories"));
@@ -129,6 +167,7 @@ public class DatabaseSchemaManagerTest {
                                                "annotation_target_class", "annotation_target_method", 
                                                "annotation_description", "annotation_tags", 
                                                "annotation_test_points", "annotation_requirements", 
+                                               "annotation_defects", "annotation_testcases",
                                                "first_seen_date", "last_modified_date", "scan_session_id"}));
         
         // Test daily_metrics table structure
@@ -155,6 +194,7 @@ public class DatabaseSchemaManagerTest {
         assertTrue("Annotation data GIN index should exist", indexExists("idx_annotation_data", "test_methods"));
     }
 
+    @Test
     public void testReinitializeSchema() throws SQLException {
         // Initialize schema first time
         DatabaseSchemaManager.initializeSchema();
@@ -204,7 +244,7 @@ public class DatabaseSchemaManagerTest {
      */
     private boolean tableExists(String tableName) throws SQLException {
         try (Connection conn = DatabaseConfig.getConnection();
-             ResultSet rs = conn.getMetaData().getTables(null, null, tableName, null)) {
+             ResultSet rs = conn.getMetaData().getTables(null, "public", tableName, null)) {
             return rs.next();
         }
     }
