@@ -71,10 +71,11 @@ public class DataPersistenceService {
      * Persist repository information
      */
     private static long persistRepository(Connection conn, RepositoryTestInfo repo, long scanSessionId) throws SQLException {
-        String sql = "INSERT INTO repositories (repository_name, repository_path, total_test_classes, " +
+        String sql = "INSERT INTO repositories (repository_name, repository_path, git_url, total_test_classes, " +
                      "total_test_methods, total_annotated_methods, annotation_coverage_rate, last_scan_date) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
                      "ON CONFLICT (repository_name, repository_path) DO UPDATE SET " +
+                     "git_url = EXCLUDED.git_url, " +
                      "total_test_classes = EXCLUDED.total_test_classes, " +
                      "total_test_methods = EXCLUDED.total_test_methods, " +
                      "total_annotated_methods = EXCLUDED.total_annotated_methods, " +
@@ -85,13 +86,14 @@ public class DataPersistenceService {
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, repo.getRepositoryName());
             stmt.setString(2, repo.getRepositoryPath());
-            stmt.setInt(3, repo.getTotalTestClasses());
-            stmt.setInt(4, repo.getTotalTestMethods());
-            stmt.setInt(5, repo.getTotalAnnotatedTestMethods());
+            stmt.setString(3, repo.getGitUrl());
+            stmt.setInt(4, repo.getTotalTestClasses());
+            stmt.setInt(5, repo.getTotalTestMethods());
+            stmt.setInt(6, repo.getTotalAnnotatedTestMethods());
             
             double coverageRate = repo.getTotalTestMethods() > 0 ? 
                 (double) repo.getTotalAnnotatedTestMethods() / repo.getTotalTestMethods() * 100 : 0.0;
-            stmt.setDouble(6, coverageRate);
+            stmt.setDouble(7, coverageRate);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -164,8 +166,10 @@ public class DataPersistenceService {
         String sql = "INSERT INTO test_methods (test_class_id, method_name, line_number, has_annotation, " +
                      "annotation_data, annotation_title, annotation_author, annotation_status, " +
                      "annotation_target_class, annotation_target_method, annotation_description, " +
-                     "annotation_tags, annotation_test_points, annotation_requirements, scan_session_id) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                     "annotation_tags, annotation_test_points, annotation_requirements, " +
+                     "annotation_defects, annotation_testcases, annotation_last_update_time, " +
+                     "annotation_last_update_author, scan_session_id) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                      "ON CONFLICT (test_class_id, method_name, method_signature) DO UPDATE SET " +
                      "has_annotation = EXCLUDED.has_annotation, " +
                      "annotation_data = EXCLUDED.annotation_data, " +
@@ -178,6 +182,10 @@ public class DataPersistenceService {
                      "annotation_tags = EXCLUDED.annotation_tags, " +
                      "annotation_test_points = EXCLUDED.annotation_test_points, " +
                      "annotation_requirements = EXCLUDED.annotation_requirements, " +
+                     "annotation_defects = EXCLUDED.annotation_defects, " +
+                     "annotation_testcases = EXCLUDED.annotation_testcases, " +
+                     "annotation_last_update_time = EXCLUDED.annotation_last_update_time, " +
+                     "annotation_last_update_author = EXCLUDED.annotation_last_update_author, " +
                      "last_modified_date = CURRENT_TIMESTAMP";
         
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -207,6 +215,10 @@ public class DataPersistenceService {
                 stmt.setArray(12, conn.createArrayOf("text", annotationData.getTags()));
                 stmt.setArray(13, conn.createArrayOf("text", annotationData.getTestPoints()));
                 stmt.setArray(14, conn.createArrayOf("text", annotationData.getRelatedRequirements()));
+                stmt.setArray(15, conn.createArrayOf("text", annotationData.getRelatedDefects()));
+                stmt.setArray(16, conn.createArrayOf("text", annotationData.getRelatedTestcases()));
+                stmt.setString(17, annotationData.getLastUpdateTime());
+                stmt.setString(18, annotationData.getLastUpdateAuthor());
             } else {
                 stmt.setObject(5, null);
                 stmt.setString(6, null);
@@ -218,9 +230,13 @@ public class DataPersistenceService {
                 stmt.setArray(12, null);
                 stmt.setArray(13, null);
                 stmt.setArray(14, null);
+                stmt.setArray(15, null);
+                stmt.setArray(16, null);
+                stmt.setString(17, null);
+                stmt.setString(18, null);
             }
             
-            stmt.setLong(15, scanSessionId);
+            stmt.setLong(19, scanSessionId);
             stmt.executeUpdate();
         }
     }
@@ -259,12 +275,27 @@ public class DataPersistenceService {
     private static String convertToJson(UnittestCaseInfoData data) {
         StringBuilder json = new StringBuilder();
         json.append("{");
+        
+        // Basic fields
         json.append("\"title\":\"").append(escapeJson(data.getTitle())).append("\",");
         json.append("\"author\":\"").append(escapeJson(data.getAuthor())).append("\",");
         json.append("\"status\":\"").append(escapeJson(data.getStatus())).append("\",");
         json.append("\"targetClass\":\"").append(escapeJson(data.getTargetClass())).append("\",");
         json.append("\"targetMethod\":\"").append(escapeJson(data.getTargetMethod())).append("\",");
-        json.append("\"description\":\"").append(escapeJson(data.getDescription())).append("\"");
+        json.append("\"description\":\"").append(escapeJson(data.getDescription())).append("\",");
+        
+        // Array fields
+        json.append("\"testPoints\":").append(arrayToJson(data.getTestPoints())).append(",");
+        json.append("\"tags\":").append(arrayToJson(data.getTags())).append(",");
+        json.append("\"relatedRequirements\":").append(arrayToJson(data.getRelatedRequirements())).append(",");
+        json.append("\"relatedDefects\":").append(arrayToJson(data.getRelatedDefects())).append(",");
+        json.append("\"relatedTestcases\":").append(arrayToJson(data.getRelatedTestcases())).append(",");
+        
+        // Additional fields
+        json.append("\"lastUpdateTime\":\"").append(escapeJson(data.getLastUpdateTime())).append("\",");
+        json.append("\"lastUpdateAuthor\":\"").append(escapeJson(data.getLastUpdateAuthor())).append("\",");
+        json.append("\"methodSignature\":\"").append(escapeJson(data.getMethodSignature())).append("\"");
+        
         json.append("}");
         return json.toString();
     }
@@ -275,5 +306,25 @@ public class DataPersistenceService {
     private static String escapeJson(String value) {
         if (value == null) return "";
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    /**
+     * Convert string array to JSON array
+     */
+    private static String arrayToJson(String[] array) {
+        if (array == null || array.length == 0) {
+            return "[]";
+        }
+        
+        StringBuilder json = new StringBuilder();
+        json.append("[");
+        
+        for (int i = 0; i < array.length; i++) {
+            if (i > 0) json.append(",");
+            json.append("\"").append(escapeJson(array[i])).append("\"");
+        }
+        
+        json.append("]");
+        return json.toString();
     }
 }

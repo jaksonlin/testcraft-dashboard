@@ -129,6 +129,10 @@ public class RepositoryHubScanner {
                     // Scan this single repository
                     TestCollectionSummary scanSummary = scanSingleRepository(gitUrl);
                     if (scanSummary != null) {
+                        // Set git URL for all repositories in the scan summary
+                        for (RepositoryTestInfo repo : scanSummary.getRepositories()) {
+                            repo.setGitUrl(gitUrl);
+                        }
                         // Aggregate the results
                         aggregateScanResults(aggregatedSummary, scanSummary);
                         System.out.println("🔍 Repository scanned successfully");
@@ -178,20 +182,6 @@ public class RepositoryHubScanner {
             storeScanResults(aggregatedSummary);
         }
         
-        // Generate final report
-        try {
-            String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
-            Path reportDir = Paths.get(reportPath).getParent();
-            if (!Files.exists(reportDir)) {
-                Files.createDirectories(reportDir);
-            }
-            ExcelReportGenerator.generateWeeklyReport(reportPath);
-            System.out.println("📊 Report generated successfully: " + reportPath);
-        } catch (Exception e) {
-            System.err.println("❌ Error generating report: " + e.getMessage());
-            e.printStackTrace();
-        }
-        
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
         System.out.println("⏱️ Scan completed in " + duration + " milliseconds");
@@ -208,6 +198,20 @@ public class RepositoryHubScanner {
             }
         } else {
             System.out.println("\n⚠️ Database schema not found. Skipping data persistence.");
+        }
+        
+        // Generate final report AFTER data persistence
+        try {
+            String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+            Path reportDir = Paths.get(reportPath).getParent();
+            if (!Files.exists(reportDir)) {
+                Files.createDirectories(reportDir);
+            }
+            ExcelReportGenerator.generateWeeklyReport(reportPath);
+            System.out.println("📊 Report generated successfully: " + reportPath);
+        } catch (Exception e) {
+            System.err.println("❌ Error generating report: " + e.getMessage());
+            e.printStackTrace();
         }
         
         return successfulRepos > 0;

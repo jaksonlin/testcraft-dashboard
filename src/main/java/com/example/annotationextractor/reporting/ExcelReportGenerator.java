@@ -84,6 +84,25 @@ public class ExcelReportGenerator {
         createInfoRow(sheet, rowNum++, "Report Generated", TIMESTAMP_FORMAT.format(new Date()));
         createInfoRow(sheet, rowNum++, "Report Period", "Weekly");
         
+        // Check if there's any data in the database
+        boolean hasData = false;
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM repositories")) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    hasData = true;
+                }
+            }
+        } catch (SQLException e) {
+            // If we can't check, assume no data
+            hasData = false;
+        }
+        
+        if (!hasData) {
+            createInfoRow(sheet, rowNum++, "Status", "⚠️ No scan data available");
+            createInfoRow(sheet, rowNum++, "Action Required", "Run a repository scan first to populate the database");
+        }
+        
         // Get current metrics
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
@@ -98,6 +117,14 @@ public class ExcelReportGenerator {
                     createInfoRow(sheet, rowNum++, "Total Annotated Methods", rs.getInt("total_annotated_methods"));
                     createInfoRow(sheet, rowNum++, "Overall Coverage Rate", 
                                 String.format("%.2f%%", rs.getDouble("overall_coverage_rate")));
+                } else {
+                    // No metrics found for today - show message
+                    rowNum++;
+                    createInfoRow(sheet, rowNum++, "Total Repositories", "No data available");
+                    createInfoRow(sheet, rowNum++, "Total Test Classes", "No data available");
+                    createInfoRow(sheet, rowNum++, "Total Test Methods", "No data available");
+                    createInfoRow(sheet, rowNum++, "Total Annotated Methods", "No data available");
+                    createInfoRow(sheet, rowNum++, "Overall Coverage Rate", "No data available");
                 }
             }
         }
@@ -113,15 +140,16 @@ public class ExcelReportGenerator {
         // Set column widths
         sheet.setColumnWidth(0, 3000);
         sheet.setColumnWidth(1, 4000);
-        sheet.setColumnWidth(2, 5000);
-        sheet.setColumnWidth(3, 3000);
+        sheet.setColumnWidth(2, 6000);  // Git URL - wider for long URLs
+        sheet.setColumnWidth(3, 5000);
         sheet.setColumnWidth(4, 3000);
         sheet.setColumnWidth(5, 3000);
         sheet.setColumnWidth(6, 3000);
+        sheet.setColumnWidth(7, 3000);
         
         // Create headers
         Row headerRow = sheet.createRow(0);
-        String[] headers = {"Repository", "Path", "Test Classes", "Test Methods", "Annotated", "Coverage %", "Last Scan"};
+        String[] headers = {"Repository", "Path", "Git URL", "Test Classes", "Test Methods", "Annotated", "Coverage %", "Last Scan"};
         
         CellStyle headerStyle = createHeaderStyle(workbook);
         for (int i = 0; i < headers.length; i++) {
@@ -137,15 +165,37 @@ public class ExcelReportGenerator {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;
+                boolean hasData = false;
                 while (rs.next()) {
+                    hasData = true;
                     Row row = sheet.createRow(rowNum++);
                     row.createCell(0).setCellValue(rs.getString("repository_name"));
                     row.createCell(1).setCellValue(rs.getString("repository_path"));
-                    row.createCell(2).setCellValue(rs.getInt("total_test_classes"));
-                    row.createCell(3).setCellValue(rs.getInt("total_test_methods"));
-                    row.createCell(4).setCellValue(rs.getInt("total_annotated_methods"));
-                    row.createCell(5).setCellValue(rs.getDouble("annotation_coverage_rate"));
-                    row.createCell(6).setCellValue(rs.getTimestamp("last_scan_date").toString());
+                    row.createCell(2).setCellValue(rs.getString("git_url"));
+                    row.createCell(3).setCellValue(rs.getInt("total_test_classes"));
+                    row.createCell(4).setCellValue(rs.getInt("total_test_methods"));
+                    row.createCell(5).setCellValue(rs.getInt("total_annotated_methods"));
+                    row.createCell(6).setCellValue(rs.getDouble("annotation_coverage_rate"));
+                    row.createCell(7).setCellValue(rs.getTimestamp("last_scan_date").toString());
+                }
+                
+                if (!hasData) {
+                    // No repository data found - add a message row
+                    Row noDataRow = sheet.createRow(1);
+                    Cell noDataCell = noDataRow.createCell(0);
+                    noDataCell.setCellValue("No repository data available. Please run a scan first.");
+                    
+                    // Merge cells for the message
+                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 7));
+                    
+                    // Style the message
+                    CellStyle messageStyle = workbook.createCellStyle();
+                    Font messageFont = workbook.createFont();
+                    messageFont.setItalic(true);
+                    messageFont.setFontHeightInPoints((short) 10);
+                    messageStyle.setFont(messageFont);
+                    messageStyle.setAlignment(HorizontalAlignment.CENTER);
+                    noDataCell.setCellStyle(messageStyle);
                 }
             }
         }
@@ -184,13 +234,34 @@ public class ExcelReportGenerator {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;
+                boolean hasData = false;
                 while (rs.next()) {
+                    hasData = true;
                     Row row = sheet.createRow(rowNum++);
                     row.createCell(0).setCellValue(rs.getDate("metric_date").toString());
                     row.createCell(1).setCellValue(rs.getInt("total_repositories"));
                     row.createCell(2).setCellValue(rs.getInt("total_test_classes"));
                     row.createCell(3).setCellValue(rs.getInt("total_test_methods"));
                     row.createCell(4).setCellValue(rs.getDouble("overall_coverage_rate"));
+                }
+                
+                if (!hasData) {
+                    // No trend data found - add a message row
+                    Row noDataRow = sheet.createRow(1);
+                    Cell noDataCell = noDataRow.createCell(0);
+                    noDataCell.setCellValue("No trend data available. Please run scans over multiple days to see trends.");
+                    
+                    // Merge cells for the message
+                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 4));
+                    
+                    // Style the message
+                    CellStyle messageStyle = workbook.createCellStyle();
+                    Font messageFont = workbook.createFont();
+                    messageFont.setItalic(true);
+                    messageFont.setFontHeightInPoints((short) 10);
+                    messageStyle.setFont(messageFont);
+                    messageStyle.setAlignment(HorizontalAlignment.CENTER);
+                    noDataCell.setCellStyle(messageStyle);
                 }
             }
         }
@@ -230,7 +301,9 @@ public class ExcelReportGenerator {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;
+                boolean hasData = false;
                 while (rs.next()) {
+                    hasData = true;
                     Row row = sheet.createRow(rowNum++);
                     String repoName = rs.getString("repository_name");
                     double coverage = rs.getDouble("annotation_coverage_rate");
@@ -253,6 +326,25 @@ public class ExcelReportGenerator {
                         row.createCell(3).setCellValue("Needs Improvement");
                         row.createCell(4).setCellValue("Immediate attention required");
                     }
+                }
+                
+                if (!hasData) {
+                    // No coverage data found - add a message row
+                    Row noDataRow = sheet.createRow(1);
+                    Cell noDataCell = noDataRow.createCell(0);
+                    noDataCell.setCellValue("No coverage data available. Please run a scan first.");
+                    
+                    // Merge cells for the message
+                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 4));
+                    
+                    // Style the message
+                    CellStyle messageStyle = workbook.createCellStyle();
+                    Font messageFont = workbook.createFont();
+                    messageFont.setItalic(true);
+                    messageFont.setFontHeightInPoints((short) 10);
+                    messageStyle.setFont(messageFont);
+                    messageStyle.setAlignment(HorizontalAlignment.CENTER);
+                    noDataCell.setCellStyle(messageStyle);
                 }
             }
         }
@@ -327,7 +419,9 @@ public class ExcelReportGenerator {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;
+                boolean hasData = false;
                 while (rs.next()) {
+                    hasData = true;
                     Row row = sheet.createRow(rowNum++);
                     
                     // Repository and class information
@@ -370,6 +464,25 @@ public class ExcelReportGenerator {
                     // Last update author from JSONB data if available
                     String lastUpdateAuthor = extractLastUpdateAuthorFromJson(rs.getString("annotation_data"));
                     row.createCell(16).setCellValue(lastUpdateAuthor);
+                }
+                
+                if (!hasData) {
+                    // No test method data found - add a message row
+                    Row noDataRow = sheet.createRow(1);
+                    Cell noDataCell = noDataRow.createCell(0);
+                    noDataCell.setCellValue("No test method data available. Please run a scan first.");
+                    
+                    // Merge cells for the message
+                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 16));
+                    
+                    // Style the message
+                    CellStyle messageStyle = workbook.createCellStyle();
+                    Font messageFont = workbook.createFont();
+                    messageFont.setItalic(true);
+                    messageFont.setFontHeightInPoints((short) 10);
+                    messageStyle.setFont(messageFont);
+                    messageStyle.setAlignment(HorizontalAlignment.CENTER);
+                    noDataCell.setCellStyle(messageStyle);
                 }
             }
         }

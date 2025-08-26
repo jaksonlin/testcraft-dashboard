@@ -204,6 +204,12 @@ public class RepositoryScanner {
         String repoName = repoPath.getFileName().toString();
         RepositoryTestInfo repoInfo = new RepositoryTestInfo(repoName, repoPath.toString());
         
+        // Try to extract git URL from the repository
+        String gitUrl = extractGitUrlFromRepository(repoPath);
+        if (gitUrl != null) {
+            repoInfo.setGitUrl(gitUrl);
+        }
+        
         // Find test directories following standard Java conventions
         List<Path> testDirectories = findTestDirectories(repoPath);
         
@@ -224,6 +230,27 @@ public class RepositoryScanner {
         }
         
         return repoInfo;
+    }
+    
+    /**
+     * Extract git URL from a repository directory
+     */
+    private static String extractGitUrlFromRepository(Path repoPath) {
+        try {
+            Path gitConfigPath = repoPath.resolve(".git").resolve("config");
+            if (Files.exists(gitConfigPath)) {
+                List<String> lines = Files.readAllLines(gitConfigPath);
+                for (String line : lines) {
+                    line = line.trim();
+                    if (line.startsWith("url = ")) {
+                        return line.substring(6).trim();
+                    }
+                }
+            }
+        } catch (IOException e) {
+            // Ignore errors reading git config
+        }
+        return null;
     }
     
     /**

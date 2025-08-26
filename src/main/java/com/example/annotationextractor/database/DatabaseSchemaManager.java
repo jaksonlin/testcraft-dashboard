@@ -130,6 +130,10 @@ public class DatabaseSchemaManager {
             "annotation_tags TEXT[]," +
             "annotation_test_points TEXT[]," +
             "annotation_requirements TEXT[]," +
+            "annotation_defects TEXT[]," +
+            "annotation_testcases TEXT[]," +
+            "annotation_last_update_time VARCHAR(255)," +
+            "annotation_last_update_author VARCHAR(255)," +
             "first_seen_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
             "last_modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
             "scan_session_id BIGINT REFERENCES scan_sessions(id)," +

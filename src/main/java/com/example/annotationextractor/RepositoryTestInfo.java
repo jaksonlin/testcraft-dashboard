@@ -9,6 +9,7 @@ import java.util.List;
 public class RepositoryTestInfo {
     private String repositoryName;
     private String repositoryPath;
+    private String gitUrl;
     private List<TestClassInfo> testClasses;
     private int totalTestClasses;
     public void setTotalTestClasses(int totalTestClasses) {
@@ -29,6 +30,7 @@ public class RepositoryTestInfo {
     public RepositoryTestInfo() {
         this.repositoryName = "";
         this.repositoryPath = "";
+        this.gitUrl = "";
         this.testClasses = new ArrayList<>();
         this.totalTestClasses = 0;
         this.totalTestMethods = 0;
@@ -38,6 +40,17 @@ public class RepositoryTestInfo {
     public RepositoryTestInfo(String repositoryName, String repositoryPath) {
         this.repositoryName = repositoryName;
         this.repositoryPath = repositoryPath;
+        this.gitUrl = "";
+        this.testClasses = new ArrayList<>();
+        this.totalTestClasses = 0;
+        this.totalTestMethods = 0;
+        this.totalAnnotatedTestMethods = 0;
+    }
+
+    public RepositoryTestInfo(String repositoryName, String repositoryPath, String gitUrl) {
+        this.repositoryName = repositoryName;
+        this.repositoryPath = repositoryPath;
+        this.gitUrl = gitUrl;
         this.testClasses = new ArrayList<>();
         this.totalTestClasses = 0;
         this.totalTestMethods = 0;
@@ -66,6 +79,14 @@ public class RepositoryTestInfo {
 
     public void setRepositoryPath(String repositoryPath) {
         this.repositoryPath = repositoryPath;
+    }
+
+    public String getGitUrl() {
+        return gitUrl;
+    }
+
+    public void setGitUrl(String gitUrl) {
+        this.gitUrl = gitUrl;
     }
 
     public List<TestClassInfo> getTestClasses() {
@@ -100,6 +121,7 @@ public class RepositoryTestInfo {
         return "RepositoryTestInfo{" +
                 "repositoryName='" + repositoryName + '\'' +
                 ", repositoryPath='" + repositoryPath + '\'' +
+                ", gitUrl='" + gitUrl + '\'' +
                 ", totalTestClasses=" + totalTestClasses +
                 ", totalTestMethods=" + totalTestMethods +
                 ", totalAnnotatedTestMethods=" + totalAnnotatedTestMethods +
