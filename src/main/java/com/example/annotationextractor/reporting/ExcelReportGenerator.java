@@ -464,20 +464,25 @@ public class ExcelReportGenerator {
                     row.createCell(8).setCellValue(rs.getString("annotation_target_method"));
                     row.createCell(9).setCellValue(rs.getString("annotation_description"));
                     
-                    // Array fields - convert to comma-separated strings
-                    String[] testPoints = (String[]) rs.getArray("annotation_test_points").getArray();
+                    // TEXT fields - parse comma-separated strings back to arrays
+                    String testPointsStr = rs.getString("annotation_test_points");
+                    String[] testPoints = parseSemicolonSeparatedString(testPointsStr);
                     row.createCell(10).setCellValue(arrayToString(testPoints));
                     
-                    String[] tags = (String[]) rs.getArray("annotation_tags").getArray();
+                    String tagsStr = rs.getString("annotation_tags");
+                    String[] tags = parseSemicolonSeparatedString(tagsStr);
                     row.createCell(11).setCellValue(arrayToString(tags));
                     
-                    String[] requirements = (String[]) rs.getArray("annotation_requirements").getArray();
+                    String requirementsStr = rs.getString("annotation_requirements");
+                    String[] requirements = parseSemicolonSeparatedString(requirementsStr);
                     row.createCell(12).setCellValue(arrayToString(requirements));
                     
-                    String[] testCases = (String[]) rs.getArray("annotation_testcases").getArray();
+                    String testCasesStr = rs.getString("annotation_testcases");
+                    String[] testCases = parseSemicolonSeparatedString(testCasesStr);
                     row.createCell(13).setCellValue(arrayToString(testCases));
                     
-                    String[] defects = (String[]) rs.getArray("annotation_defects").getArray();
+                    String defectsStr = rs.getString("annotation_defects");
+                    String[] defects = parseSemicolonSeparatedString(defectsStr);
                     row.createCell(14).setCellValue(arrayToString(defects));
                     
                     // Timestamp information
@@ -529,6 +534,16 @@ public class ExcelReportGenerator {
             return "";
         }
         return String.join(", ", array);
+    }
+    
+    /**
+     * Helper method to parse comma-separated string back to an array
+     */
+    private static String[] parseSemicolonSeparatedString(String semicolonSeparatedString) {
+        if (semicolonSeparatedString == null || semicolonSeparatedString.isEmpty()) {
+            return new String[0];
+        }
+        return semicolonSeparatedString.split(";");
     }
     
     /**

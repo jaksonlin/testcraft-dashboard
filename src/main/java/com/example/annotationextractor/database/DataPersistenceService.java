@@ -264,12 +264,12 @@ public class DataPersistenceService {
                     testMethodStmt.setString(10, annotationData.getTargetMethod());
                     testMethodStmt.setString(11, annotationData.getDescription());
                     
-                    // Convert arrays to PostgreSQL arrays
-                    testMethodStmt.setArray(12, conn.createArrayOf("text", annotationData.getTags()));
-                    testMethodStmt.setArray(13, conn.createArrayOf("text", annotationData.getTestPoints()));
-                    testMethodStmt.setArray(14, conn.createArrayOf("text", annotationData.getRelatedRequirements()));
-                    testMethodStmt.setArray(15, conn.createArrayOf("text", annotationData.getRelatedDefects()));
-                    testMethodStmt.setArray(16, conn.createArrayOf("text", annotationData.getRelatedTestcases()));
+                    // Convert arrays to comma-separated strings for TEXT fields
+                    testMethodStmt.setString(12, arrayToString(annotationData.getTags()));
+                    testMethodStmt.setString(13, arrayToString(annotationData.getTestPoints()));
+                    testMethodStmt.setString(14, arrayToString(annotationData.getRelatedRequirements()));
+                    testMethodStmt.setString(15, arrayToString(annotationData.getRelatedDefects()));
+                    testMethodStmt.setString(16, arrayToString(annotationData.getRelatedTestcases()));
                     testMethodStmt.setString(17, annotationData.getLastUpdateTime());
                     testMethodStmt.setString(18, annotationData.getLastUpdateAuthor());
                 } else {
@@ -280,11 +280,11 @@ public class DataPersistenceService {
                     testMethodStmt.setString(9, null);
                     testMethodStmt.setString(10, null);
                     testMethodStmt.setString(11, null);
-                    testMethodStmt.setArray(12, null);
-                    testMethodStmt.setArray(13, null);
-                    testMethodStmt.setArray(14, null);
-                    testMethodStmt.setArray(15, null);
-                    testMethodStmt.setArray(16, null);
+                    testMethodStmt.setString(12, null);
+                    testMethodStmt.setString(13, null);
+                    testMethodStmt.setString(14, null);
+                    testMethodStmt.setString(15, null);
+                    testMethodStmt.setString(16, null);
                     testMethodStmt.setString(17, null);
                     testMethodStmt.setString(18, null);
                 }
@@ -413,5 +413,19 @@ public class DataPersistenceService {
         
         json.append("]");
         return json.toString();
+    }
+
+    /**
+     * Convert string array to comma-separated string
+     */
+    private static String arrayToString(String[] array) {
+        if (array == null) {
+            return null;  // Return null for null arrays
+        }
+        if (array.length == 0) {
+            return "";    // Return empty string for empty arrays
+        }
+        // Use semicolon as delimiter to avoid issues with comma in content
+        return String.join(";", array);
     }
 }

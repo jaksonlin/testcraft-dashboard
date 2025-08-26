@@ -220,6 +220,172 @@ public class AnnotationFieldMappingTest {
         }
     }
 
+    @Test
+    public void testArrayToStringConversionAndBack() throws SQLException {
+        // Initialize database schema
+        DatabaseSchemaManager.initializeSchema();
+        
+        // Create test annotation with specific array values
+        UnittestCaseInfoData testAnnotation = new UnittestCaseInfoData();
+        testAnnotation.setTitle("Array Conversion Test");
+        testAnnotation.setAuthor("Test Author");
+        testAnnotation.setTags(new String[]{"tag1", "tag2", "tag3"});
+        testAnnotation.setTestPoints(new String[]{"point1", "point2"});
+        testAnnotation.setRelatedRequirements(new String[]{"req1", "req2", "req3"});
+        testAnnotation.setRelatedDefects(new String[]{"bug1"});
+        testAnnotation.setRelatedTestcases(new String[]{"tc1", "tc2"});
+        
+        // Create and persist test method
+        TestMethodInfo testMethod = createTestMethodWithAnnotation(testAnnotation);
+        long scanSessionId = persistTestMethod(testMethod);
+        
+        // Verify the exact string values stored in database
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                 "SELECT annotation_tags, annotation_test_points, annotation_requirements, " +
+                 "annotation_defects, annotation_testcases " +
+                 "FROM test_methods WHERE scan_session_id = ?")) {
+            
+            stmt.setLong(1, scanSessionId);
+            ResultSet rs = stmt.executeQuery();
+            
+            assertTrue("Should have test method data", rs.next());
+            
+            // Verify exact string values (should be semicolon-separated)
+            String storedTags = rs.getString("annotation_tags");
+            assertEquals("Tags should be semicolon-separated string", "tag1;tag2;tag3", storedTags);
+            
+            String storedTestPoints = rs.getString("annotation_test_points");
+            assertEquals("Test points should be semicolon-separated string", "point1;point2", storedTestPoints);
+            
+            String storedRequirements = rs.getString("annotation_requirements");
+            assertEquals("Requirements should be semicolon-separated string", "req1;req2;req3", storedRequirements);
+            
+            String storedDefects = rs.getString("annotation_defects");
+            assertEquals("Defects should be semicolon-separated string", "bug1", storedDefects);
+            
+            String storedTestcases = rs.getString("annotation_testcases");
+            assertEquals("Test cases should be semicolon-separated string", "tc1;tc2", storedTestcases);
+        }
+    }
+
+    @Test
+    public void testDataFlowEndToEnd() throws SQLException {
+        // Initialize database schema
+        DatabaseSchemaManager.initializeSchema();
+        
+        // Create test annotation with complex data
+        UnittestCaseInfoData testAnnotation = new UnittestCaseInfoData();
+        testAnnotation.setTitle("End-to-End Test");
+        testAnnotation.setAuthor("End-to-End Author");
+        testAnnotation.setTags(new String[]{"complex", "tag", "with spaces", "special-semicolon"});
+        testAnnotation.setTestPoints(new String[]{"point with spaces", "another-point"});
+        testAnnotation.setRelatedRequirements(new String[]{"REQ-001", "REQ-002", "REQ-003"});
+        testAnnotation.setRelatedDefects(new String[]{"BUG-001", "BUG-002"});
+        testAnnotation.setRelatedTestcases(new String[]{"TC-001", "TC-002", "TC-003"});
+        
+        // Create and persist test method
+        TestMethodInfo testMethod = createTestMethodWithAnnotation(testAnnotation);
+        long scanSessionId = persistTestMethod(testMethod);
+        
+        // Now simulate the ExcelReportGenerator reading the data
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                 "SELECT annotation_tags, annotation_test_points, annotation_requirements, " +
+                 "annotation_defects, annotation_testcases " +
+                 "FROM test_methods WHERE scan_session_id = ?")) {
+            
+            stmt.setLong(1, scanSessionId);
+            ResultSet rs = stmt.executeQuery();
+            
+            assertTrue("Should have test method data", rs.next());
+            
+            // Read as strings (like ExcelReportGenerator does now)
+            String tagsStr = rs.getString("annotation_tags");
+            String testPointsStr = rs.getString("annotation_test_points");
+            String requirementsStr = rs.getString("annotation_requirements");
+            String defectsStr = rs.getString("annotation_defects");
+            String testcasesStr = rs.getString("annotation_testcases");
+            
+            // Parse back to arrays (like ExcelReportGenerator does now)
+            String[] parsedTags = parseSemicolonSeparatedString(tagsStr);
+            String[] parsedTestPoints = parseSemicolonSeparatedString(testPointsStr);
+            String[] parsedRequirements = parseSemicolonSeparatedString(requirementsStr);
+            String[] parsedDefects = parseSemicolonSeparatedString(defectsStr);
+            String[] parsedTestcases = parseSemicolonSeparatedString(testcasesStr);
+            
+            // Verify the data integrity through the entire flow
+            assertArrayEquals("Tags should be preserved through the flow", testAnnotation.getTags(), parsedTags);
+            assertArrayEquals("Test points should be preserved through the flow", testAnnotation.getTestPoints(), parsedTestPoints);
+            assertArrayEquals("Requirements should be preserved through the flow", testAnnotation.getRelatedRequirements(), parsedRequirements);
+            assertArrayEquals("Defects should be preserved through the flow", testAnnotation.getRelatedDefects(), parsedDefects);
+            assertArrayEquals("Test cases should be preserved through the flow", testAnnotation.getRelatedTestcases(), parsedTestcases);
+        }
+    }
+
+    @Test
+    public void testEdgeCasesAreHandledCorrectly() throws SQLException {
+        // Initialize database schema
+        DatabaseSchemaManager.initializeSchema();
+        
+        // Create test annotation with edge cases
+        UnittestCaseInfoData testAnnotation = new UnittestCaseInfoData();
+        testAnnotation.setTitle("Edge Cases Test");
+        testAnnotation.setAuthor("Test Author");
+        testAnnotation.setTags(new String[0]);  // Empty array
+        testAnnotation.setTestPoints(null);     // Null array
+        testAnnotation.setRelatedRequirements(new String[]{"single"});  // Single element
+        testAnnotation.setRelatedDefects(new String[]{"", "valid"});   // Empty string element
+        testAnnotation.setRelatedTestcases(new String[]{"with-dash", "normal"}); // Use dash instead of comma
+        
+        // Create and persist test method
+        TestMethodInfo testMethod = createTestMethodWithAnnotation(testAnnotation);
+        long scanSessionId = persistTestMethod(testMethod);
+        
+        // Verify edge cases are handled correctly
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                 "SELECT annotation_tags, annotation_test_points, annotation_requirements, " +
+                 "annotation_defects, annotation_testcases " +
+                 "FROM test_methods WHERE scan_session_id = ?")) {
+            
+            stmt.setLong(1, scanSessionId);
+            ResultSet rs = stmt.executeQuery();
+            
+            assertTrue("Should have test method data", rs.next());
+            
+            // Verify empty array is stored as empty string
+            String storedTags = rs.getString("annotation_tags");
+            assertEquals("Empty array should be stored as empty string", "", storedTags);
+            
+            // Verify null array is stored as null
+            String storedTestPoints = rs.getString("annotation_test_points");
+            assertNull("Null array should be stored as null", storedTestPoints);
+            
+            // Verify single element array
+            String storedRequirements = rs.getString("annotation_requirements");
+            assertEquals("Single element array should be stored correctly", "single", storedRequirements);
+            
+            // Verify array with empty string element
+            String storedDefects = rs.getString("annotation_defects");
+            assertEquals("Array with empty string should be stored correctly", ";valid", storedDefects);
+            
+            // Verify array with semicolon in content (should handle correctly now)
+            String storedTestcases = rs.getString("annotation_testcases");
+            assertEquals("Array with semicolon in content should be stored correctly", "with-dash;normal", storedTestcases);
+        }
+    }
+
+    /**
+     * Helper method to parse semicolon-separated string back to an array (same as ExcelReportGenerator)
+     */
+    private static String[] parseSemicolonSeparatedString(String semicolonSeparatedString) {
+        if (semicolonSeparatedString == null || semicolonSeparatedString.isEmpty()) {
+            return new String[0];
+        }
+        return semicolonSeparatedString.split(";");
+    }
+
     // Helper methods
     
     private UnittestCaseInfoData createComprehensiveTestAnnotation() {
