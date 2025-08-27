@@ -1,6 +1,5 @@
 package com.example.annotationextractor.database;
 
-import com.example.annotationextractor.*;
 import com.example.annotationextractor.casemodel.RepositoryTestInfo;
 import com.example.annotationextractor.casemodel.TestClassInfo;
 import com.example.annotationextractor.casemodel.TestCollectionSummary;

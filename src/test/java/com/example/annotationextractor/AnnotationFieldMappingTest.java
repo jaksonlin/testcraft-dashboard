@@ -12,6 +12,12 @@ import com.example.annotationextractor.database.DatabaseConfig;
 import com.example.annotationextractor.database.DatabaseSchemaManager;
 import com.example.annotationextractor.database.DataPersistenceService;
 import com.example.annotationextractor.database.DataPersistenceServiceTest;
+import com.example.annotationextractor.casemodel.TestClassInfo;
+import com.example.annotationextractor.casemodel.RepositoryTestInfo;
+import com.example.annotationextractor.casemodel.TestCollectionSummary;
+import com.example.annotationextractor.casemodel.TestMethodInfo;
+import com.example.annotationextractor.casemodel.UnittestCaseInfoData;
+
 
 /**
  * Comprehensive test to verify UnittestCaseInfo annotation field mapping to database

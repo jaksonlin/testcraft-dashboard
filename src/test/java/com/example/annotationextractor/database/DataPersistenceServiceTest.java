@@ -1,6 +1,11 @@
 package com.example.annotationextractor.database;
 
-import com.example.annotationextractor.*;
+import com.example.annotationextractor.casemodel.TestCollectionSummary;
+import com.example.annotationextractor.casemodel.RepositoryTestInfo;
+import com.example.annotationextractor.casemodel.TestClassInfo;
+import com.example.annotationextractor.casemodel.TestMethodInfo;
+import com.example.annotationextractor.casemodel.UnittestCaseInfoData;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -279,7 +284,8 @@ public class DataPersistenceServiceTest {
      * Create a test TestClassInfo
      */
     private TestClassInfo createTestClass(String className, String packageName) {
-        TestClassInfo testClass = new TestClassInfo();
+        TestClassInfo testClass = new 
+        TestClassInfo();
         testClass.setClassName(className);
         testClass.setPackageName(packageName);
         testClass.setFilePath("/test/" + className + ".java");

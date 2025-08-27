@@ -7,6 +7,9 @@ import com.github.javaparser.ast.expr.AnnotationExpr;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+import com.example.annotationextractor.casemodel.UnittestCaseInfoData;
+import com.example.annotationextractor.casemodel.UnittestCaseInfoExtractor;
+
 /**
  * Test class for UnittestCaseInfoExtractor
  */

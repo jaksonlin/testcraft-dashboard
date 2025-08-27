@@ -1,4 +1,4 @@
-package com.example.annotationextractor;
+package com.example.annotationextractor.runner;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -7,6 +7,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
+
+import com.example.annotationextractor.casemodel.RepositoryTestInfo;
+import com.example.annotationextractor.casemodel.TestClassInfo;
+import com.example.annotationextractor.casemodel.TestClassParser;
+import com.example.annotationextractor.casemodel.TestCollectionSummary;
+
 import java.util.regex.Matcher;
 
 

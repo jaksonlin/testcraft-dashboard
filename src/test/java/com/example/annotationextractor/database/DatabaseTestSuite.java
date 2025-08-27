@@ -4,6 +4,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
+import com.example.annotationextractor.AnnotationFieldMappingTest;
 /**
  * Test suite for database layer tests.
  * 

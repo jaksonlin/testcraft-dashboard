@@ -77,9 +77,9 @@ public class RepositoryHubScannerTest {
         try {
             // Create a test file with valid URLs
             List<String> validUrls = List.of(
-                "https://github.com/example/repo1.git",
-                "https://github.com/example/repo2",
-                "git@github.com:example/repo3.git"
+                "https://github.com/example/repo1.git,team1,team1_code",
+                "https://github.com/example/repo2,team2,team2_code",
+                "git@github.com:example/repo3.git,team3,team3_code"
             );
             
             Files.write(Paths.get(testFile), validUrls);

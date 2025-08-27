@@ -1,4 +1,4 @@
-package com.example.annotationextractor;
+package com.example.annotationextractor.casemodel;
 
 /**
  * Data model to hold information about a test method including its annotations

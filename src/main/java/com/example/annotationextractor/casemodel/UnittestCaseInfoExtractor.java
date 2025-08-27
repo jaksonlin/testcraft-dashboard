@@ -1,4 +1,4 @@
-package com.example.annotationextractor;
+package com.example.annotationextractor.casemodel;
 
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;

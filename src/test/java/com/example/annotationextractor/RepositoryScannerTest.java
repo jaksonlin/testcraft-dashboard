@@ -8,6 +8,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import com.example.annotationextractor.casemodel.TestCollectionSummary;
+import com.example.annotationextractor.casemodel.RepositoryTestInfo;
+import com.example.annotationextractor.casemodel.TestClassInfo;
+import com.example.annotationextractor.casemodel.TestMethodInfo;
+import com.example.annotationextractor.runner.RepositoryScanner;
+
 /**
  * Test class for RepositoryScanner functionality
  */

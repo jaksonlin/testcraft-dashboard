@@ -1,4 +1,4 @@
-package com.example.annotationextractor;
+package com.example.annotationextractor.casemodel;
 
 import java.util.Arrays;
 
