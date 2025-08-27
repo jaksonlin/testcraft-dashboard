@@ -55,6 +55,9 @@ public class DatabaseSchemaManager {
                 createScanSessionsTable(conn, autoIncrementSyntax);
                 System.out.println("Scan sessions table created successfully");
                 
+                createTeamsTable(conn, autoIncrementSyntax);
+                System.out.println("Teams table created successfully");
+                
                 createRepositoriesTable(conn, autoIncrementSyntax);
                 System.out.println("Repositories table created successfully");
                 
@@ -73,7 +76,7 @@ public class DatabaseSchemaManager {
                 // Verify tables were actually created
                 System.out.println("=== DEBUG: Verifying tables after creation ===");
                 try (Statement stmt = conn.createStatement()) {
-                    ResultSet rs = stmt.executeQuery("SELECT table_name FROM information_schema.tables WHERE table_name IN ('repositories', 'scan_sessions', 'test_classes', 'test_methods', 'daily_metrics')");
+                    ResultSet rs = stmt.executeQuery("SELECT table_name FROM information_schema.tables WHERE table_name IN ('repositories', 'scan_sessions', 'test_classes', 'test_methods', 'daily_metrics', 'teams')");
                     System.out.println("Tables found in information_schema:");
                     while (rs.next()) {
                         System.out.println("  - " + rs.getString("table_name"));
@@ -103,14 +106,15 @@ public class DatabaseSchemaManager {
             "git_url VARCHAR(500)," +
             "git_branch VARCHAR(100) DEFAULT 'main'," +
             "technology_stack TEXT," +
-            "team_ownership VARCHAR(255)," +
+            "team_id BIGINT," +
             "first_scan_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
             "last_scan_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
             "total_test_classes INT DEFAULT 0," +
             "total_test_methods INT DEFAULT 0," +
             "total_annotated_methods INT DEFAULT 0," +
             "annotation_coverage_rate DECIMAL(5,2) DEFAULT 0.00," +
-            "UNIQUE(repository_name, repository_path)" +
+            "UNIQUE(repository_name, repository_path)," +
+            "FOREIGN KEY (team_id) REFERENCES teams(id)" +
             ")";
         
         try (Statement stmt = conn.createStatement()) {
@@ -245,6 +249,26 @@ public class DatabaseSchemaManager {
     }
     
     /**
+     * Create teams table
+     */
+    private static void createTeamsTable(Connection conn, String autoIncrementSyntax) throws SQLException {
+        String sql = "CREATE TABLE IF NOT EXISTS teams (" +
+            "id " + autoIncrementSyntax + " PRIMARY KEY," +
+            "team_name VARCHAR(255) NOT NULL," +
+            "team_code VARCHAR(50) NOT NULL UNIQUE," +
+            "department VARCHAR(255)," +
+            "created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+            ")";
+        
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            System.err.println("ERROR creating teams table: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    /**
      * Create performance indexes
      */
     private static void createIndexes(Connection conn) throws SQLException {
@@ -252,7 +276,7 @@ public class DatabaseSchemaManager {
         
         String[] indexSqls = {
             "CREATE INDEX IF NOT EXISTS idx_repositories_name ON repositories(repository_name)",
-            "CREATE INDEX IF NOT EXISTS idx_repositories_team ON repositories(team_ownership)",
+            "CREATE INDEX IF NOT EXISTS idx_repositories_team_id ON repositories(team_id)",
             "CREATE INDEX IF NOT EXISTS idx_test_classes_repo ON test_classes(repository_id)",
             "CREATE INDEX IF NOT EXISTS idx_test_methods_class ON test_methods(test_class_id)",
             "CREATE INDEX IF NOT EXISTS idx_scan_sessions_date ON scan_sessions(scan_date)",
@@ -331,6 +355,8 @@ public class DatabaseSchemaManager {
         }
     }
     
+
+    
     /**
      * Drop all tables (for testing/reset purposes)
      */
@@ -344,7 +370,8 @@ public class DatabaseSchemaManager {
                     "DROP TABLE IF EXISTS test_classes CASCADE",
                     "DROP TABLE IF EXISTS scan_sessions CASCADE",
                     "DROP TABLE IF EXISTS repositories CASCADE",
-                    "DROP TABLE IF EXISTS daily_metrics CASCADE"
+                    "DROP TABLE IF EXISTS daily_metrics CASCADE",
+                    "DROP TABLE IF EXISTS teams CASCADE"
                 };
                 
                 try (Statement stmt = conn.createStatement()) {

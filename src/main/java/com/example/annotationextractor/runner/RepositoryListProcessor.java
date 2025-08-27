@@ -1,4 +1,4 @@
-package com.example.annotationextractor;
+package com.example.annotationextractor.runner;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -8,26 +8,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+
+
 /**
  * Processes a text file containing a list of git repository URLs
  * Filters out comments and empty lines
  */
 public class RepositoryListProcessor {
-    
     /**
-     * Read repository URLs from a text file
-     * 
-     * @param filePath Path to the text file
-     * @return List of git repository URLs
-     * @throws IOException if file cannot be read
+     * Load team assignments from CSV file and update database
+     * Expected CSV format: git_url,team_name,team_code
      */
-    public static List<String> readRepositoryUrls(String filePath) throws IOException {
+    public static List<RepositoryHubRunnerConfig> readRepositoryHubRunnerConfigs(String filePath) throws IOException {
         Path path = Paths.get(filePath);
         if (!Files.exists(path)) {
             throw new IOException("Repository list file not found: " + filePath);
         }
         
-        List<String> urls = new ArrayList<>();
+        List<RepositoryHubRunnerConfig> configs = new ArrayList<>();
         List<String> lines = Files.readAllLines(path);
         
         for (int i = 0; i < lines.size(); i++) {
@@ -37,17 +35,31 @@ public class RepositoryListProcessor {
             if (line.isEmpty() || line.startsWith("#")) {
                 continue;
             }
+            RepositoryHubRunnerConfig config = createRepositoryHubRunnerConfig(line);
+            if (config != null) {
+                configs.add(config);
+            }
+
             
-            // Validate that it looks like a git URL
-            if (isValidGitUrl(line)) {
-                urls.add(line);
+        }
+        return configs;
+    }
+
+    private static RepositoryHubRunnerConfig createRepositoryHubRunnerConfig(String line) {
+        String[] parts = line.split(",");
+        if (parts.length >= 3) {
+            String gitUrl = parts[0].trim();
+            String teamName = parts[1].trim();
+            String teamCode = parts[2].trim();
+            if (isValidGitUrl(gitUrl)) {
+                return new RepositoryHubRunnerConfig(gitUrl, teamName, teamCode);
             } else {
-                System.err.println("Warning: Line " + (i + 1) + " does not appear to be a valid git URL: " + line);
+                System.err.println("Warning: Line does not appear to be a valid configuration: " + line);
             }
         }
-        
-        return urls;
+        return null;
     }
+   
     
     /**
      * Read repository URLs from a text file with filtering options
@@ -58,8 +70,8 @@ public class RepositoryListProcessor {
      * @return List of filtered git repository URLs
      * @throws IOException if file cannot be read
      */
-    public static List<String> readRepositoryUrls(String filePath, List<String> includePatterns, List<String> excludePatterns) throws IOException {
-        List<String> allUrls = readRepositoryUrls(filePath);
+    public static List<RepositoryHubRunnerConfig> readRepositoryUrls(String filePath, List<String> includePatterns, List<String> excludePatterns) throws IOException {
+        List<RepositoryHubRunnerConfig> allUrls = readRepositoryHubRunnerConfigs(filePath);
         
         if ((includePatterns == null || includePatterns.isEmpty()) && 
             (excludePatterns == null || excludePatterns.isEmpty())) {
@@ -67,7 +79,7 @@ public class RepositoryListProcessor {
         }
         
         return allUrls.stream()
-            .filter(url -> shouldIncludeUrl(url, includePatterns, excludePatterns))
+            .filter(config -> shouldIncludeUrl(config.getRepositoryUrl(), includePatterns, excludePatterns))
             .collect(Collectors.toList());
     }
     
@@ -173,7 +185,7 @@ public class RepositoryListProcessor {
                 emptyLines++;
             } else if (trimmed.startsWith("#")) {
                 commentLines++;
-            } else if (isValidGitUrl(trimmed)) {
+            } else if (createRepositoryHubRunnerConfig(trimmed) != null) {
                 urlLines++;
             } else {
                 invalidLines++;

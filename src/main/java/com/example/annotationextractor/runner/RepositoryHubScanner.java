@@ -1,9 +1,14 @@
-package com.example.annotationextractor;
+package com.example.annotationextractor.runner;
 
 import com.example.annotationextractor.database.DatabaseSchemaManager;
 import com.example.annotationextractor.reporting.ExcelReportGenerator;
+import com.example.annotationextractor.util.GitRepositoryManager;
+import com.example.annotationextractor.casemodel.RepositoryTestInfo;
+import com.example.annotationextractor.casemodel.TestCollectionSummary;
 import com.example.annotationextractor.database.DataPersistenceService;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,6 +16,7 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -37,6 +43,8 @@ public class RepositoryHubScanner {
     public RepositoryHubScanner(String repositoryHubPath, String repositoryListPath) {
         this(repositoryHubPath, repositoryListPath, null, null, null);
     }
+
+    
     
     /**
      * Set temporary clone mode
@@ -66,7 +74,8 @@ public class RepositoryHubScanner {
             gitManager.initializeRepositoryHub();
             
             // Read repository list
-            List<String> repositoryUrls = RepositoryListProcessor.readRepositoryUrls(repositoryListPath);
+            List<RepositoryHubRunnerConfig> repositoryUrls = RepositoryListProcessor.readRepositoryHubRunnerConfigs(repositoryListPath);
+            updateRepositoryHubRunnerConfigs(repositoryUrls);
             System.out.println("Found " + repositoryUrls.size() + " repositories to process");
             
             // Process repositories one by one in temporary clone mode
@@ -83,11 +92,17 @@ public class RepositoryHubScanner {
             return false;
         }
     }
+
+    private void updateRepositoryHubRunnerConfigs(List<RepositoryHubRunnerConfig> repositoryUrls) throws SQLException {
+        for (RepositoryHubRunnerConfig config : repositoryUrls) {
+            DataPersistenceService.assignRepositoryToTeam(config.getRepositoryUrl(), config.getTeamName(), config.getTeamCode());
+        }
+    }
     
     /**
      * Process repositories in temporary clone mode: clone, scan, delete
      */
-    private boolean processRepositoriesTemporarily(List<String> repositoryUrls, long startTime) {
+    private boolean processRepositoriesTemporarily(List<RepositoryHubRunnerConfig> repositoryUrls, long startTime) {
         int successfulRepos = 0;
         int totalRepos = repositoryUrls.size();
         
@@ -101,7 +116,8 @@ public class RepositoryHubScanner {
         System.out.println(gitManager.getDiskSpaceInfo());
         
         for (int i = 0; i < repositoryUrls.size(); i++) {
-            String gitUrl = repositoryUrls.get(i);
+            RepositoryHubRunnerConfig config = repositoryUrls.get(i);
+            String gitUrl = config.getRepositoryUrl();
             System.out.println("\n" + "=".repeat(80));
             System.out.println("Processing repository " + (i + 1) + " of " + totalRepos + ": " + gitUrl);
             System.out.println("=".repeat(80));
@@ -234,10 +250,11 @@ public class RepositoryHubScanner {
     /**
      * Process repositories in normal mode: clone all, then scan all
      */
-    private boolean processRepositoriesNormally(List<String> repositoryUrls, long startTime) {
+    private boolean processRepositoriesNormally(List<RepositoryHubRunnerConfig> repositoryUrls, long startTime) {
         // Clone/update repositories
         int successfulRepos = 0;
-        for (String gitUrl : repositoryUrls) {
+        for (RepositoryHubRunnerConfig config : repositoryUrls) {
+            String gitUrl = config.getRepositoryUrl();
             if (gitManager.cloneOrUpdateRepository(gitUrl)) {
                 successfulRepos++;
             } else {

@@ -1,6 +1,12 @@
 package com.example.annotationextractor;
 
 import org.junit.Test;
+
+import com.example.annotationextractor.runner.RepositoryHubRunnerConfig;
+import com.example.annotationextractor.runner.RepositoryHubScanner;
+import com.example.annotationextractor.runner.RepositoryListProcessor;
+import com.example.annotationextractor.util.GitRepositoryManager;
+
 import static org.junit.Assert.*;
 
 import java.io.IOException;
@@ -27,7 +33,7 @@ public class RepositoryHubScannerTest {
             assertTrue("Sample repository list file should exist", Files.exists(Paths.get(testFile)));
             
             // Read the repository list
-            List<String> urls = RepositoryListProcessor.readRepositoryUrls(testFile);
+            List<RepositoryHubRunnerConfig> urls = RepositoryListProcessor.readRepositoryHubRunnerConfigs(testFile);
             
             // Should have some example URLs
             assertTrue("Should have some repository URLs", urls.size() > 0);
@@ -79,7 +85,7 @@ public class RepositoryHubScannerTest {
             Files.write(Paths.get(testFile), validUrls);
             
             // Read and validate
-            List<String> urls = RepositoryListProcessor.readRepositoryUrls(testFile);
+            List<RepositoryHubRunnerConfig> urls = RepositoryListProcessor.readRepositoryHubRunnerConfigs(testFile);
             assertEquals("Should read all valid URLs", 3, urls.size());
             
         } finally {

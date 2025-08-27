@@ -135,7 +135,7 @@ public class DatabaseSchemaManagerTest {
                   hasRequiredColumns("repositories", 
                                    new String[]{"id", "repository_name", "repository_path", 
                                                "git_url", "git_branch", "technology_stack", 
-                                               "team_ownership", "first_scan_date", 
+                                               "team_id", "first_scan_date", 
                                                "last_scan_date", "total_test_classes", 
                                                "total_test_methods", "total_annotated_methods", 
                                                "annotation_coverage_rate"}));
@@ -177,6 +177,12 @@ public class DatabaseSchemaManagerTest {
                                                "total_test_classes", "total_test_methods", 
                                                "total_annotated_methods", "overall_coverage_rate", 
                                                "new_test_methods", "new_annotated_methods"}));
+        
+        // Test teams table structure
+        assertTrue("Teams table should have correct columns", 
+                  hasRequiredColumns("teams", 
+                                   new String[]{"id", "team_name", "team_code", 
+                                               "department", "created_date"}));
     }
 
     @Test
@@ -186,7 +192,7 @@ public class DatabaseSchemaManagerTest {
         
         // Verify indexes were created
         assertTrue("Repository name index should exist", indexExists("idx_repositories_name", "repositories"));
-        assertTrue("Repository team index should exist", indexExists("idx_repositories_team", "repositories"));
+        assertTrue("Repository team_id index should exist", indexExists("idx_repositories_team_id", "repositories"));
         assertTrue("Test classes repository index should exist", indexExists("idx_test_classes_repo", "test_classes"));
         assertTrue("Test methods class index should exist", indexExists("idx_test_methods_class", "test_methods"));
         assertTrue("Scan sessions date index should exist", indexExists("idx_scan_sessions_date", "scan_sessions"));

@@ -48,6 +48,10 @@ public class ExcelReportGenerator {
             Sheet coverageSheet = workbook.createSheet("Annotation Coverage");
             createCoverageSheet(workbook, coverageSheet);
             
+            // Create team summary sheet
+            Sheet teamSummarySheet = workbook.createSheet("Team Summary");
+            createTeamSummarySheet(workbook, teamSummarySheet);
+            
             // Create test method details sheet with streaming
             Sheet testMethodSheet = workbook.createSheet("Test Method Details");
             createTestMethodDetailsSheetStreaming(workbook, testMethodSheet);
@@ -376,27 +380,30 @@ public class ExcelReportGenerator {
      */
     private static void createTestMethodDetailsSheetStreaming(Workbook workbook, Sheet sheet) throws SQLException {
         // Set column widths
-        sheet.setColumnWidth(0, 3000); // Repository
-        sheet.setColumnWidth(1, 3000); // Class
-        sheet.setColumnWidth(2, 3000); // Method
-        sheet.setColumnWidth(3, 2000); // Line
-        sheet.setColumnWidth(4, 4000); // Title
-        sheet.setColumnWidth(5, 2000); // Author
-        sheet.setColumnWidth(6, 2000); // Status
-        sheet.setColumnWidth(7, 3000); // Target Class
-        sheet.setColumnWidth(8, 3000); // Target Method
-        sheet.setColumnWidth(9, 5000); // Description
-        sheet.setColumnWidth(10, 3000); // Test Points
-        sheet.setColumnWidth(11, 3000); // Tags
-        sheet.setColumnWidth(12, 3000); // Requirements
-        sheet.setColumnWidth(13, 3000); // Test Cases
-        sheet.setColumnWidth(14, 3000); // Defects
-        sheet.setColumnWidth(15, 3000); // Last Modified
-        sheet.setColumnWidth(16, 2000); // Last Author
+        sheet.setColumnWidth(0, 3000); // Team
+        sheet.setColumnWidth(1, 2000); // Team Code
+        sheet.setColumnWidth(2, 3000); // Repository
+        sheet.setColumnWidth(3, 6000); // Git URL
+        sheet.setColumnWidth(4, 3000); // Class
+        sheet.setColumnWidth(5, 3000); // Method
+        sheet.setColumnWidth(6, 2000); // Line
+        sheet.setColumnWidth(7, 4000); // Title
+        sheet.setColumnWidth(8, 2000); // Author
+        sheet.setColumnWidth(9, 2000); // Status
+        sheet.setColumnWidth(10, 3000); // Target Class
+        sheet.setColumnWidth(11, 3000); // Target Method
+        sheet.setColumnWidth(12, 5000); // Description
+        sheet.setColumnWidth(13, 3000); // Test Points
+        sheet.setColumnWidth(14, 3000); // Tags
+        sheet.setColumnWidth(15, 3000); // Requirements
+        sheet.setColumnWidth(16, 3000); // Test Cases
+        sheet.setColumnWidth(17, 3000); // Defects
+        sheet.setColumnWidth(18, 3000); // Last Modified
+        sheet.setColumnWidth(19, 2000); // Last Author
         
         // Create headers
         Row headerRow = sheet.createRow(0);
-        String[] headers = {"Repository", "Class", "Method", "Line", "Title", "Author", "Status", 
+        String[] headers = {"Team", "Team Code", "Repository", "Git URL", "Class", "Method", "Line", "Title", "Author", "Status", 
                            "Target Class", "Target Method", "Description", "Test Points", "Tags", 
                            "Requirements", "Test Cases", "Defects", "Last Modified", "Last Author"};
         
@@ -410,8 +417,11 @@ public class ExcelReportGenerator {
         // Get test method data with streaming approach
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement("""
-                 SELECT 
+                SELECT 
+                     t.team_name,
+                     t.team_code,
                      r.repository_name, 
+                     r.git_url,
                      tc.class_name, 
                      tc.package_name, 
                      tm.method_name, 
@@ -433,9 +443,10 @@ public class ExcelReportGenerator {
                  JOIN test_classes tc ON tm.test_class_id = tc.id 
                  JOIN repositories r ON tc.repository_id = r.id 
                  JOIN scan_sessions ss ON tm.scan_session_id = ss.id
+                 JOIN teams t ON r.team_id = t.id
                  WHERE tm.has_annotation = true 
                  AND ss.id = (SELECT MAX(id) FROM scan_sessions)
-                 ORDER BY r.repository_name, tc.class_name, tm.method_name
+                 ORDER BY t.team_name, r.repository_name, tc.class_name, tm.method_name
                  """,
                  ResultSet.TYPE_FORWARD_ONLY,
                  ResultSet.CONCUR_READ_ONLY)) {
@@ -461,48 +472,53 @@ public class ExcelReportGenerator {
                     Row row = sheet.createRow(rowNum++);
                     totalRows++;
                     
-                    // Repository and class information
-                    row.createCell(0).setCellValue(rs.getString("repository_name"));
-                    row.createCell(1).setCellValue(rs.getString("class_name"));
-                    row.createCell(2).setCellValue(rs.getString("method_name"));
-                    row.createCell(3).setCellValue(rs.getInt("line_number"));
+                    // Team and repository information
+                    row.createCell(0).setCellValue(rs.getString("team_name"));
+                    row.createCell(1).setCellValue(rs.getString("team_code"));
+                    row.createCell(2).setCellValue(rs.getString("repository_name"));
+                    row.createCell(3).setCellValue(rs.getString("git_url"));
+                    
+                    // Class and method information
+                    row.createCell(4).setCellValue(rs.getString("class_name"));
+                    row.createCell(5).setCellValue(rs.getString("method_name"));
+                    row.createCell(6).setCellValue(rs.getInt("line_number"));
                     
                     // Annotation information
-                    row.createCell(4).setCellValue(rs.getString("annotation_title"));
-                    row.createCell(5).setCellValue(rs.getString("annotation_author"));
-                    row.createCell(6).setCellValue(rs.getString("annotation_status"));
-                    row.createCell(7).setCellValue(rs.getString("annotation_target_class"));
-                    row.createCell(8).setCellValue(rs.getString("annotation_target_method"));
-                    row.createCell(9).setCellValue(rs.getString("annotation_description"));
+                    row.createCell(7).setCellValue(rs.getString("annotation_title"));
+                    row.createCell(8).setCellValue(rs.getString("annotation_author"));
+                    row.createCell(9).setCellValue(rs.getString("annotation_status"));
+                    row.createCell(10).setCellValue(rs.getString("annotation_target_class"));
+                    row.createCell(11).setCellValue(rs.getString("annotation_target_method"));
+                    row.createCell(12).setCellValue(rs.getString("annotation_description"));
                     
                     // TEXT fields - parse comma-separated strings back to arrays
                     String testPointsStr = rs.getString("annotation_test_points");
                     String[] testPoints = parseSemicolonSeparatedString(testPointsStr);
-                    row.createCell(10).setCellValue(arrayToString(testPoints));
+                    row.createCell(13).setCellValue(arrayToString(testPoints));
                     
                     String tagsStr = rs.getString("annotation_tags");
                     String[] tags = parseSemicolonSeparatedString(tagsStr);
-                    row.createCell(11).setCellValue(arrayToString(tags));
+                    row.createCell(14).setCellValue(arrayToString(tags));
                     
                     String requirementsStr = rs.getString("annotation_requirements");
                     String[] requirements = parseSemicolonSeparatedString(requirementsStr);
-                    row.createCell(12).setCellValue(arrayToString(requirements));
+                    row.createCell(15).setCellValue(arrayToString(requirements));
                     
                     String testCasesStr = rs.getString("annotation_testcases");
                     String[] testCases = parseSemicolonSeparatedString(testCasesStr);
-                    row.createCell(13).setCellValue(arrayToString(testCases));
+                    row.createCell(16).setCellValue(arrayToString(testCases));
                     
                     String defectsStr = rs.getString("annotation_defects");
                     String[] defects = parseSemicolonSeparatedString(defectsStr);
-                    row.createCell(14).setCellValue(arrayToString(defects));
+                    row.createCell(17).setCellValue(arrayToString(defects));
                     
                     // Timestamp information
                     if (rs.getTimestamp("last_modified_date") != null) {
-                        row.createCell(15).setCellValue(rs.getTimestamp("last_modified_date").toString());
+                        row.createCell(18).setCellValue(rs.getTimestamp("last_modified_date").toString());
                     }
                     
                     // Last update author
-                    row.createCell(16).setCellValue(rs.getString("annotation_last_update_author"));
+                    row.createCell(19).setCellValue(rs.getString("annotation_last_update_author"));
                     
                     // Progress indicator for large datasets
                     if (totalRows % 1000 == 0) {
@@ -517,7 +533,7 @@ public class ExcelReportGenerator {
                     noDataCell.setCellValue("No test method data available. Please run a scan first.");
                     
                     // Merge cells for the message
-                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 16));
+                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 19));
                     
                     // Style the message
                     CellStyle messageStyle = workbook.createCellStyle();
@@ -774,5 +790,144 @@ public class ExcelReportGenerator {
         noteFont.setItalic(true);
         noteStyle.setFont(noteFont);
         chartCell.setCellStyle(noteStyle);
+    }
+    
+    /**
+     * Create team summary sheet with team performance metrics
+     */
+    private static void createTeamSummarySheet(Workbook workbook, Sheet sheet) throws SQLException {
+        // Set column widths
+        sheet.setColumnWidth(0, 3000); // Team
+        sheet.setColumnWidth(1, 2000); // Team Code
+        sheet.setColumnWidth(2, 3000); // Repositories
+        sheet.setColumnWidth(3, 3000); // Test Classes
+        sheet.setColumnWidth(4, 3000); // Test Methods
+        sheet.setColumnWidth(5, 3000); // Annotated Methods
+        sheet.setColumnWidth(6, 3000); // Coverage %
+        sheet.setColumnWidth(7, 4000); // Status
+        
+        // Create headers
+        Row headerRow = sheet.createRow(0);
+        String[] headers = {"Team", "Team Code", "Repositories", "Test Classes", "Test Methods", "Annotated Methods", "Coverage %", "Status"};
+        
+        CellStyle headerStyle = createHeaderStyle(workbook);
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+        
+        // Get team summary data for latest scan
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement("""
+                 SELECT 
+                     t.team_name,
+                     t.team_code,
+                     COUNT(DISTINCT r.id) as repo_count,
+                     COUNT(DISTINCT tc.id) as test_class_count,
+                     COUNT(DISTINCT tm.id) as test_method_count,
+                     COUNT(DISTINCT CASE WHEN tm.has_annotation = true THEN tm.id END) as annotated_method_count,
+                     CASE 
+                         WHEN COUNT(DISTINCT tm.id) > 0 THEN 
+                             ROUND((COUNT(DISTINCT CASE WHEN tm.has_annotation = true THEN tm.id END) * 100.0 / COUNT(DISTINCT tm.id)), 2)
+                         ELSE 0 
+                     END as coverage_rate
+                 FROM teams t
+                 JOIN repositories r ON t.id = r.team_id
+                 JOIN test_classes tc ON r.id = tc.repository_id
+                 JOIN test_methods tm ON tc.id = tm.test_class_id
+                 JOIN scan_sessions ss ON tm.scan_session_id = ss.id
+                 WHERE ss.id = (SELECT MAX(id) FROM scan_sessions)
+                 GROUP BY t.id, t.team_name, t.team_code
+                 ORDER BY coverage_rate DESC, t.team_name
+                 """)) {
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                int rowNum = 1;
+                boolean hasData = false;
+                
+                while (rs.next()) {
+                    hasData = true;
+                    Row row = sheet.createRow(rowNum++);
+                    
+                    String teamName = rs.getString("team_name");
+                    String teamCode = rs.getString("team_code");
+                    double coverage = rs.getDouble("coverage_rate");
+                    
+                    row.createCell(0).setCellValue(teamName);
+                    row.createCell(1).setCellValue(teamCode);
+                    row.createCell(2).setCellValue(rs.getInt("repo_count"));
+                    row.createCell(3).setCellValue(rs.getInt("test_class_count"));
+                    row.createCell(4).setCellValue(rs.getInt("test_method_count"));
+                    row.createCell(5).setCellValue(rs.getInt("annotated_method_count"));
+                    row.createCell(6).setCellValue(coverage);
+                    
+                    // Set status based on coverage
+                    if (coverage >= 80) {
+                        row.createCell(7).setCellValue("🟢 Excellent");
+                    } else if (coverage >= 60) {
+                        row.createCell(7).setCellValue("🟡 Good");
+                    } else if (coverage >= 40) {
+                        row.createCell(7).setCellValue("🟠 Fair");
+                    } else {
+                        row.createCell(7).setCellValue("🔴 Needs Improvement");
+                    }
+                }
+                
+                if (!hasData) {
+                    // No team data found - add a message row
+                    Row noDataRow = sheet.createRow(1);
+                    Cell noDataCell = noDataRow.createCell(0);
+                    noDataCell.setCellValue("No team data available. Please ensure repositories are assigned to teams and run a scan first.");
+                    
+                    // Merge cells for the message
+                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 7));
+                    
+                    // Style the message
+                    CellStyle messageStyle = workbook.createCellStyle();
+                    Font messageFont = workbook.createFont();
+                    messageFont.setItalic(true);
+                    messageFont.setFontHeightInPoints((short) 10);
+                    messageStyle.setFont(messageFont);
+                    messageStyle.setAlignment(HorizontalAlignment.CENTER);
+                    noDataCell.setCellStyle(messageStyle);
+                }
+            }
+        }
+        
+        // Create team performance chart note
+        createTeamChartNote(workbook, sheet);
+    }
+    
+    /**
+     * Create team chart note for the team summary sheet
+     */
+    private static void createTeamChartNote(Workbook workbook, Sheet sheet) {
+        Row noteRow = sheet.createRow(sheet.getLastRowNum() + 2);
+        Cell noteCell = noteRow.createCell(0);
+        noteCell.setCellValue("📊 Team Performance Overview");
+        
+        CellStyle noteStyle = workbook.createCellStyle();
+        Font noteFont = workbook.createFont();
+        noteFont.setBold(true);
+        noteFont.setFontHeightInPoints((short) 12);
+        noteStyle.setFont(noteFont);
+        noteCell.setCellStyle(noteStyle);
+        
+        // Add team insights
+        Row insightRow1 = sheet.createRow(sheet.getLastRowNum() + 1);
+        Cell insightCell1 = insightRow1.createCell(0);
+        insightCell1.setCellValue("• Teams with coverage < 40% need immediate attention and support");
+        insightCell1.setCellStyle(createInstructionStyle(workbook));
+        
+        Row insightRow2 = sheet.createRow(sheet.getLastRowNum() + 1);
+        Cell insightCell2 = insightRow2.createCell(0);
+        insightCell2.setCellValue("• Teams with 60-80% coverage should focus on remaining high-impact test methods");
+        insightCell2.setCellStyle(createInstructionStyle(workbook));
+        
+        Row insightRow3 = sheet.createRow(sheet.getLastRowNum() + 1);
+        Cell insightCell3 = insightRow3.createCell(0);
+        insightCell3.setCellValue("• Teams with >80% coverage should maintain standards and mentor other teams");
+        insightCell3.setCellStyle(createInstructionStyle(workbook));
     }
 }

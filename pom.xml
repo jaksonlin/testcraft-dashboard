@@ -216,7 +216,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                <mainClass>com.example.annotationextractor.RepositoryHubRunner</mainClass>
+                                <mainClass>com.example.annotationextractor.runner.RepositoryHubRunner</mainClass>
                             </transformer>
                             </transformers>
                             <filters>

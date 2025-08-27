@@ -1,11 +1,20 @@
 package com.example.annotationextractor.database;
 
 import com.example.annotationextractor.*;
-import com.example.annotationextractor.PerformanceMonitor;
+import com.example.annotationextractor.casemodel.RepositoryTestInfo;
+import com.example.annotationextractor.casemodel.TestClassInfo;
+import com.example.annotationextractor.casemodel.TestCollectionSummary;
+import com.example.annotationextractor.casemodel.TestMethodInfo;
+import com.example.annotationextractor.casemodel.UnittestCaseInfoData;
+import com.example.annotationextractor.util.PerformanceMonitor;
+
 import org.postgresql.util.PGobject;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for persisting scan results to the database
@@ -428,4 +437,170 @@ public class DataPersistenceService {
         // Use semicolon as delimiter to avoid issues with comma in content
         return String.join(";", array);
     }
+
+     /**
+     * Assign a repository to a team
+     */
+    public static void assignRepositoryToTeam(String gitUrl, String teamName, String teamCode) throws SQLException {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try {
+                // First, ensure team exists
+                int teamId = ensureTeamExists(conn, teamName, teamCode);
+                
+                // Update repository with team assignment
+                try (PreparedStatement stmt = conn.prepareStatement(
+                    "UPDATE repositories SET team_id = ? WHERE git_url = ?")) {
+                    stmt.setInt(1, teamId);
+                    stmt.setString(2, gitUrl);
+                    
+                    int updatedRows = stmt.executeUpdate();
+                    if (updatedRows == 0) {
+                        System.out.println("⚠️ Warning: No repository found with git URL: " + gitUrl);
+                    } else {
+                        System.out.println("✅ Assigned repository " + gitUrl + " to team: " + teamName + " (" + teamCode + ")");
+                    }
+                }
+                
+                conn.commit();
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+    }
+
+    /**
+     * Ensure team exists, create if it doesn't
+     */
+    private static int ensureTeamExists(Connection conn, String teamName, String teamCode) throws SQLException {
+        // Check if team already exists by team_code (should be unique)
+        try (PreparedStatement stmt = conn.prepareStatement(
+            "SELECT id FROM teams WHERE team_code = ?")) {
+            stmt.setString(1, teamCode);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("id");
+                }
+            }
+        }
+        
+        // Create new team
+        try (PreparedStatement stmt = conn.prepareStatement(
+            "INSERT INTO teams (team_name, team_code) VALUES (?, ?)", 
+            Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, teamName);
+            stmt.setString(2, teamCode);
+            
+            stmt.executeUpdate();
+            
+            try (ResultSet rs = stmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    System.out.println("✅ Created new team: " + teamName + " (" + teamCode + ")");
+                    return rs.getInt(1);
+                }
+            }
+        }
+        
+        throw new SQLException("Failed to create team: " + teamName + " (" + teamCode + ")");
+    }
+
+    /**
+     * Get all teams with their repository counts
+     */
+    public static Map<String, Integer> getTeamRepositoryCounts() throws SQLException {
+        Map<String, Integer> teamCounts = new LinkedHashMap<>();
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement("""
+                 SELECT t.team_name, COUNT(r.id) as repo_count
+                 FROM teams t
+                 LEFT JOIN repositories r ON t.id = r.team_id
+                 GROUP BY t.id, t.team_name
+                 ORDER BY t.team_name
+                 """)) {
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String teamName = rs.getString("team_name");
+                    int repoCount = rs.getInt("repo_count");
+                    teamCounts.put(teamName, repoCount);
+                }
+            }
+        }
+        
+        return teamCounts;
+    }
+    
+    /**
+     * Get repositories without team assignments
+     */
+    public static List<String> getUnassignedRepositories() throws SQLException {
+        List<String> unassigned = new ArrayList<>();
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement("""
+                 SELECT git_url FROM repositories 
+                 WHERE team_id IS NULL
+                 ORDER BY git_url
+                 """)) {
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    unassigned.add(rs.getString("git_url"));
+                }
+            }
+        }
+        
+        return unassigned;
+    }
+
+    /**
+     * Validate team assignments
+     */
+    public static void validateTeamAssignments() throws SQLException {
+        System.out.println("\n📋 Team Assignment Validation Report");
+        System.out.println("=====================================");
+        
+        // Get team counts
+        Map<String, Integer> teamCounts = getTeamRepositoryCounts();
+        System.out.println("\nTeams and Repository Counts:");
+        for (Map.Entry<String, Integer> entry : teamCounts.entrySet()) {
+            System.out.println("  • " + entry.getKey() + ": " + entry.getValue() + " repositories");
+        }
+        
+        // Get unassigned repositories
+        List<String> unassigned = getUnassignedRepositories();
+        if (unassigned.isEmpty()) {
+            System.out.println("\n✅ All repositories are assigned to teams!");
+        } else {
+            System.out.println("\n⚠️  Unassigned repositories (" + unassigned.size() + "):");
+            for (String repo : unassigned) {
+                System.out.println("  • " + repo);
+            }
+            System.out.println("\n💡 Use TeamManager.loadTeamAssignmentsFromCSV() to assign these repositories");
+        }
+        
+        // Get total repository count
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM repositories")) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    int totalRepos = rs.getInt(1);
+                    int assignedRepos = totalRepos - unassigned.size();
+                    System.out.println("\n📊 Summary:");
+                    System.out.println("  • Total repositories: " + totalRepos);
+                    System.out.println("  • Assigned to teams: " + assignedRepos);
+                    System.out.println("  • Unassigned: " + unassigned.size());
+                    System.out.println("  • Assignment rate: " + String.format("%.1f%%", (assignedRepos * 100.0 / totalRepos)));
+                }
+            }
+        }
+    }
+    
 }
