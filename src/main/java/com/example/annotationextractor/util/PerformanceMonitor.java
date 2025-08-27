@@ -1,4 +1,4 @@
-package com.example.annotationextractor;
+package com.example.annotationextractor.util;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -38,7 +38,7 @@ public class PerformanceMonitor {
             long memoryEnd = getCurrentMemoryUsage();
             long memoryDelta = memoryEnd - memoryStart;
             
-            System.out.println("✅ Completed: " + operationName + 
+            System.out.println("�?Completed: " + operationName + 
                              " in " + duration + "ms" +
                              " (Memory: " + formatMemory(memoryDelta) + ")");
         }
