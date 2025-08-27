@@ -1,4 +1,4 @@
-package com.example.annotationextractor;
+package com.example.annotationextractor.util;
 
 import java.io.BufferedReader;
 import java.io.IOException;
