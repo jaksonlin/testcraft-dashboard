@@ -91,4 +91,12 @@ public class RepositoryHubScannerTest {
             }
         }
     }
+
+    @Test
+    public void testScanningSingleRepository() {
+        // Test scanning a single repository
+        RepositoryHubScanner scanner = new RepositoryHubScanner("d:/testlab", "d:/testlab/testrepo.txt");
+        boolean success = scanner.executeFullScan();
+        assertTrue("Scan should be successful", success);
+    }
 }

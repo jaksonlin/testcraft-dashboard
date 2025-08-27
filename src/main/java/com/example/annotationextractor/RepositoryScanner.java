@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+
 
 /**
  * Scanner class to find Java git repositories and their test directories
@@ -211,21 +213,17 @@ public class RepositoryScanner {
         }
         
         // Find test directories following standard Java conventions
-        List<Path> testDirectories = findTestDirectories(repoPath);
+        HashMap<String, Path> testJavaFiles = findTestJavaFiles(repoPath);
         
-        for (Path testDir : testDirectories) {
-            List<Path> javaFiles = findJavaFiles(testDir);
-            
-            for (Path javaFile : javaFiles) {
-                try {
-                    TestClassInfo testClassInfo = TestClassParser.parseTestClass(javaFile);
-                    if (testClassInfo.getTotalTestMethods() > 0) {
-                        repoInfo.addTestClass(testClassInfo);
-                    }
-                } catch (Exception e) {
-                    System.err.println("Error parsing test class " + javaFile + ": " + e.getMessage());
-                    // Continue with other files
+        for (Path javaFile : testJavaFiles.values()) {
+            try {
+                TestClassInfo testClassInfo = TestClassParser.parseTestClass(javaFile);
+                if (testClassInfo.getTotalTestMethods() > 0) {
+                    repoInfo.addTestClass(testClassInfo);
                 }
+            } catch (Exception e) {
+                System.err.println("Error parsing test class " + javaFile + ": " + e.getMessage());
+                // Continue with other files
             }
         }
         
@@ -254,72 +252,26 @@ public class RepositoryScanner {
     }
     
     /**
-     * Find test directories following standard Java conventions
+     * Find all Java test files following standard Java conventions
      */
-    private static List<Path> findTestDirectories(Path repoPath) throws IOException {
-        List<Path> testDirs = new ArrayList<>();
+    private static HashMap<String, Path> findTestJavaFiles(Path repoPath) throws IOException {
+        HashMap<String, Path> testJavaFiles = new HashMap<>();
         
-        // Common test directory patterns
-        String[] testDirPatterns = {
-            "src/test/java",
-            "src/test",
-            "test",
-            "tests",
-            "test/java",
-            "tests/java"
-        };
-        
-        for (String pattern : testDirPatterns) {
-            Path testDir = repoPath.resolve(pattern);
-            if (Files.exists(testDir) && Files.isDirectory(testDir)) {
-                testDirs.add(testDir);
-            }
-        }
-        
-        // Also look for test directories in src subdirectories
-        try {
-            Files.walkFileTree(repoPath.resolve("src"), new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                    if (dir.getFileName().toString().equals("test")) {
-                        testDirs.add(dir);
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-                
-                @Override
-                public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (IOException e) {
-            // src directory might not exist, continue
-        }
-        
-        return testDirs;
-    }
-    
-    /**
-     * Find all Java files in a directory recursively
-     */
-    private static List<Path> findJavaFiles(Path directory) throws IOException {
-        List<Path> javaFiles = new ArrayList<>();
-        
-        Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+        Files.walkFileTree(repoPath, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                if (file.toString().endsWith(".java")) {
-                    javaFiles.add(file);
+                String fileFullPath = file.toString();
+                if (fileFullPath.contains("src/test/java") || fileFullPath.contains("src\\test\\java")) {
+                    if (file.toString().endsWith(".java")) {
+                        testJavaFiles.put(file.toString(), file);
+                    }
                 }
-                return FileVisitResult.CONTINUE;
-            }
-            
-            @Override
-            public FileVisitResult visitFileFailed(Path file, IOException exc) {
                 return FileVisitResult.CONTINUE;
             }
         });
         
-        return javaFiles;
+        return testJavaFiles;
     }
+    
+    
 }
