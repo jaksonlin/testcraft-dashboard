@@ -97,7 +97,9 @@ public class ExcelReportGenerator {
         // Check if there's any data in the database
         boolean hasData = false;
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM repositories")) {
+             PreparedStatement stmt = conn.prepareStatement("""
+                 SELECT COUNT(*) FROM repositories
+                 """)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next() && rs.getInt(1) > 0) {
                     hasData = true;
@@ -115,8 +117,9 @@ public class ExcelReportGenerator {
         
         // Get current metrics
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                 "SELECT * FROM daily_metrics WHERE metric_date = CURRENT_DATE")) {
+             PreparedStatement stmt = conn.prepareStatement("""
+                 SELECT * FROM daily_metrics WHERE metric_date = CURRENT_DATE
+                 """)) {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -170,8 +173,9 @@ public class ExcelReportGenerator {
         
         // Get repository data
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                 "SELECT * FROM repositories ORDER BY annotation_coverage_rate DESC")) {
+             PreparedStatement stmt = conn.prepareStatement("""
+                 SELECT * FROM repositories ORDER BY annotation_coverage_rate DESC
+                 """)) {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;
@@ -238,9 +242,11 @@ public class ExcelReportGenerator {
         
         // Get trend data (last 30 days)
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                 "SELECT * FROM daily_metrics WHERE metric_date >= CURRENT_DATE - INTERVAL '30 days' " +
-                 "ORDER BY metric_date DESC")) {
+             PreparedStatement stmt = conn.prepareStatement("""
+                 SELECT * FROM daily_metrics 
+                 WHERE metric_date >= CURRENT_DATE - INTERVAL '30 days' 
+                 ORDER BY metric_date DESC
+                 """)) {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;
@@ -305,9 +311,11 @@ public class ExcelReportGenerator {
         
         // Get coverage data
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                 "SELECT repository_name, total_test_classes, annotation_coverage_rate " +
-                 "FROM repositories ORDER BY annotation_coverage_rate ASC")) {
+             PreparedStatement stmt = conn.prepareStatement("""
+                 SELECT repository_name, total_test_classes, annotation_coverage_rate 
+                 FROM repositories 
+                 ORDER BY annotation_coverage_rate ASC
+                 """)) {
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;
@@ -401,31 +409,34 @@ public class ExcelReportGenerator {
         
         // Get test method data with streaming approach
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                 "SELECT " +
-                 "    r.repository_name, " +
-                 "    tc.class_name, " +
-                 "    tc.package_name, " +
-                 "    tm.method_name, " +
-                 "    tm.line_number, " +
-                 "    tm.annotation_title, " +
-                 "    tm.annotation_author, " +
-                 "    tm.annotation_status, " +
-                 "    tm.annotation_target_class, " +
-                 "    tm.annotation_target_method, " +
-                 "    tm.annotation_description, " +
-                 "    tm.annotation_test_points, " +
-                 "    tm.annotation_tags, " +
-                 "    tm.annotation_requirements, " +
-                 "    tm.annotation_testcases, " +
-                 "    tm.annotation_defects, " +
-                 "    tm.last_modified_date, " +
-                 "    tm.annotation_last_update_author " +
-                 "FROM test_methods tm " +
-                 "JOIN test_classes tc ON tm.test_class_id = tc.id " +
-                 "JOIN repositories r ON tc.repository_id = r.id " +
-                 "WHERE tm.has_annotation = true " +
-                 "ORDER BY r.repository_name, tc.class_name, tm.method_name",
+             PreparedStatement stmt = conn.prepareStatement("""
+                 SELECT 
+                     r.repository_name, 
+                     tc.class_name, 
+                     tc.package_name, 
+                     tm.method_name, 
+                     tm.line_number, 
+                     tm.annotation_title, 
+                     tm.annotation_author, 
+                     tm.annotation_status, 
+                     tm.annotation_target_class, 
+                     tm.annotation_target_method, 
+                     tm.annotation_description, 
+                     tm.annotation_test_points, 
+                     tm.annotation_tags, 
+                     tm.annotation_requirements, 
+                     tm.annotation_testcases, 
+                     tm.annotation_defects, 
+                     tm.last_modified_date, 
+                     tm.annotation_last_update_author 
+                 FROM test_methods tm 
+                 JOIN test_classes tc ON tm.test_class_id = tc.id 
+                 JOIN repositories r ON tc.repository_id = r.id 
+                 JOIN scan_sessions ss ON tm.scan_session_id = ss.id
+                 WHERE tm.has_annotation = true 
+                 AND ss.id = (SELECT MAX(id) FROM scan_sessions)
+                 ORDER BY r.repository_name, tc.class_name, tm.method_name
+                 """,
                  ResultSet.TYPE_FORWARD_ONLY,
                  ResultSet.CONCUR_READ_ONLY)) {
             
