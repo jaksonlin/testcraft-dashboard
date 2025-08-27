@@ -43,7 +43,7 @@ public class TestClassInfo {
     public void addTestMethod(TestMethodInfo testMethod) {
         this.testMethods.add(testMethod);
         this.totalTestMethods++;
-        if (testMethod.getAnnotationData() != null) {
+        if (testMethod.getAnnotationData() != null && testMethod.getAnnotationData().getTitle() != null && !testMethod.getAnnotationData().getTitle().isEmpty()) {
             this.annotatedTestMethods++;
         }
     }
