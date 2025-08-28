@@ -95,30 +95,12 @@ public class RepositoryHubRunner {
             }
             
             // Create and run the scanner
-            RepositoryHubScanner scanner;
-            if (sshKeyPath != null) {
-                // Use SSH authentication
-                scanner = new RepositoryHubScanner(repositoryHubPath, repositoryListPath, username, password, sshKeyPath);
-                System.out.println("Using SSH authentication with key: " + sshKeyPath);
-                System.out.println("Note: If you encounter SSH key issues, consider using OpenSSH format keys.");
-            } else if (username != null && password != null) {
-                // Use HTTPS authentication
-                scanner = new RepositoryHubScanner(repositoryHubPath, repositoryListPath, username, password);
-                System.out.println("Using HTTPS authentication for user: " + username);
-            } else {
-                // No authentication (public repos)
-                scanner = new RepositoryHubScanner(repositoryHubPath, repositoryListPath);
-                System.out.println("No authentication - cloning public repositories only");
-            }
-            
-            // Set temporary clone mode if specified
-            if (tempCloneMode) {
-                scanner.setTempCloneMode(true);
-                System.out.println("Temporary clone mode enabled - repositories will be deleted after scanning to save disk space");
-            }
+            GitRepositoryManager gitManager = new GitRepositoryManager(repositoryHubPath, username, password, sshKeyPath);
+            RepositoryHubScanner scanner = new RepositoryHubScanner(gitManager);
+           
             
             // Execute the full scan
-            boolean success = scanner.executeFullScan();
+            boolean success = scanner.executeFullScan(tempCloneMode);
             
             if (success) {
                 System.exit(0);

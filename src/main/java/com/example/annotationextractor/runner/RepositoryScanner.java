@@ -6,12 +6,14 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import com.example.annotationextractor.casemodel.RepositoryTestInfo;
 import com.example.annotationextractor.casemodel.TestClassInfo;
 import com.example.annotationextractor.casemodel.TestClassParser;
 import com.example.annotationextractor.casemodel.TestCollectionSummary;
+import com.example.annotationextractor.util.GitRepositoryManager;
 
 import java.util.regex.Matcher;
 
@@ -23,6 +25,25 @@ import java.util.regex.Matcher;
  */
 
 public class RepositoryScanner {
+
+    private final Map<String, RepositoryTestInfo> repositoryInfos = new HashMap<>();
+    private final TestCollectionSummary summary;
+    private final GitRepositoryManager gitRepositoryManager;
+
+    public RepositoryScanner(GitRepositoryManager gitRepositoryManager) throws IOException {
+        
+        this.gitRepositoryManager = gitRepositoryManager;
+        this.summary = new TestCollectionSummary(gitRepositoryManager.getRepositoryHubPath());
+        String scanConfigPath = gitRepositoryManager.getRepositoryHubPath() + "/scanConfig.txt";
+        if (!Files.exists(Paths.get(scanConfigPath))) {
+            throw new IOException("Scan config file not found: " + scanConfigPath);
+        }
+        List<RepositoryHubRunnerConfig> repositoryHubRunnerConfigs = RepositoryListProcessor.readRepositoryHubRunnerConfigs(scanConfigPath);
+        for (RepositoryHubRunnerConfig config : repositoryHubRunnerConfigs) {
+            RepositoryTestInfo repoInfo = new RepositoryTestInfo(config.getRepositoryUrl(), config.getTeamName(), config.getTeamCode());
+            repositoryInfos.put(config.getRepositoryUrl(), repoInfo);
+        }
+    }
     
     /**
      * Scan a directory for Java git repositories and collect test information
@@ -31,8 +52,8 @@ public class RepositoryScanner {
      * @return TestCollectionSummary containing all collected test information
      * @throws IOException if directory cannot be scanned
      */
-    public static TestCollectionSummary scanRepositories(String rootDirectory) throws IOException {
-        return scanRepositories(rootDirectory, null, null);
+    public TestCollectionSummary scanRepositories(boolean tempCloneMode) throws IOException {
+        return scanRepositories(null, null, tempCloneMode);
     }
     
     /**
@@ -44,22 +65,22 @@ public class RepositoryScanner {
      * @return TestCollectionSummary containing all collected test information
      * @throws IOException if directory cannot be scanned
      */
-    public static TestCollectionSummary scanRepositories(String rootDirectory, List<String> includePatterns, List<String> excludePatterns) throws IOException {
-        Path rootPath = Paths.get(rootDirectory);
-        if (!Files.exists(rootPath) || !Files.isDirectory(rootPath)) {
-            throw new IOException("Directory does not exist or is not a directory: " + rootDirectory);
-        }
-        
-        TestCollectionSummary summary = new TestCollectionSummary(rootDirectory);
-        
-        // Find all git repositories in the root directory
-        List<Path> gitRepositories = findGitRepositories(rootPath);
-        
-        for (Path repoPath : gitRepositories) {
+    public TestCollectionSummary scanRepositories(List<String> includePatterns, List<String> excludePatterns, boolean tempCloneMode) throws IOException {
+        Path rootPath = gitRepositoryManager.initializeRepositoryHub();
+        for (Map.Entry<String, RepositoryTestInfo> entry : repositoryInfos.entrySet()) {
             try {
+                Path repoPath = gitRepositoryManager.cloneOrUpdateRepository(entry.getKey());
+                if (repoPath != null) {
+                    entry.getValue().setRepositoryPath(repoPath);
+                    entry.getValue().setRepositoryName(entry.getKey().substring(entry.getKey().lastIndexOf('/') + 1));
+                } else {
+                    System.err.println("Failed to clone or update repository " + entry.getKey());
+                    continue;
+                }
+                
                 // Check if repository path matches include/exclude patterns
                 if (shouldIncludeRepository(repoPath, rootPath, includePatterns, excludePatterns)) {
-                    RepositoryTestInfo repoInfo = scanRepository(repoPath);
+                    RepositoryTestInfo repoInfo = scanRepository(entry.getValue());
                     if (repoInfo.getTotalTestClasses() > 0) {
                         summary.addRepository(repoInfo);
                     }
@@ -67,13 +88,19 @@ public class RepositoryScanner {
                     System.out.println("Skipping repository (pattern filter): " + repoPath);
                 }
             } catch (Exception e) {
-                System.err.println("Error scanning repository " + repoPath + ": " + e.getMessage());
+                System.err.println("Error scanning repository " + entry.getKey() + ": " + e.getMessage());
                 // Continue with other repositories
+            } finally {
+                if (tempCloneMode) {
+                    gitRepositoryManager.deleteRepository(entry.getKey());
+                }
             }
         }
         
         return summary;
     }
+
+
     
     /**
      * Check if a repository should be included based on path patterns
@@ -177,49 +204,14 @@ public class RepositoryScanner {
         return regex.toString();
     }
     
-    /**
-     * Find all git repositories in a directory
-     */
-    private static List<Path> findGitRepositories(Path rootPath) throws IOException {
-        List<Path> repositories = new ArrayList<>();
-        
-        Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                // Check if this directory contains a .git folder
-                if (Files.exists(dir.resolve(".git"))) {
-                    repositories.add(dir);
-                    return FileVisitResult.SKIP_SUBTREE; // Don't go deeper into this repo
-                }
-                return FileVisitResult.CONTINUE;
-            }
-            
-            @Override
-            public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                // Log error but continue
-                System.err.println("Failed to visit file: " + file + " - " + exc.getMessage());
-                return FileVisitResult.CONTINUE;
-            }
-        });
-        
-        return repositories;
-    }
-    
+
     /**
      * Scan a single repository for test classes
      */
-    private static RepositoryTestInfo scanRepository(Path repoPath) throws IOException {
-        String repoName = repoPath.getFileName().toString();
-        RepositoryTestInfo repoInfo = new RepositoryTestInfo(repoName, repoPath.toString());
-        
-        // Try to extract git URL from the repository
-        String gitUrl = extractGitUrlFromRepository(repoPath);
-        if (gitUrl != null) {
-            repoInfo.setGitUrl(gitUrl);
-        }
-        
+    private RepositoryTestInfo scanRepository(RepositoryTestInfo repoInfo) throws IOException {
+
         // Find test directories following standard Java conventions
-        HashMap<String, Path> testJavaFiles = findTestJavaFiles(repoPath);
+        HashMap<String, Path> testJavaFiles = findTestJavaFiles(repoInfo.getRepositoryPath());
         
         for (Path javaFile : testJavaFiles.values()) {
             try {
@@ -236,27 +228,7 @@ public class RepositoryScanner {
         return repoInfo;
     }
     
-    /**
-     * Extract git URL from a repository directory
-     */
-    private static String extractGitUrlFromRepository(Path repoPath) {
-        try {
-            Path gitConfigPath = repoPath.resolve(".git").resolve("config");
-            if (Files.exists(gitConfigPath)) {
-                List<String> lines = Files.readAllLines(gitConfigPath);
-                for (String line : lines) {
-                    line = line.trim();
-                    if (line.startsWith("url = ")) {
-                        return line.substring(6).trim();
-                    }
-                }
-            }
-        } catch (IOException e) {
-            // Ignore errors reading git config
-        }
-        return null;
-    }
-    
+   
     /**
      * Find all Java test files following standard Java conventions
      */

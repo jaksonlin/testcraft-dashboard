@@ -3,9 +3,12 @@ package com.example.annotationextractor.util;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +68,7 @@ public class GitRepositoryManager {
      * 
      * @throws IOException if directory creation fails
      */
-    public void initializeRepositoryHub() throws IOException {
+    public Path initializeRepositoryHub() throws IOException {
         Path hubPath = Paths.get(repositoryHubPath);
         if (!Files.exists(hubPath)) {
             Files.createDirectories(hubPath);
@@ -73,6 +76,7 @@ public class GitRepositoryManager {
         } else {
             System.out.println("Repository hub directory already exists: " + repositoryHubPath);
         }
+        return hubPath;
     }
     
     /**
@@ -81,23 +85,29 @@ public class GitRepositoryManager {
      * @param gitUrl Git repository URL
      * @return true if successful, false otherwise
      */
-    public boolean cloneOrUpdateRepository(String gitUrl) {
+    public Path cloneOrUpdateRepository(String gitUrl) {
         try {
             String repoName = extractRepositoryName(gitUrl);
             Path repoPath = Paths.get(repositoryHubPath, repoName);
             
             if (Files.exists(repoPath.resolve(".git"))) {
                 // Repository exists, pull latest changes
-                return pullRepository(repoPath, repoName);
+                if (pullRepository(repoPath, repoName)) {
+                    return repoPath;
+                }
             } else {
                 // Repository doesn't exist, clone it
-                return cloneRepository(gitUrl, repoPath, repoName);
+                if (cloneRepository(gitUrl, repoPath, repoName)) {
+                    return repoPath;
+                }
             }
             
         } catch (Exception e) {
             System.err.println("Error processing repository " + gitUrl + ": " + e.getMessage());
-            return false;
+            return null;
         }
+        System.err.println("Failed to clone or update repository " + gitUrl);
+        return null;
     }
     
     /**
@@ -738,4 +748,54 @@ public class GitRepositoryManager {
             return "Error getting disk space information: " + e.getMessage();
         }
     }
+
+     /**
+     * Extract git URL from a repository directory
+     */
+    public static String extractGitUrlFromRepository(Path repoPath) {
+        try {
+            Path gitConfigPath = repoPath.resolve(".git").resolve("config");
+            if (Files.exists(gitConfigPath)) {
+                List<String> lines = Files.readAllLines(gitConfigPath);
+                for (String line : lines) {
+                    line = line.trim();
+                    if (line.startsWith("url = ")) {
+                        return line.substring(6).trim();
+                    }
+                }
+            }
+        } catch (IOException e) {
+            // Ignore errors reading git config
+        }
+        return null;
+    }
+
+    /**
+     * Find all git repositories in a directory
+     */
+    public static List<Path> findGitRepositories(Path rootPath) throws IOException {
+        List<Path> repositories = new ArrayList<>();
+        
+        Files.walkFileTree(rootPath, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                // Check if this directory contains a .git folder
+                if (Files.exists(dir.resolve(".git"))) {
+                    repositories.add(dir);
+                    return FileVisitResult.SKIP_SUBTREE; // Don't go deeper into this repo
+                }
+                return FileVisitResult.CONTINUE;
+            }
+            
+            @Override
+            public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                // Log error but continue
+                System.err.println("Failed to visit file: " + file + " - " + exc.getMessage());
+                return FileVisitResult.CONTINUE;
+            }
+        });
+        
+        return repositories;
+    }
+    
 }

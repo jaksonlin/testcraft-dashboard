@@ -1,5 +1,6 @@
 package com.example.annotationextractor.casemodel;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,10 +9,37 @@ import java.util.List;
  */
 public class RepositoryTestInfo {
     private String repositoryName;
-    private String repositoryPath;
+    private Path repositoryPath;
+    public void setRepositoryName(String repositoryName) {
+        this.repositoryName = repositoryName;
+    }
+
+    public void setRepositoryPath(Path repositoryPath) {
+        this.repositoryPath = repositoryPath;
+    }
+
     private String gitUrl;
+    private final String teamName;
+    private final String teamCode;
+    public String getTeamName() {
+        return teamName;
+    }
+
+    public void setGitUrl(String gitUrl) {
+        this.gitUrl = gitUrl;
+    }
+
+    public String getTeamCode() {
+        return teamCode;
+    }
+
     private List<TestClassInfo> testClasses;
+    
+    
     private int totalTestClasses;
+    private int totalTestMethods;
+    private int totalAnnotatedTestMethods;
+
     public void setTotalTestClasses(int totalTestClasses) {
         this.totalTestClasses = totalTestClasses;
     }
@@ -24,33 +52,11 @@ public class RepositoryTestInfo {
         this.totalAnnotatedTestMethods = totalAnnotatedTestMethods;
     }
 
-    private int totalTestMethods;
-    private int totalAnnotatedTestMethods;
 
-    public RepositoryTestInfo() {
-        this.repositoryName = "";
-        this.repositoryPath = "";
-        this.gitUrl = "";
-        this.testClasses = new ArrayList<>();
-        this.totalTestClasses = 0;
-        this.totalTestMethods = 0;
-        this.totalAnnotatedTestMethods = 0;
-    }
-
-    public RepositoryTestInfo(String repositoryName, String repositoryPath) {
-        this.repositoryName = repositoryName;
-        this.repositoryPath = repositoryPath;
-        this.gitUrl = "";
-        this.testClasses = new ArrayList<>();
-        this.totalTestClasses = 0;
-        this.totalTestMethods = 0;
-        this.totalAnnotatedTestMethods = 0;
-    }
-
-    public RepositoryTestInfo(String repositoryName, String repositoryPath, String gitUrl) {
-        this.repositoryName = repositoryName;
-        this.repositoryPath = repositoryPath;
+    public RepositoryTestInfo(String gitUrl, String teamName, String teamCode) {
         this.gitUrl = gitUrl;
+        this.teamName = teamName;
+        this.teamCode = teamCode;
         this.testClasses = new ArrayList<>();
         this.totalTestClasses = 0;
         this.totalTestMethods = 0;
@@ -69,24 +75,14 @@ public class RepositoryTestInfo {
         return repositoryName;
     }
 
-    public void setRepositoryName(String repositoryName) {
-        this.repositoryName = repositoryName;
-    }
 
-    public String getRepositoryPath() {
+    public Path getRepositoryPath() {
         return repositoryPath;
     }
 
-    public void setRepositoryPath(String repositoryPath) {
-        this.repositoryPath = repositoryPath;
-    }
 
     public String getGitUrl() {
         return gitUrl;
-    }
-
-    public void setGitUrl(String gitUrl) {
-        this.gitUrl = gitUrl;
     }
 
     public List<TestClassInfo> getTestClasses() {

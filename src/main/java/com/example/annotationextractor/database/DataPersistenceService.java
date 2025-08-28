@@ -5,10 +5,13 @@ import com.example.annotationextractor.casemodel.TestClassInfo;
 import com.example.annotationextractor.casemodel.TestCollectionSummary;
 import com.example.annotationextractor.casemodel.TestMethodInfo;
 import com.example.annotationextractor.casemodel.UnittestCaseInfoData;
+import com.example.annotationextractor.runner.RepositoryHubRunnerConfig;
+import com.example.annotationextractor.runner.RepositoryListProcessor;
 import com.example.annotationextractor.util.PerformanceMonitor;
 
 import org.postgresql.util.PGobject;
 
+import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -57,6 +60,7 @@ public class DataPersistenceService {
                     PerformanceMonitor.incrementCounter("Total Test Methods");
                 }
                 PerformanceMonitor.endOperation("Persist Repositories");
+
                 
                 // Update daily metrics
                 PerformanceMonitor.startOperation("Update Daily Metrics");
@@ -76,6 +80,14 @@ public class DataPersistenceService {
                 conn.rollback();
                 throw e;
             }
+        }
+    }
+    
+    private void updateRepositoryHubRunnerConfigs(String filePath) throws SQLException, IOException {
+        List<RepositoryHubRunnerConfig> repositoryUrls = RepositoryListProcessor.readRepositoryHubRunnerConfigs(filePath);
+        System.out.println("Found " + repositoryUrls.size() + " repositories to process");
+        for (RepositoryHubRunnerConfig config : repositoryUrls) {
+            DataPersistenceService.assignRepositoryToTeam(config.getRepositoryUrl(), config.getTeamName(), config.getTeamCode());
         }
     }
     
@@ -124,7 +136,7 @@ public class DataPersistenceService {
         
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, repo.getRepositoryName());
-            stmt.setString(2, repo.getRepositoryPath());
+            stmt.setString(2, repo.getRepositoryPath().toString());
             stmt.setString(3, repo.getGitUrl());
             stmt.setInt(4, repo.getTotalTestClasses());
             stmt.setInt(5, repo.getTotalTestMethods());
