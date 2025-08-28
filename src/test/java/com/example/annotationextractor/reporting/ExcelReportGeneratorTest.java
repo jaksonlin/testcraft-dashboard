@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import com.example.annotationextractor.database.DatabaseConfig;
 import com.example.annotationextractor.database.DatabaseSchemaManager;
@@ -43,7 +44,7 @@ public class ExcelReportGeneratorTest {
         try {
             // This test will fail if the database is not available, but that's expected
             // The important thing is that the code compiles and the structure is correct
-            ExcelReportGenerator.generateWeeklyReport(testReportPath, new ArrayList<>());
+            ExcelReportGenerator.generateWeeklyReport(testReportPath, new HashSet<>());
             
             // Verify the file was created
             File reportFile = new File(testReportPath);

@@ -46,6 +46,14 @@ public class TestClassParser {
             TestClassVisitor visitor = new TestClassVisitor(filePath);
             cu.accept(visitor, null);
             
+            // Check if we found multiple public classes (invalid Java)
+            if (visitor.hasMultiplePublicClasses()) {
+                System.err.println("⚠️  WARNING: File contains multiple public classes: " + filePath);
+                System.err.println("   Public classes found: " + visitor.getPublicClassNames());
+                System.err.println("   This is invalid Java and will be skipped.");
+                return new TestClassInfo(); // Return empty result
+            }
+            
             return visitor.getTestClassInfo();
         }
     }
@@ -70,6 +78,11 @@ public class TestClassParser {
      * Check if a class is a test class
      */
     private static boolean isTestClass(ClassOrInterfaceDeclaration classDecl) {
+        // Only process PUBLIC classes (JUnit only executes public classes)
+        if (!classDecl.isPublic()) {
+            return false;
+        }
+        
         // Check if class name ends with "Test" or "Tests"
         String className = classDecl.getNameAsString();
         if (className.endsWith("Test") || className.endsWith("Tests")) {
@@ -96,6 +109,8 @@ public class TestClassParser {
         private final Path filePath;
         private TestClassInfo testClassInfo;
         private String packageName = "";
+        private List<String> publicClassNames = new ArrayList<>();
+        private boolean hasMultiplePublicClasses = false;
         
         public TestClassVisitor(Path filePath) {
             this.filePath = filePath;
@@ -115,13 +130,29 @@ public class TestClassParser {
         
         @Override
         public void visit(ClassOrInterfaceDeclaration classDecl, Void arg) {
+            // Debug: Log all classes found
+            String className = classDecl.getNameAsString();
+            boolean isPublic = classDecl.isPublic();
+            System.out.println("🔍 Found class: " + className + " (public: " + isPublic + ")");
+            
+            // Track public classes for validation
+            if (isPublic) {
+                publicClassNames.add(className);
+                if (publicClassNames.size() > 1) {
+                    hasMultiplePublicClasses = true;
+                }
+            }
+            
             // Only process test classes
             if (isTestClass(classDecl)) {
+                System.out.println("✅ Processing test class: " + className);
                 testClassInfo.setClassName(classDecl.getNameAsString());
                 testClassInfo.setPackageName(packageName);
                 testClassInfo.setFilePath(filePath.toString());
                 
                 super.visit(classDecl, arg);
+            } else {
+                System.out.println("❌ Skipping non-test class: " + className);
             }
         }
         
@@ -151,6 +182,14 @@ public class TestClassParser {
         
         public TestClassInfo getTestClassInfo() {
             return testClassInfo;
+        }
+        
+        public boolean hasMultiplePublicClasses() {
+            return hasMultiplePublicClasses;
+        }
+        
+        public String getPublicClassNames() {
+            return String.join(", ", publicClassNames);
         }
     }
 }

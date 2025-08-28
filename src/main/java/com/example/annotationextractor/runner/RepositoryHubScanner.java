@@ -14,7 +14,7 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.Set;
 
 /**
  * Main orchestrator for repository hub scanning
@@ -55,7 +55,7 @@ public class RepositoryHubScanner {
     }
 
     
-    private void generateReport(List<String> teamCodes) {
+    private void generateReport(Set<String> teamCodes) {
         // Generate final report AFTER data persistence
         try {
             String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";

@@ -12,6 +12,7 @@ import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Generates Excel reports for test analytics data
@@ -29,7 +30,7 @@ public class ExcelReportGenerator {
     /**
      * Generate a comprehensive weekly report using streaming for large datasets
      */
-    public static void generateWeeklyReport(String outputPath, List<String> teamCodes) throws IOException, SQLException {
+    public static void generateWeeklyReport(String outputPath, Set<String> teamCodes) throws IOException, SQLException {
         // Use streaming workbook for large datasets
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(STREAMING_WINDOW_SIZE)) {
             
@@ -418,7 +419,7 @@ public class ExcelReportGenerator {
     /**
      * Create test method details sheet with streaming for large datasets
      */
-    private static void createTestMethodDetailsSheetStreaming(Workbook workbook, List<String> teamCodes) throws SQLException {
+    private static void createTestMethodDetailsSheetStreaming(Workbook workbook, Set<String> teamCodes) throws SQLException {
         for (String teamCode : teamCodes) {
             Sheet sheet = createTeamTestMethodDetailsSheet(workbook, teamCode);
         
@@ -804,7 +805,7 @@ public class ExcelReportGenerator {
     /**
      * Create team summary sheet with team performance metrics
      */
-    private static void createTeamSummarySheet(Workbook workbook, Sheet sheet, List<String> teamCodes) throws SQLException {
+    private static void createTeamSummarySheet(Workbook workbook, Sheet sheet, Set<String> teamCodes) throws SQLException {
         // Set column widths
         sheet.setColumnWidth(0, 3000); // Team
         sheet.setColumnWidth(1, 2000); // Team Code

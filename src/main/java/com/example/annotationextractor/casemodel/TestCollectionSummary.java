@@ -1,7 +1,9 @@
 package com.example.annotationextractor.casemodel;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Top-level data model to hold information about all repositories scanned and provide summary statistics
@@ -94,8 +96,8 @@ public class TestCollectionSummary {
         this.scanTimestamp = scanTimestamp;
     }
 
-    public List<String> getTeamCodes() {
-        List<String> teamCodes = new ArrayList<>();
+    public Set<String> getTeamCodes() {
+        Set<String> teamCodes = new HashSet<>();
         for (RepositoryTestInfo repository : repositories) {
             teamCodes.add(repository.getTeamCode());
         }
