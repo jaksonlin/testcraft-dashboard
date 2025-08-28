@@ -90,13 +90,24 @@ public class GitRepositoryManager {
             String repoName = extractRepositoryName(gitUrl);
             Path repoPath = Paths.get(repositoryHubPath, repoName);
             
+            // If it's already a git repo, just pull
             if (Files.exists(repoPath.resolve(".git"))) {
                 // Repository exists, pull latest changes
                 if (pullRepository(repoPath, repoName)) {
                     return repoPath;
                 }
             } else {
-                // Repository doesn't exist, clone it
+                // Directory exists but not a git repo → clean and re-clone (previous incomplete/failed clone)
+                if (Files.exists(repoPath)) {
+                    try {
+                        boolean hasContent = Files.list(repoPath).findAny().isPresent();
+                        if (hasContent) {
+                            System.out.println("Existing non-git directory detected, cleaning before clone: " + repoPath);
+                            cleanDirectory(repoPath);
+                        }
+                    } catch (IOException ignore) { }
+                }
+                // Clone fresh
                 if (cloneRepository(gitUrl, repoPath, repoName)) {
                     return repoPath;
                 }
@@ -123,6 +134,12 @@ public class GitRepositoryManager {
                 cleanDirectory(repoPath);
             }
             
+            // Ensure parent directories exist for nested paths like xk/amc/arm
+            Path parentDir = repoPath.getParent();
+            if (parentDir != null && !Files.exists(parentDir)) {
+                Files.createDirectories(parentDir);
+            }
+            
             // Build Git clone command
             List<String> command = buildGitCloneCommand(gitUrl, repoPath);
             
@@ -143,6 +160,7 @@ public class GitRepositoryManager {
             }
             
             System.out.println("Executing: " + String.join(" ", command));
+            System.out.println("Clone target directory: " + repoPath);
             
             Process process = pb.start();
             
@@ -198,9 +216,9 @@ public class GitRepositoryManager {
         command.add("--config");
         command.add("http.timeout=" + timeoutSeconds);
         
-        // Add the repository URL and target directory
+        // Add the repository URL and target directory (full path to support nested directories)
         command.add(gitUrl);
-        command.add(repoPath.getFileName().toString());
+        command.add(repoPath.toString());
         
         return command;
     }

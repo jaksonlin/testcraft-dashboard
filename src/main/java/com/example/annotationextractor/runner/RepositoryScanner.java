@@ -77,7 +77,7 @@ public class RepositoryScanner {
                     System.err.println("Failed to clone or update repository " + entry.getKey());
                     continue;
                 }
-                
+                System.out.println(">>>> Repository path to check: " + repoPath);
                 // Check if repository path matches include/exclude patterns
                 if (shouldIncludeRepository(repoPath, rootPath, includePatterns, excludePatterns)) {
                     RepositoryTestInfo repoInfo = scanRepository(entry.getValue());
@@ -90,6 +90,7 @@ public class RepositoryScanner {
             } catch (Exception e) {
                 System.err.println("Error scanning repository " + entry.getKey() + ": " + e.getMessage());
                 // Continue with other repositories
+                e.printStackTrace();
             } finally {
                 if (tempCloneMode) {
                     gitRepositoryManager.deleteRepository(entry.getKey());
@@ -209,10 +210,10 @@ public class RepositoryScanner {
      * Scan a single repository for test classes
      */
     private RepositoryTestInfo scanRepository(RepositoryTestInfo repoInfo) throws IOException {
-
+        System.out.println("Scanning repository: " + repoInfo.getRepositoryPath());
         // Find test directories following standard Java conventions
         HashMap<String, Path> testJavaFiles = findTestJavaFiles(repoInfo.getRepositoryPath());
-        
+        System.out.println("Found " + testJavaFiles.size() + " test Java files");
         for (Path javaFile : testJavaFiles.values()) {
             try {
                 TestClassInfo testClassInfo = TestClassParser.parseTestClass(javaFile);
