@@ -24,13 +24,12 @@ public class RepositoryHubRunner {
             }
         }
         
-        if (args.length < 2) {
+        if (args.length < 1) {
             printUsage();
             return;
         }
         
         String repositoryHubPath = args[0];
-        String repositoryListPath = args[1];
         String username = null;
         String password = null;
         String sshKeyPath = null;
@@ -44,7 +43,7 @@ public class RepositoryHubRunner {
         String dbPass = null;
         
         // Parse arguments
-        for (int i = 2; i < args.length; i++) {
+        for (int i = 1; i < args.length; i++) {
             if (args[i].equals("--db-host") && i + 1 < args.length) {
                 dbHost = args[++i];
             } else if (args[i].equals("--db-port") && i + 1 < args.length) {
@@ -71,7 +70,7 @@ public class RepositoryHubRunner {
         
         try {
             // Validate paths
-            if (!validatePaths(repositoryHubPath, repositoryListPath)) {
+            if (!validatePaths(repositoryHubPath)) {
                 return;
             }
             
@@ -116,12 +115,11 @@ public class RepositoryHubRunner {
     }
     
     private static void printUsage() {
-        System.out.println("Usage: java RepositoryHubRunner <repository_hub_path> <repository_list_file> [username] [password] [ssh_key_path] [database_options] [--temp-clone]");
+        System.out.println("Usage: java RepositoryHubRunner <repository_hub_path> [username] [password] [ssh_key_path] [database_options] [--temp-clone]");
         System.out.println("       java RepositoryHubRunner --ssh-help");
         System.out.println();
         System.out.println("Arguments:");
-        System.out.println("  repository_hub_path    Directory where repositories will be cloned/updated");
-        System.out.println("  repository_list_file  Text file containing git repository URLs (one per line)");
+        System.out.println("  repository_hub_path    Directory where repositories will be cloned/updated, and it should contain a file called scanConfig.txt");
         System.out.println("  username             Git username for private repositories (optional)");
         System.out.println("  password             Git password/token for private repositories (optional)");
         System.out.println("  ssh_key_path         Path to SSH private key for SSH authentication (optional)");
@@ -160,13 +158,8 @@ public class RepositoryHubRunner {
         System.out.println("Note: --temp-clone mode processes repositories one by one, deleting each after scanning to save disk space");
     }
     
-    private static boolean validatePaths(String repositoryHubPath, String repositoryListPath) {
-        // Check if repository list file exists
-        if (!java.nio.file.Files.exists(Paths.get(repositoryListPath))) {
-            System.err.println("Error: Repository list file not found: " + repositoryListPath);
-            System.err.println("Use RepositoryListProcessor.createSampleRepositoryList() to create a sample file.");
-            return false;
-        }
+    private static boolean validatePaths(String repositoryHubPath) {
+        
         
         // Check if repository hub path is writable
         try {
@@ -178,6 +171,10 @@ public class RepositoryHubRunner {
                 }
                 if (!java.nio.file.Files.isWritable(hubPath)) {
                     System.err.println("Error: Repository hub directory is not writable: " + repositoryHubPath);
+                    return false;
+                }
+                if (!java.nio.file.Files.exists(hubPath.resolve("scanConfig.txt"))) {
+                    System.err.println("Error: scanConfig.txt file not found in repository hub path: " + repositoryHubPath);
                     return false;
                 }
             }

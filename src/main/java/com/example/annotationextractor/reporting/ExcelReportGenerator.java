@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 /**
  * Generates Excel reports for test analytics data
@@ -28,7 +29,7 @@ public class ExcelReportGenerator {
     /**
      * Generate a comprehensive weekly report using streaming for large datasets
      */
-    public static void generateWeeklyReport(String outputPath) throws IOException, SQLException {
+    public static void generateWeeklyReport(String outputPath, List<String> teamCodes) throws IOException, SQLException {
         // Use streaming workbook for large datasets
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(STREAMING_WINDOW_SIZE)) {
             
@@ -50,11 +51,9 @@ public class ExcelReportGenerator {
             
             // Create team summary sheet
             Sheet teamSummarySheet = workbook.createSheet("Team Summary");
-            createTeamSummarySheet(workbook, teamSummarySheet);
+            createTeamSummarySheet(workbook, teamSummarySheet, teamCodes);
             
-            // Create test method details sheet with streaming
-            Sheet testMethodSheet = workbook.createSheet("Test Method Details");
-            createTestMethodDetailsSheetStreaming(workbook, testMethodSheet);
+            createTestMethodDetailsSheetStreaming(workbook, teamCodes);
             
             // Write to file
             try (FileOutputStream fileOut = new FileOutputStream(outputPath)) {
@@ -377,182 +376,190 @@ public class ExcelReportGenerator {
         createCoverageChart(workbook, sheet);
     }
     
+    private static Sheet createTeamTestMethodDetailsSheet(Workbook workbook, String teamName) throws SQLException {
+        Sheet sheet = workbook.createSheet(teamName + " Test Details");
+         // Set column widths
+         sheet.setColumnWidth(0, 3000); // Team
+         sheet.setColumnWidth(1, 2000); // Team Code
+         sheet.setColumnWidth(2, 3000); // Repository
+         sheet.setColumnWidth(3, 6000); // Git URL
+         sheet.setColumnWidth(4, 3000); // Class
+         sheet.setColumnWidth(5, 3000); // Method
+         sheet.setColumnWidth(6, 2000); // Line
+         sheet.setColumnWidth(7, 4000); // Title
+         sheet.setColumnWidth(8, 2000); // Author
+         sheet.setColumnWidth(9, 2000); // Status
+         sheet.setColumnWidth(10, 3000); // Target Class
+         sheet.setColumnWidth(11, 3000); // Target Method
+         sheet.setColumnWidth(12, 5000); // Description
+         sheet.setColumnWidth(13, 3000); // Test Points
+         sheet.setColumnWidth(14, 3000); // Tags
+         sheet.setColumnWidth(15, 3000); // Requirements
+         sheet.setColumnWidth(16, 3000); // Test Cases
+         sheet.setColumnWidth(17, 3000); // Defects
+         sheet.setColumnWidth(18, 3000); // Last Modified
+         sheet.setColumnWidth(19, 2000); // Last Author
+         
+         // Create headers
+         Row headerRow = sheet.createRow(0);
+         String[] headers = {"Team", "Team Code", "Repository", "Git URL", "Class", "Method", "Line", "Title", "Author", "Status", 
+                            "Target Class", "Target Method", "Description", "Test Points", "Tags", 
+                            "Requirements", "Test Cases", "Defects", "Last Modified", "Last Author"};
+         
+         CellStyle headerStyle = createHeaderStyle(workbook);
+         for (int i = 0; i < headers.length; i++) {
+             Cell cell = headerRow.createCell(i);
+             cell.setCellValue(headers[i]);
+             cell.setCellStyle(headerStyle);
+         }
+         
+         return sheet;
+    }
     /**
      * Create test method details sheet with streaming for large datasets
      */
-    private static void createTestMethodDetailsSheetStreaming(Workbook workbook, Sheet sheet) throws SQLException {
-        // Set column widths
-        sheet.setColumnWidth(0, 3000); // Team
-        sheet.setColumnWidth(1, 2000); // Team Code
-        sheet.setColumnWidth(2, 3000); // Repository
-        sheet.setColumnWidth(3, 6000); // Git URL
-        sheet.setColumnWidth(4, 3000); // Class
-        sheet.setColumnWidth(5, 3000); // Method
-        sheet.setColumnWidth(6, 2000); // Line
-        sheet.setColumnWidth(7, 4000); // Title
-        sheet.setColumnWidth(8, 2000); // Author
-        sheet.setColumnWidth(9, 2000); // Status
-        sheet.setColumnWidth(10, 3000); // Target Class
-        sheet.setColumnWidth(11, 3000); // Target Method
-        sheet.setColumnWidth(12, 5000); // Description
-        sheet.setColumnWidth(13, 3000); // Test Points
-        sheet.setColumnWidth(14, 3000); // Tags
-        sheet.setColumnWidth(15, 3000); // Requirements
-        sheet.setColumnWidth(16, 3000); // Test Cases
-        sheet.setColumnWidth(17, 3000); // Defects
-        sheet.setColumnWidth(18, 3000); // Last Modified
-        sheet.setColumnWidth(19, 2000); // Last Author
+    private static void createTestMethodDetailsSheetStreaming(Workbook workbook, List<String> teamCodes) throws SQLException {
+        for (String teamCode : teamCodes) {
+            Sheet sheet = createTeamTestMethodDetailsSheet(workbook, teamCode);
         
-        // Create headers
-        Row headerRow = sheet.createRow(0);
-        String[] headers = {"Team", "Team Code", "Repository", "Git URL", "Class", "Method", "Line", "Title", "Author", "Status", 
-                           "Target Class", "Target Method", "Description", "Test Points", "Tags", 
-                           "Requirements", "Test Cases", "Defects", "Last Modified", "Last Author"};
-        
-        CellStyle headerStyle = createHeaderStyle(workbook);
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = headerRow.createCell(i);
-            cell.setCellValue(headers[i]);
-            cell.setCellStyle(headerStyle);
-        }
-        
-        // Get test method data with streaming approach
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                SELECT 
-                     t.team_name,
-                     t.team_code,
-                     r.repository_name, 
-                     r.git_url,
-                     tc.class_name, 
-                     tc.package_name, 
-                     tm.method_name, 
-                     tm.line_number, 
-                     tm.annotation_title, 
-                     tm.annotation_author, 
-                     tm.annotation_status, 
-                     tm.annotation_target_class, 
-                     tm.annotation_target_method, 
-                     tm.annotation_description, 
-                     tm.annotation_test_points, 
-                     tm.annotation_tags, 
-                     tm.annotation_requirements, 
-                     tm.annotation_testcases, 
-                     tm.annotation_defects, 
-                     tm.last_modified_date, 
-                     tm.annotation_last_update_author 
-                 FROM test_methods tm 
-                 JOIN test_classes tc ON tm.test_class_id = tc.id 
-                 JOIN repositories r ON tc.repository_id = r.id 
-                 JOIN scan_sessions ss ON tm.scan_session_id = ss.id
-                 JOIN teams t ON r.team_id = t.id
-                 WHERE tm.has_annotation = true 
-                 AND ss.id = (SELECT MAX(id) FROM scan_sessions)
-                 ORDER BY t.team_name, r.repository_name, tc.class_name, tm.method_name
-                 """,
-                 ResultSet.TYPE_FORWARD_ONLY,
-                 ResultSet.CONCUR_READ_ONLY)) {
-            
-            // Set fetch size for streaming
-            stmt.setFetchSize(1000);
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                int rowNum = 1;
-                int totalRows = 0;
-                boolean hasData = false;
+            // Get test method data with streaming approach
+            try (Connection conn = DatabaseConfig.getConnection()) {
+
+                PreparedStatement stmt = conn.prepareStatement("""
+                    SELECT 
+                        t.team_name,
+                        t.team_code,
+                        r.repository_name, 
+                        r.git_url,
+                        tc.class_name, 
+                        tc.package_name, 
+                        tm.method_name, 
+                        tm.line_number, 
+                        tm.annotation_title, 
+                        tm.annotation_author, 
+                        tm.annotation_status, 
+                        tm.annotation_target_class, 
+                        tm.annotation_target_method, 
+                        tm.annotation_description, 
+                        tm.annotation_test_points, 
+                        tm.annotation_tags, 
+                        tm.annotation_requirements, 
+                        tm.annotation_testcases, 
+                        tm.annotation_defects, 
+                        tm.last_modified_date, 
+                        tm.annotation_last_update_author 
+                    FROM test_methods tm 
+                    JOIN test_classes tc ON tm.test_class_id = tc.id 
+                    JOIN repositories r ON tc.repository_id = r.id 
+                    JOIN scan_sessions ss ON tm.scan_session_id = ss.id
+                    JOIN teams t ON r.team_id = t.id
+                    WHERE tm.has_annotation = true 
+                    AND t.team_code = ?
+                    AND ss.id = (SELECT MAX(id) FROM scan_sessions)
+                    ORDER BY t.team_name, r.repository_name, tc.class_name, tm.method_name
+                    """,
+                    ResultSet.TYPE_FORWARD_ONLY,
+                    ResultSet.CONCUR_READ_ONLY);
+                    stmt.setString(1, teamCode);
                 
-                while (rs.next()) {
-                    hasData = true;
+                try (ResultSet rs = stmt.executeQuery()) {
+                    int rowNum = 1;
+                    int totalRows = 0;
+                    boolean hasData = false;
                     
-                    // Check if we're approaching Excel row limit
-                    if (rowNum >= MAX_ROWS_PER_SHEET) {
-                        System.out.println("⚠️ Warning: Reached Excel row limit (" + MAX_ROWS_PER_SHEET + "). " +
-                                         "Consider splitting report into multiple files for very large datasets.");
-                        break;
+                    while (rs.next()) {
+                        hasData = true;
+                        
+                        // Check if we're approaching Excel row limit
+                        if (rowNum >= MAX_ROWS_PER_SHEET) {
+                            System.out.println("⚠️ Warning: Reached Excel row limit (" + MAX_ROWS_PER_SHEET + "). " +
+                                            "Consider splitting report into multiple files for very large datasets.");
+                            break;
+                        }
+                        
+                        Row row = sheet.createRow(rowNum++);
+                        totalRows++;
+                        
+                        // Team and repository information
+                        row.createCell(0).setCellValue(rs.getString("team_name"));
+                        row.createCell(1).setCellValue(rs.getString("team_code"));
+                        row.createCell(2).setCellValue(rs.getString("repository_name"));
+                        row.createCell(3).setCellValue(rs.getString("git_url"));
+                        
+                        // Class and method information
+                        row.createCell(4).setCellValue(rs.getString("class_name"));
+                        row.createCell(5).setCellValue(rs.getString("method_name"));
+                        row.createCell(6).setCellValue(rs.getInt("line_number"));
+                        
+                        // Annotation information
+                        row.createCell(7).setCellValue(rs.getString("annotation_title"));
+                        row.createCell(8).setCellValue(rs.getString("annotation_author"));
+                        row.createCell(9).setCellValue(rs.getString("annotation_status"));
+                        row.createCell(10).setCellValue(rs.getString("annotation_target_class"));
+                        row.createCell(11).setCellValue(rs.getString("annotation_target_method"));
+                        row.createCell(12).setCellValue(rs.getString("annotation_description"));
+                        
+                        // TEXT fields - parse comma-separated strings back to arrays
+                        String testPointsStr = rs.getString("annotation_test_points");
+                        String[] testPoints = parseSemicolonSeparatedString(testPointsStr);
+                        row.createCell(13).setCellValue(arrayToString(testPoints));
+                        
+                        String tagsStr = rs.getString("annotation_tags");
+                        String[] tags = parseSemicolonSeparatedString(tagsStr);
+                        row.createCell(14).setCellValue(arrayToString(tags));
+                        
+                        String requirementsStr = rs.getString("annotation_requirements");
+                        String[] requirements = parseSemicolonSeparatedString(requirementsStr);
+                        row.createCell(15).setCellValue(arrayToString(requirements));
+                        
+                        String testCasesStr = rs.getString("annotation_testcases");
+                        String[] testCases = parseSemicolonSeparatedString(testCasesStr);
+                        row.createCell(16).setCellValue(arrayToString(testCases));
+                        
+                        String defectsStr = rs.getString("annotation_defects");
+                        String[] defects = parseSemicolonSeparatedString(defectsStr);
+                        row.createCell(17).setCellValue(arrayToString(defects));
+                        
+                        // Timestamp information
+                        if (rs.getTimestamp("last_modified_date") != null) {
+                            row.createCell(18).setCellValue(rs.getTimestamp("last_modified_date").toString());
+                        }
+                        
+                        // Last update author
+                        row.createCell(19).setCellValue(rs.getString("annotation_last_update_author"));
+                        
+                        // Progress indicator for large datasets
+                        if (totalRows % 1000 == 0) {
+                            System.out.println("📊 Processed " + totalRows + " test methods for report...");
+                        }
                     }
                     
-                    Row row = sheet.createRow(rowNum++);
-                    totalRows++;
-                    
-                    // Team and repository information
-                    row.createCell(0).setCellValue(rs.getString("team_name"));
-                    row.createCell(1).setCellValue(rs.getString("team_code"));
-                    row.createCell(2).setCellValue(rs.getString("repository_name"));
-                    row.createCell(3).setCellValue(rs.getString("git_url"));
-                    
-                    // Class and method information
-                    row.createCell(4).setCellValue(rs.getString("class_name"));
-                    row.createCell(5).setCellValue(rs.getString("method_name"));
-                    row.createCell(6).setCellValue(rs.getInt("line_number"));
-                    
-                    // Annotation information
-                    row.createCell(7).setCellValue(rs.getString("annotation_title"));
-                    row.createCell(8).setCellValue(rs.getString("annotation_author"));
-                    row.createCell(9).setCellValue(rs.getString("annotation_status"));
-                    row.createCell(10).setCellValue(rs.getString("annotation_target_class"));
-                    row.createCell(11).setCellValue(rs.getString("annotation_target_method"));
-                    row.createCell(12).setCellValue(rs.getString("annotation_description"));
-                    
-                    // TEXT fields - parse comma-separated strings back to arrays
-                    String testPointsStr = rs.getString("annotation_test_points");
-                    String[] testPoints = parseSemicolonSeparatedString(testPointsStr);
-                    row.createCell(13).setCellValue(arrayToString(testPoints));
-                    
-                    String tagsStr = rs.getString("annotation_tags");
-                    String[] tags = parseSemicolonSeparatedString(tagsStr);
-                    row.createCell(14).setCellValue(arrayToString(tags));
-                    
-                    String requirementsStr = rs.getString("annotation_requirements");
-                    String[] requirements = parseSemicolonSeparatedString(requirementsStr);
-                    row.createCell(15).setCellValue(arrayToString(requirements));
-                    
-                    String testCasesStr = rs.getString("annotation_testcases");
-                    String[] testCases = parseSemicolonSeparatedString(testCasesStr);
-                    row.createCell(16).setCellValue(arrayToString(testCases));
-                    
-                    String defectsStr = rs.getString("annotation_defects");
-                    String[] defects = parseSemicolonSeparatedString(defectsStr);
-                    row.createCell(17).setCellValue(arrayToString(defects));
-                    
-                    // Timestamp information
-                    if (rs.getTimestamp("last_modified_date") != null) {
-                        row.createCell(18).setCellValue(rs.getTimestamp("last_modified_date").toString());
+                    if (!hasData) {
+                        // No test method data found - add a message row
+                        Row noDataRow = sheet.createRow(1);
+                        Cell noDataCell = noDataRow.createCell(0);
+                        noDataCell.setCellValue("No test method data available. Please run a scan first.");
+                        
+                        // Merge cells for the message
+                        sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 19));
+                        
+                        // Style the message
+                        CellStyle messageStyle = workbook.createCellStyle();
+                        Font messageFont = workbook.createFont();
+                        messageFont.setItalic(true);
+                        messageFont.setFontHeightInPoints((short) 10);
+                        messageStyle.setFont(messageFont);
+                        messageStyle.setAlignment(HorizontalAlignment.CENTER);
+                        noDataCell.setCellStyle(messageStyle);
+                    } else {
+                        System.out.println("✅ Report generated with " + totalRows + " test method rows");
                     }
-                    
-                    // Last update author
-                    row.createCell(19).setCellValue(rs.getString("annotation_last_update_author"));
-                    
-                    // Progress indicator for large datasets
-                    if (totalRows % 1000 == 0) {
-                        System.out.println("📊 Processed " + totalRows + " test methods for report...");
-                    }
-                }
-                
-                if (!hasData) {
-                    // No test method data found - add a message row
-                    Row noDataRow = sheet.createRow(1);
-                    Cell noDataCell = noDataRow.createCell(0);
-                    noDataCell.setCellValue("No test method data available. Please run a scan first.");
-                    
-                    // Merge cells for the message
-                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 19));
-                    
-                    // Style the message
-                    CellStyle messageStyle = workbook.createCellStyle();
-                    Font messageFont = workbook.createFont();
-                    messageFont.setItalic(true);
-                    messageFont.setFontHeightInPoints((short) 10);
-                    messageStyle.setFont(messageFont);
-                    messageStyle.setAlignment(HorizontalAlignment.CENTER);
-                    noDataCell.setCellStyle(messageStyle);
-                } else {
-                    System.out.println("✅ Report generated with " + totalRows + " test method rows");
                 }
             }
+            
+            // Create summary note
+            createTestMethodSummaryNote(workbook, sheet);
         }
-        
-        // Create summary note
-        createTestMethodSummaryNote(workbook, sheet);
     }
     
     /**
@@ -797,7 +804,7 @@ public class ExcelReportGenerator {
     /**
      * Create team summary sheet with team performance metrics
      */
-    private static void createTeamSummarySheet(Workbook workbook, Sheet sheet) throws SQLException {
+    private static void createTeamSummarySheet(Workbook workbook, Sheet sheet, List<String> teamCodes) throws SQLException {
         // Set column widths
         sheet.setColumnWidth(0, 3000); // Team
         sheet.setColumnWidth(1, 2000); // Team Code
@@ -820,7 +827,7 @@ public class ExcelReportGenerator {
         }
         
         // Get team summary data for latest scan
-        try (Connection conn = DatabaseConfig.getConnection();
+        try (Connection conn = DatabaseConfig.getConnection()) {
              PreparedStatement stmt = conn.prepareStatement("""
                  SELECT 
                      t.team_name,
@@ -840,9 +847,13 @@ public class ExcelReportGenerator {
                  JOIN test_methods tm ON tc.id = tm.test_class_id
                  JOIN scan_sessions ss ON tm.scan_session_id = ss.id
                  WHERE ss.id = (SELECT MAX(id) FROM scan_sessions)
+                 AND t.team_code IN (?)
                  GROUP BY t.id, t.team_name, t.team_code
                  ORDER BY coverage_rate DESC, t.team_name
-                 """)) {
+                 """,
+                 ResultSet.TYPE_FORWARD_ONLY,
+                 ResultSet.CONCUR_READ_ONLY);
+            stmt.setString(1, String.join(",", teamCodes)); // Add team codes to the query
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;

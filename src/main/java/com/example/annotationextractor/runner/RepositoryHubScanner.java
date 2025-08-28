@@ -55,7 +55,7 @@ public class RepositoryHubScanner {
     }
 
     
-    private void generateReport() {
+    private void generateReport(List<String> teamCodes) {
         // Generate final report AFTER data persistence
         try {
             String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
@@ -63,7 +63,7 @@ public class RepositoryHubScanner {
             if (!Files.exists(reportDir)) {
                 Files.createDirectories(reportDir);
             }
-            ExcelReportGenerator.generateWeeklyReport(reportPath);
+            ExcelReportGenerator.generateWeeklyReport(reportPath, teamCodes);
             System.out.println("📊 Report generated successfully: " + reportPath);
         } catch (Exception e) {
             System.err.println("❌ Error generating report: " + e.getMessage());
@@ -109,18 +109,18 @@ public class RepositoryHubScanner {
                 System.out.println("Repository Hub Scan Failed!");
                 return false;
             }
+            // Generate report
+            generateReport(scanSummary.getTeamCodes());
+            return true;
         } catch (IOException e) {
             System.err.println("Error scanning repositories: " + e.getMessage());
             e.printStackTrace();
-            return false;
+            
         } catch (SQLException e) {
             System.err.println("Error persisting to database: " + e.getMessage());
             e.printStackTrace();
         }
-        
-        // Generate report
-        generateReport();
-        return true;
+        return false;
     }
     
 

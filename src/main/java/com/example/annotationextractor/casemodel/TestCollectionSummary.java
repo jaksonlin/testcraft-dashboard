@@ -15,6 +15,7 @@ public class TestCollectionSummary {
     private int totalAnnotatedTestMethods;
     private long scanTimestamp;
 
+
     public TestCollectionSummary() {
         this.scanDirectory = "";
         this.repositories = new ArrayList<>();
@@ -91,6 +92,14 @@ public class TestCollectionSummary {
 
     public void setScanTimestamp(long scanTimestamp) {
         this.scanTimestamp = scanTimestamp;
+    }
+
+    public List<String> getTeamCodes() {
+        List<String> teamCodes = new ArrayList<>();
+        for (RepositoryTestInfo repository : repositories) {
+            teamCodes.add(repository.getTeamCode());
+        }
+        return teamCodes;
     }
 
     @Override
