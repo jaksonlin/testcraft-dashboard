@@ -105,8 +105,10 @@ public class ExcelReportGenerator {
                  SELECT COUNT(*) FROM repositories
                  """)) {
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next() && rs.getInt(1) > 0) {
+                if (rs.next()) {
                     hasData = true;
+                    int numberOfRepositories = rs.getInt(1);
+                    createInfoRow(sheet, rowNum++, "Total Repositories", numberOfRepositories);
                 }
             }
         } catch (SQLException e) {

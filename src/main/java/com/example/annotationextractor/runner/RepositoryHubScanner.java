@@ -102,86 +102,52 @@ public class RepositoryHubScanner {
     /**
      * Process repositories in temporary clone mode: clone, scan, delete
      */
-    private boolean processRepositoriesTemporarily(List<RepositoryHubRunnerConfig> repositoryUrls, long startTime) {
+    private boolean processRepositoriesTemporarily(List<RepositoryHubRunnerConfig> repositoryHubRunnerConfigs, long startTime) {
         int successfulRepos = 0;
-        int totalRepos = repositoryUrls.size();
+        int totalRepos = repositoryHubRunnerConfigs.size();
         
         // Create an aggregated summary for all repositories
         TestCollectionSummary aggregatedSummary = new TestCollectionSummary();
         aggregatedSummary.setScanDirectory(gitManager.getRepositoryHubPath());
         aggregatedSummary.setScanTimestamp(System.currentTimeMillis());
         
-        // Show initial disk space
-        System.out.println("\nInitial disk space:");
-        System.out.println(gitManager.getDiskSpaceInfo());
         
-        for (int i = 0; i < repositoryUrls.size(); i++) {
-            RepositoryHubRunnerConfig config = repositoryUrls.get(i);
+        for (int i = 0; i < repositoryHubRunnerConfigs.size(); i++) {
+            RepositoryHubRunnerConfig config = repositoryHubRunnerConfigs.get(i);
             String gitUrl = config.getRepositoryUrl();
             System.out.println("\n" + "=".repeat(80));
             System.out.println("Processing repository " + (i + 1) + " of " + totalRepos + ": " + gitUrl);
             System.out.println("=".repeat(80));
             
             try {
-                // Show available disk space before cloning
-                long availableBefore = gitManager.getAvailableDiskSpace();
-                if (availableBefore > 0) {
-                    System.out.println("Available disk space before cloning: " + formatFileSize(availableBefore));
-                }
-                
                 // Clone the repository
-                if (gitManager.cloneOrUpdateRepository(gitUrl)) {
-                    successfulRepos++;
-                    System.out.println("✅ Successfully cloned repository: " + gitUrl);
-                    
-                    // Show disk space after cloning
-                    long availableAfterClone = gitManager.getAvailableDiskSpace();
-                    if (availableAfterClone > 0 && availableBefore > 0) {
-                        long usedSpace = availableBefore - availableAfterClone;
-                        System.out.println("📁 Repository size: " + formatFileSize(usedSpace));
-                        System.out.println("💾 Available space after cloning: " + formatFileSize(availableAfterClone));
-                    }
-                    
-                    // Scan this single repository
-                    TestCollectionSummary scanSummary = scanSingleRepository(gitUrl);
-                    if (scanSummary != null) {
-                        // Set git URL for all repositories in the scan summary
-                        for (RepositoryTestInfo repo : scanSummary.getRepositories()) {
-                            repo.setGitUrl(gitUrl);
-                        }
-                        // Aggregate the results
-                        aggregateScanResults(aggregatedSummary, scanSummary);
-                        System.out.println("🔍 Repository scanned successfully");
-                    } else {
-                        System.out.println("❌ Failed to scan repository: " + gitUrl);
-                    }
-                    
-                    // Delete the repository to save disk space
-                    if (gitManager.deleteRepository(gitUrl)) {
-                        System.out.println("🗑️ Repository deleted to save disk space");
-                        
-                        // Show disk space after deletion
-                        long availableAfterDelete = gitManager.getAvailableDiskSpace();
-                        if (availableAfterDelete > 0) {
-                            System.out.println("💾 Available space after deletion: " + formatFileSize(availableAfterDelete));
-                        }
-                    } else {
-                        System.err.println("⚠️ Warning: Failed to delete repository: " + gitUrl);
-                    }
-                    
-                } else {
+                if (!gitManager.cloneOrUpdateRepository(gitUrl)) {
                     System.err.println("❌ Failed to clone repository: " + gitUrl);
-                }
+                    continue;
+                } 
+                successfulRepos++;
+                System.out.println("✅ Successfully cloned repository: " + gitUrl);
                 
+                // Scan this single repository
+                TestCollectionSummary scanSummary = scanSingleRepository(gitUrl);
+                if (scanSummary != null) {
+                    // Set git URL for all repositories in the scan summary
+                    for (RepositoryTestInfo repo : scanSummary.getRepositories()) {
+                        repo.setGitUrl(gitUrl);
+                    }
+                    // Aggregate the results
+                    aggregateScanResults(aggregatedSummary, scanSummary);
+                    System.out.println("🔍 Repository scanned successfully");
+                } else {
+                    System.out.println("❌ Failed to scan repository: " + gitUrl);
+                }
+                 
             } catch (Exception e) {
                 System.err.println("❌ Error processing repository " + gitUrl + ": " + e.getMessage());
-                // Try to clean up even if scanning failed
-                try {
-                    gitManager.deleteRepository(gitUrl);
-                } catch (Exception cleanupError) {
-                    System.err.println("⚠️ Warning: Failed to cleanup repository " + gitUrl + ": " + cleanupError.getMessage());
-                }
+            } finally {
+                gitManager.deleteRepository(gitUrl);
             }
+
         }
         
         System.out.println("\n" + "=".repeat(80));
@@ -189,33 +155,28 @@ public class RepositoryHubScanner {
         System.out.println("=".repeat(80));
         System.out.println("Successfully processed " + successfulRepos + " out of " + totalRepos + " repositories");
         
-        // Show final disk space
-        System.out.println("\nFinal disk space:");
-        System.out.println(gitManager.getDiskSpaceInfo());
-        
-        // Store the aggregated results
-        if (successfulRepos > 0) {
-            storeScanResults(aggregatedSummary);
-        }
-        
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
-        System.out.println("⏱️ Scan completed in " + duration + " milliseconds");
         
-        // Persist data to database if schema exists
-        if (DatabaseSchemaManager.schemaExists()) {
-            System.out.println("\n💾 Persisting data to database...");
+        System.out.println("⏱️ Scan completed in " + duration + " milliseconds");
+        // Store the aggregated results
+        if (successfulRepos > 0) {
             try {
-                long scanSessionId = DataPersistenceService.persistScanSession(aggregatedSummary, duration);
-                System.out.println("✅ Data persisted successfully. Scan Session ID: " + scanSessionId);
+                storeScanResults(aggregatedSummary, duration);
             } catch (SQLException e) {
                 System.err.println("❌ Error persisting to database: " + e.getMessage());
                 e.printStackTrace();
             }
-        } else {
-            System.out.println("\n⚠️ Database schema not found. Skipping data persistence.");
         }
         
+        // Generate final report AFTER data persistence
+        generateReport();
+        System.out.println("\n" + "=".repeat(80));
+        
+        return successfulRepos > 0;
+    }
+
+    private void generateReport() {
         // Generate final report AFTER data persistence
         try {
             String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
@@ -229,9 +190,9 @@ public class RepositoryHubScanner {
             System.err.println("❌ Error generating report: " + e.getMessage());
             e.printStackTrace();
         }
-        
-        return successfulRepos > 0;
     }
+
+    
     
     /**
      * Aggregate scan results from individual repository into the main summary
@@ -263,48 +224,29 @@ public class RepositoryHubScanner {
         }
         System.out.println("Successfully cloned/updated " + successfulRepos + " repositories");
         
-        // Scan repositories
-        TestCollectionSummary scanSummary = scanAllRepositories();
-        if (scanSummary != null) {
-            storeScanResults(scanSummary);
-            System.out.println("Repository Hub Scan Completed Successfully!");
-        } else {
-            System.out.println("Repository Hub Scan Failed!");
-            return false;
-        }
 
-        // Persist data to database
-        long endTime = System.currentTimeMillis();
-        long duration = endTime - startTime;
-        System.out.println("Scan completed in " + duration + " milliseconds");
-
-       
+        // Scan repositories and persist data to database
         try {
-            if (!DatabaseSchemaManager.schemaExists()) {
-                DatabaseSchemaManager.initializeSchema();
+            // Scan repositories
+            TestCollectionSummary scanSummary = scanAllRepositories();
+            long endTime = System.currentTimeMillis();
+            long duration = endTime - startTime;
+            System.out.println("Scan completed in " + duration + " milliseconds");
+    
+            if (scanSummary != null) {
+                storeScanResults(scanSummary, duration);
+                System.out.println("Repository Hub Scan Completed Successfully!");
+            } else {
+                System.out.println("Repository Hub Scan Failed!");
+                return false;
             }
-            System.out.println("\nPersisting data to database...");
-            long scanSessionId = DataPersistenceService.persistScanSession(scanSummary, duration);
-            System.out.println("Data persisted successfully. Scan Session ID: " + scanSessionId);
         } catch (SQLException e) {
             System.err.println("Error persisting to database: " + e.getMessage());
             e.printStackTrace();
         }
         
         // Generate report
-        try {
-            String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
-            // create directory if it doesn't exist
-            Path reportDir = Paths.get(reportPath).getParent();
-            if (!Files.exists(reportDir)) {
-                Files.createDirectories(reportDir);
-            }
-            ExcelReportGenerator.generateWeeklyReport(reportPath);
-            System.out.println("Report generated successfully: " + reportPath);
-        } catch (Exception e) {
-            System.err.println("Error generating report: " + e.getMessage());
-            e.printStackTrace();
-        }
+        generateReport();
         return true;
     }
     
@@ -333,9 +275,10 @@ public class RepositoryHubScanner {
         }
     }
     
-    private void storeScanResults(TestCollectionSummary summary) {
-        // Implementation for storing results in database
-        System.out.println("Storing scan results...");
+    private void storeScanResults(TestCollectionSummary summary, long duration) throws SQLException {
+        System.out.println("\nPersisting data to database...");
+        long scanSessionId = DataPersistenceService.persistScanSession(summary, duration);
+        System.out.println("Data persisted successfully. Scan Session ID: " + scanSessionId);
     }
     
     public GitRepositoryManager getGitManager() {
