@@ -51,7 +51,7 @@ public class ExcelReportGenerator {
             
             // Create team summary sheet
             Sheet teamSummarySheet = workbook.createSheet("Team Summary");
-            createTeamSummarySheet(workbook, teamSummarySheet, teamCodes);
+            createTeamSummarySheet(workbook, teamSummarySheet,teamCodes);
             
             createTestMethodDetailsSheetStreaming(workbook, teamCodes);
             
@@ -458,7 +458,7 @@ public class ExcelReportGenerator {
                     AND ss.id = (SELECT MAX(id) FROM scan_sessions)
                     ORDER BY t.team_name, r.repository_name, tc.class_name, tm.method_name
                     """,
-                    ResultSet.TYPE_FORWARD_ONLY,
+                    ResultSet.TYPE_SCROLL_INSENSITIVE,
                     ResultSet.CONCUR_READ_ONLY);
                     stmt.setString(1, teamCode);
                 
@@ -827,7 +827,7 @@ public class ExcelReportGenerator {
         }
         
         // Get team summary data for latest scan
-        try (Connection conn = DatabaseConfig.getConnection()) {
+        try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement("""
                  SELECT 
                      t.team_name,
@@ -847,18 +847,20 @@ public class ExcelReportGenerator {
                  JOIN test_methods tm ON tc.id = tm.test_class_id
                  JOIN scan_sessions ss ON tm.scan_session_id = ss.id
                  WHERE ss.id = (SELECT MAX(id) FROM scan_sessions)
-                 AND t.team_code IN (?)
+                 AND t.team_code = ANY(?)
                  GROUP BY t.id, t.team_name, t.team_code
                  ORDER BY coverage_rate DESC, t.team_name
                  """,
                  ResultSet.TYPE_FORWARD_ONLY,
-                 ResultSet.CONCUR_READ_ONLY);
-            stmt.setString(1, String.join(",", teamCodes)); // Add team codes to the query
+                 ResultSet.CONCUR_READ_ONLY)) {
+            
+            // Convert List<String> to String array for PostgreSQL ANY operator
+            Array teamCodesArray = conn.createArrayOf("VARCHAR", teamCodes.toArray());
+            stmt.setArray(1, teamCodesArray);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 int rowNum = 1;
                 boolean hasData = false;
-                
                 while (rs.next()) {
                     hasData = true;
                     Row row = sheet.createRow(rowNum++);
@@ -905,6 +907,8 @@ public class ExcelReportGenerator {
                     messageStyle.setAlignment(HorizontalAlignment.CENTER);
                     noDataCell.setCellStyle(messageStyle);
                 }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
         }
         
