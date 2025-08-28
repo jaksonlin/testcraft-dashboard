@@ -227,7 +227,7 @@ public class DatabaseSchemaManagerTest {
              Statement stmt = conn.createStatement()) {
             
             // Test repositories table constraints
-            stmt.execute("INSERT INTO repositories (repository_name, repository_path) VALUES ('test-repo', '/test/path')");
+            stmt.execute("INSERT INTO repositories (repository_name, repository_path, git_url) VALUES ('test-repo', '/test/path', 'https://github.com/test-repo')");
             
             ResultSet rs = stmt.executeQuery("SELECT repository_name FROM repositories WHERE repository_name = 'test-repo'");
             assertTrue("Should be able to retrieve inserted repository", rs.next());
@@ -235,7 +235,7 @@ public class DatabaseSchemaManagerTest {
             
             // Test unique constraint
             try {
-                stmt.execute("INSERT INTO repositories (repository_name, repository_path) VALUES ('test-repo', '/test/path')");
+                stmt.execute("INSERT INTO repositories (repository_name, repository_path, git_url) VALUES ('test-repo', '/test/path', 'https://github.com/test-repo')");
                 fail("Should not allow duplicate repository name and path");
             } catch (SQLException e) {
                 // Expected - unique constraint violation

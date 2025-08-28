@@ -113,7 +113,7 @@ public class DatabaseSchemaManager {
             "total_test_methods INT DEFAULT 0," +
             "total_annotated_methods INT DEFAULT 0," +
             "annotation_coverage_rate DECIMAL(5,2) DEFAULT 0.00," +
-            "UNIQUE(repository_name, repository_path)," +
+            "UNIQUE(git_url)," +
             "FOREIGN KEY (team_id) REFERENCES teams(id)" +
             ")";
         
@@ -257,7 +257,9 @@ public class DatabaseSchemaManager {
             "team_name VARCHAR(255) NOT NULL," +
             "team_code VARCHAR(50) NOT NULL UNIQUE," +
             "department VARCHAR(255)," +
-            "created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+            "created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+            "last_updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+            "UNIQUE(team_code)" +
             ")";
         
         try (Statement stmt = conn.createStatement()) {

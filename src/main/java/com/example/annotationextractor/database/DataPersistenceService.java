@@ -112,8 +112,9 @@ public class DataPersistenceService {
         String sql = "INSERT INTO repositories (repository_name, repository_path, git_url, total_test_classes, " +
                      "total_test_methods, total_annotated_methods, annotation_coverage_rate, last_scan_date) " +
                      "VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
-                     "ON CONFLICT (repository_name, repository_path) DO UPDATE SET " +
-                     "git_url = EXCLUDED.git_url, " +
+                     "ON CONFLICT (git_url) DO UPDATE SET " +
+                     "repository_name = EXCLUDED.repository_name, " +
+                     "repository_path = EXCLUDED.repository_path, " +
                      "total_test_classes = EXCLUDED.total_test_classes, " +
                      "total_test_methods = EXCLUDED.total_test_methods, " +
                      "total_annotated_methods = EXCLUDED.total_annotated_methods, " +
