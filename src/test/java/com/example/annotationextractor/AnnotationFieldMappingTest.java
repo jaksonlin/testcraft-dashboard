@@ -64,9 +64,7 @@ public class AnnotationFieldMappingTest {
         testClass.setFilePath("/test/path/TestClass.java");
         testClass.addTestMethod(testMethod);
         
-        RepositoryTestInfo repository = new RepositoryTestInfo();
-        repository.setRepositoryName("test-repo");
-        repository.setRepositoryPath("/test/repo");
+        RepositoryTestInfo repository = new RepositoryTestInfo("test-repo", "test-team", "TC1");
         repository.addTestClass(testClass);
         
         TestCollectionSummary summary = new TestCollectionSummary();
@@ -431,9 +429,7 @@ public class AnnotationFieldMappingTest {
         testClass.setFilePath("/test/path/TestClass.java");
         testClass.addTestMethod(testMethod);
         
-        RepositoryTestInfo repository = new RepositoryTestInfo();
-        repository.setRepositoryName("test-repo");
-        repository.setRepositoryPath("/test/repo");
+        RepositoryTestInfo repository = new RepositoryTestInfo("test-repo", "test-team", "TC1");
         repository.addTestClass(testClass);
         
         TestCollectionSummary summary = new TestCollectionSummary();

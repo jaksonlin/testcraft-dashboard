@@ -60,14 +60,7 @@ public class RepositoryHubScannerTest {
         assertNotNull("GitRepositoryManager should not be null", manager);
         assertEquals("Repository hub path should match", "./test-repos", manager.getRepositoryHubPath());
     }
-    
-    @Test
-    public void testRepositoryHubScannerCreation() {
-        // Test that RepositoryHubScanner can be created
-        RepositoryHubScanner scanner = new RepositoryHubScanner("./test-repos", "test-list.txt");
-        assertNotNull("RepositoryHubScanner should not be null", scanner);
-        assertNotNull("Git manager should not be null", scanner.getGitManager());
-    }
+
     
     @Test
     public void testUrlValidation() throws IOException {
@@ -99,10 +92,11 @@ public class RepositoryHubScannerTest {
     }
 
     @Test
-    public void testScanningSingleRepository() {
+    public void testScanningSingleRepository() throws IOException {
         // Test scanning a single repository
-        RepositoryHubScanner scanner = new RepositoryHubScanner("e:/testlab", "e:/testlab/testrepo.txt");
-        boolean success = scanner.executeFullScan();
+        GitRepositoryManager gitManager = new GitRepositoryManager("e:/testlab");
+        RepositoryHubScanner scanner = new RepositoryHubScanner(gitManager);
+        boolean success = scanner.executeFullScan(false);
         assertTrue("Scan should be successful", success);
     }
 }

@@ -72,9 +72,19 @@ public class RepositoryTestInfo {
 
     // Getters and Setters
     public String getRepositoryName() {
+        if (repositoryName == null) {
+            return "";
+        }
         return repositoryName;
     }
 
+
+    public String getRepositoryPathString() {
+        if (repositoryPath == null) {
+            return "";
+        }
+        return repositoryPath.toString();
+    }
 
     public Path getRepositoryPath() {
         return repositoryPath;

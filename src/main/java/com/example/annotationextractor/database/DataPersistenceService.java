@@ -48,8 +48,11 @@ public class DataPersistenceService {
                 // Persist repositories and their data using batch operations
                 PerformanceMonitor.startOperation("Persist Repositories");
                 for (RepositoryTestInfo repo : summary.getRepositories()) {
+
+                    int teamId = ensureTeamExists(conn, repo.getTeamName(), repo.getTeamCode());
+
                     PerformanceMonitor.startOperation("Repository: " + repo.getRepositoryName());
-                    long repositoryId = persistRepository(conn, repo, scanSessionId);
+                    long repositoryId = persistRepository(conn, repo, teamId);
                     
                     // Use batch operations for test classes and methods
                     persistTestClassesBatch(conn, repo, repositoryId, scanSessionId);
@@ -83,13 +86,7 @@ public class DataPersistenceService {
         }
     }
     
-    private void updateRepositoryHubRunnerConfigs(String filePath) throws SQLException, IOException {
-        List<RepositoryHubRunnerConfig> repositoryUrls = RepositoryListProcessor.readRepositoryHubRunnerConfigs(filePath);
-        System.out.println("Found " + repositoryUrls.size() + " repositories to process");
-        for (RepositoryHubRunnerConfig config : repositoryUrls) {
-            DataPersistenceService.assignRepositoryToTeam(config.getRepositoryUrl(), config.getTeamName(), config.getTeamCode());
-        }
-    }
+
     
     /**
      * Insert scan session record
@@ -120,13 +117,15 @@ public class DataPersistenceService {
     /**
      * Persist repository information
      */
-    private static long persistRepository(Connection conn, RepositoryTestInfo repo, long scanSessionId) throws SQLException {
-        String sql = "INSERT INTO repositories (repository_name, repository_path, git_url, total_test_classes, " +
+    private static long persistRepository(Connection conn, RepositoryTestInfo repo, int teamId) throws SQLException {
+        
+        String sql = "INSERT INTO repositories (repository_name, repository_path, git_url, team_id, total_test_classes, " +
                      "total_test_methods, total_annotated_methods, annotation_coverage_rate, last_scan_date) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
                      "ON CONFLICT (git_url) DO UPDATE SET " +
                      "repository_name = EXCLUDED.repository_name, " +
                      "repository_path = EXCLUDED.repository_path, " +
+                     "team_id = EXCLUDED.team_id, " +
                      "total_test_classes = EXCLUDED.total_test_classes, " +
                      "total_test_methods = EXCLUDED.total_test_methods, " +
                      "total_annotated_methods = EXCLUDED.total_annotated_methods, " +
@@ -136,15 +135,16 @@ public class DataPersistenceService {
         
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, repo.getRepositoryName());
-            stmt.setString(2, repo.getRepositoryPath().toString());
+            stmt.setString(2, repo.getRepositoryPathString());
             stmt.setString(3, repo.getGitUrl());
-            stmt.setInt(4, repo.getTotalTestClasses());
-            stmt.setInt(5, repo.getTotalTestMethods());
-            stmt.setInt(6, repo.getTotalAnnotatedTestMethods());
+            stmt.setInt(4, teamId);
+            stmt.setInt(5, repo.getTotalTestClasses());
+            stmt.setInt(6, repo.getTotalTestMethods());
+            stmt.setInt(7, repo.getTotalAnnotatedTestMethods());
             
             double coverageRate = repo.getTotalTestMethods() > 0 ? 
                 (double) repo.getTotalAnnotatedTestMethods() / repo.getTotalTestMethods() * 100 : 0.0;
-            stmt.setDouble(7, coverageRate);
+            stmt.setDouble(8, coverageRate);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {

@@ -200,7 +200,7 @@ public class DataPersistenceServiceTest {
      * Create a test RepositoryTestInfo
      */
     private RepositoryTestInfo createTestRepository() {
-        RepositoryTestInfo repo = new RepositoryTestInfo("test-repo-1", "/test/repo1");
+        RepositoryTestInfo repo = new RepositoryTestInfo("test-repo-1", "test-team-1", "TC1");
         
         List<TestClassInfo> testClasses = new ArrayList<>();
         testClasses.add(createTestClass("TestClass1", "com.example.test"));
@@ -215,7 +215,7 @@ public class DataPersistenceServiceTest {
      * Create a second test RepositoryTestInfo
      */
     private RepositoryTestInfo createTestRepository2() {
-        RepositoryTestInfo repo = new RepositoryTestInfo("test-repo-2", "/test/repo2");
+        RepositoryTestInfo repo = new RepositoryTestInfo("test-repo-2", "test-team-2", "TC2");
         
         List<TestClassInfo> testClasses = new ArrayList<>();
         testClasses.add(createTestClass("TestClass4", "com.example.test2"));
@@ -229,9 +229,7 @@ public class DataPersistenceServiceTest {
      * Create a test RepositoryTestInfo with test classes
      */
     private RepositoryTestInfo createTestRepositoryWithClasses() {
-        RepositoryTestInfo repo = new RepositoryTestInfo();
-        repo.setRepositoryName("test-repo-classes");
-        repo.setRepositoryPath("/test/repo-classes");
+        RepositoryTestInfo repo = new RepositoryTestInfo("test-repo-classes", "test-team-classes", "TC3");
         repo.setTotalTestClasses(2);
         repo.setTotalTestMethods(8);
         repo.setTotalAnnotatedTestMethods(4);
@@ -248,9 +246,7 @@ public class DataPersistenceServiceTest {
      * Create a test RepositoryTestInfo with test methods
      */
     private RepositoryTestInfo createTestRepositoryWithMethods() {
-        RepositoryTestInfo repo = new RepositoryTestInfo();
-        repo.setRepositoryName("test-repo-methods");
-        repo.setRepositoryPath("/test/repo-methods");
+        RepositoryTestInfo repo = new RepositoryTestInfo("test-repo-methods", "test-team-methods", "TC4");
         repo.setTotalTestClasses(1);
         repo.setTotalTestMethods(5);
         repo.setTotalAnnotatedTestMethods(3);
@@ -266,9 +262,7 @@ public class DataPersistenceServiceTest {
      * Create a test RepositoryTestInfo with annotations
      */
     private RepositoryTestInfo createTestRepositoryWithAnnotations() {
-        RepositoryTestInfo repo = new RepositoryTestInfo();
-        repo.setRepositoryName("test-repo-annotations");
-        repo.setRepositoryPath("/test/repo-annotations");
+        RepositoryTestInfo repo = new RepositoryTestInfo("test-repo-annotations", "test-team-annotations", "TC5");
         repo.setTotalTestClasses(1);
         repo.setTotalTestMethods(3);
         repo.setTotalAnnotatedTestMethods(3);
@@ -406,7 +400,7 @@ public class DataPersistenceServiceTest {
             ResultSet rs = stmt.executeQuery();
             
             assertTrue("Repository should exist", rs.next());
-            assertEquals("Repository path should match", repo.getRepositoryPath(), rs.getString("repository_path"));
+            assertEquals("Repository path should match", repo.getRepositoryPathString(), rs.getString("repository_path"));
             assertEquals("Total test classes should match", repo.getTotalTestClasses(), rs.getInt("total_test_classes"));
             assertEquals("Total test methods should match", repo.getTotalTestMethods(), rs.getInt("total_test_methods"));
             assertEquals("Total annotated methods should match", repo.getTotalAnnotatedTestMethods(), rs.getInt("total_annotated_methods"));
