@@ -169,7 +169,7 @@ public class DatabaseSchemaManager {
             "first_seen_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
             "last_modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
             "scan_session_id BIGINT," +
-            "UNIQUE(repository_id, class_name, package_name)," +
+            "UNIQUE(repository_id, file_path)," +
             "FOREIGN KEY (repository_id) REFERENCES repositories(id) ON DELETE CASCADE," +
             "FOREIGN KEY (scan_session_id) REFERENCES scan_sessions(id)" +
             ")";

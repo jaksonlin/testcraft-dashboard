@@ -167,7 +167,9 @@ public class DataPersistenceService {
         String testClassSql = "INSERT INTO test_classes (repository_id, class_name, package_name, file_path, " +
                              "total_test_methods, annotated_test_methods, coverage_rate, scan_session_id) " +
                              "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
-                             "ON CONFLICT (repository_id, class_name, package_name) DO UPDATE SET " +
+                             "ON CONFLICT (repository_id, file_path) DO UPDATE SET " +
+                             "class_name = EXCLUDED.class_name, " +
+                             "package_name = EXCLUDED.package_name, " +
                              "total_test_methods = EXCLUDED.total_test_methods, " +
                              "annotated_test_methods = EXCLUDED.annotated_test_methods, " +
                              "coverage_rate = EXCLUDED.coverage_rate, " +
