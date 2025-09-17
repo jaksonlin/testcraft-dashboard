@@ -1,5 +1,8 @@
 package com.example.annotationextractor.database;
 
+import com.example.annotationextractor.application.PersistenceReadFacade;
+import com.example.annotationextractor.domain.model.RepositoryRecord;
+import com.example.annotationextractor.domain.model.Team;
 import com.example.annotationextractor.casemodel.RepositoryTestInfo;
 import com.example.annotationextractor.casemodel.TestClassInfo;
 import com.example.annotationextractor.casemodel.TestCollectionSummary;
@@ -8,6 +11,7 @@ import com.example.annotationextractor.casemodel.UnittestCaseInfoData;
 import com.example.annotationextractor.runner.RepositoryHubRunnerConfig;
 import com.example.annotationextractor.runner.RepositoryListProcessor;
 import com.example.annotationextractor.util.PerformanceMonitor;
+import com.example.annotationextractor.application.PersistenceWriteFacade;
 
 import org.postgresql.util.PGobject;
 
@@ -26,59 +30,74 @@ public class DataPersistenceService {
     
     // Batch size for optimal performance
     private static final int BATCH_SIZE = 1000;
+
+    /**
+     * Feature toggle for hexagonal read path delegation.
+     * Enable by running with -Dhex.read.enabled=true
+     */
+    private static boolean isHexReadEnabled() {
+        return Boolean.parseBoolean(System.getProperty("hex.read.enabled", "false"));
+    }
+
+    private static PersistenceReadFacade getReadFacade() {
+        // Avoid global static singletons; construct on demand to honor user's preference
+        return new PersistenceReadFacade();
+    }
+
+    private static boolean isHexWriteEnabled() {
+        return Boolean.parseBoolean(System.getProperty("hex.write.enabled", "false"));
+    }
+
+    private static boolean isHexWriteShadow() {
+        return Boolean.parseBoolean(System.getProperty("hex.write.shadow", "false"));
+    }
+
+    private static PersistenceWriteFacade getWriteFacade() {
+        return new PersistenceWriteFacade();
+    }
     
     /**
      * Persist a complete scan session with all its data using batch operations
      */
     public static long persistScanSession(TestCollectionSummary summary, long scanDurationMs) throws SQLException {
         PerformanceMonitor.startOperation("Database Persistence");
-        
+
+        if (isHexWriteEnabled()) {
+            long id = getWriteFacade().persistScanSession(summary, scanDurationMs);
+            PerformanceMonitor.endOperation("Database Persistence");
+            return id;
+        }
+
+        if (isHexWriteShadow()) {
+            // Run new path to the shadow database while keeping legacy result authoritative
+            try {
+                getWriteFacade().persistScanSessionShadow(summary, scanDurationMs);
+            } catch (Exception e) {
+                System.err.println("[SHADOW] New write path to shadow DB failed: " + e.getMessage());
+            }
+        }
+
         try (Connection conn = DatabaseConfig.getConnection()) {
             conn.setAutoCommit(false);
-            
             try {
                 long startTime = System.currentTimeMillis();
                 int totalMethods = 0;
-                
-                // Insert scan session
-                PerformanceMonitor.startOperation("Insert Scan Session");
                 long scanSessionId = insertScanSession(conn, summary, scanDurationMs);
-                PerformanceMonitor.endOperation("Insert Scan Session");
-                
-                // Persist repositories and their data using batch operations
-                PerformanceMonitor.startOperation("Persist Repositories");
                 for (RepositoryTestInfo repo : summary.getRepositories()) {
-
                     int teamId = ensureTeamExists(conn, repo.getTeamName(), repo.getTeamCode());
-
-                    PerformanceMonitor.startOperation("Repository: " + repo.getRepositoryName());
                     long repositoryId = persistRepository(conn, repo, teamId);
-                    
-                    // Use batch operations for test classes and methods
                     persistTestClassesBatch(conn, repo, repositoryId, scanSessionId);
-                    
                     totalMethods += repo.getTotalTestMethods();
-                    PerformanceMonitor.endOperation("Repository: " + repo.getRepositoryName());
                     PerformanceMonitor.incrementCounter("Repositories Processed");
                     PerformanceMonitor.incrementCounter("Total Test Methods");
                 }
-                PerformanceMonitor.endOperation("Persist Repositories");
-
-                
-                // Update daily metrics
-                PerformanceMonitor.startOperation("Update Daily Metrics");
                 updateDailyMetrics(conn, summary);
-                PerformanceMonitor.endOperation("Update Daily Metrics");
-                
                 conn.commit();
-                
                 long totalTime = System.currentTimeMillis() - startTime;
                 System.out.println("Total database persistence: " + totalTime + "ms for " + totalMethods + " methods");
                 System.out.println("Average time per method: " + (totalTime / (double) totalMethods) + "ms");
-                
                 PerformanceMonitor.endOperation("Database Persistence");
                 return scanSessionId;
-                
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
@@ -528,50 +547,92 @@ public class DataPersistenceService {
      * Get all teams with their repository counts
      */
     public static Map<String, Integer> getTeamRepositoryCounts() throws SQLException {
-        Map<String, Integer> teamCounts = new LinkedHashMap<>();
-        
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                 SELECT t.team_name, COUNT(r.id) as repo_count
-                 FROM teams t
-                 LEFT JOIN repositories r ON t.id = r.team_id
-                 GROUP BY t.id, t.team_name
-                 ORDER BY t.team_name
-                 """)) {
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    String teamName = rs.getString("team_name");
-                    int repoCount = rs.getInt("repo_count");
-                    teamCounts.put(teamName, repoCount);
+        if (isHexReadEnabled()) {
+            Map<String, Integer> result = new LinkedHashMap<>();
+            List<Team> teams = getReadFacade().listTeams();
+            List<RepositoryRecord> repos = getReadFacade().listAllRepositories();
+            java.util.Map<Long, String> teamIdToName = new java.util.HashMap<>();
+            for (Team t : teams) {
+                if (t.getId() != null) {
+                    teamIdToName.put(t.getId(), t.getTeamName());
                 }
             }
+            // Initialize counts to 0 for all teams
+            for (Team t : teams) {
+                result.put(t.getTeamName(), 0);
+            }
+            for (RepositoryRecord r : repos) {
+                Long teamId = r.getTeamId();
+                if (teamId != null) {
+                    String name = teamIdToName.get(teamId);
+                    if (name != null) {
+                        result.put(name, result.getOrDefault(name, 0) + 1);
+                    }
+                }
+            }
+            // Return ordered by team name
+            Map<String, Integer> ordered = new LinkedHashMap<>();
+            result.entrySet().stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .forEach(e -> ordered.put(e.getKey(), e.getValue()));
+            return ordered;
+        } else {
+            Map<String, Integer> teamCounts = new LinkedHashMap<>();
+            
+            try (Connection conn = DatabaseConfig.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement("""
+                     SELECT t.team_name, COUNT(r.id) as repo_count
+                     FROM teams t
+                     LEFT JOIN repositories r ON t.id = r.team_id
+                     GROUP BY t.id, t.team_name
+                     ORDER BY t.team_name
+                     """)) {
+                
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        String teamName = rs.getString("team_name");
+                        int repoCount = rs.getInt("repo_count");
+                        teamCounts.put(teamName, repoCount);
+                    }
+                }
+            }
+            
+            return teamCounts;
         }
-        
-        return teamCounts;
     }
     
     /**
      * Get repositories without team assignments
      */
     public static List<String> getUnassignedRepositories() throws SQLException {
-        List<String> unassigned = new ArrayList<>();
-        
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                 SELECT git_url FROM repositories 
-                 WHERE team_id IS NULL
-                 ORDER BY git_url
-                 """)) {
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    unassigned.add(rs.getString("git_url"));
+        if (isHexReadEnabled()) {
+            List<String> result = new ArrayList<>();
+            for (RepositoryRecord r : getReadFacade().listAllRepositories()) {
+                if (r.getTeamId() == null && r.getGitUrl() != null) {
+                    result.add(r.getGitUrl());
                 }
             }
+            result.sort(String::compareTo);
+            return result;
+        } else {
+            List<String> unassigned = new ArrayList<>();
+            
+            try (Connection conn = DatabaseConfig.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement("""
+                     SELECT git_url FROM repositories 
+                     WHERE team_id IS NULL
+                     ORDER BY git_url
+                     """)) {
+                
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        unassigned.add(rs.getString("git_url"));
+                    }
+                }
+            }
+            
+            return unassigned;
         }
-        
-        return unassigned;
     }
 
     /**

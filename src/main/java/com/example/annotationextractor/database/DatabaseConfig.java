@@ -15,6 +15,7 @@ import java.util.Properties;
 public class DatabaseConfig {
     
     private static HikariDataSource dataSource;
+    private static HikariDataSource shadowDataSource;
     private static Properties dbProperties;
     
     // Default database configuration
@@ -111,6 +112,45 @@ public class DatabaseConfig {
         System.out.println("  Database: " + database);
         System.out.println("  Username: " + username);
     }
+
+    /**
+     * Initialize a separate shadow database pool if configured.
+     * Uses shadow.db.* properties; falls back to primary db if not set.
+     */
+    public static void initializeShadowIfConfigured() {
+        String shadowHost = getProperty("shadow.db.host", null);
+        String shadowPortStr = getProperty("shadow.db.port", null);
+        String shadowDb = getProperty("shadow.db.name", null);
+        String shadowUser = getProperty("shadow.db.username", null);
+        String shadowPass = getProperty("shadow.db.password", null);
+
+        if (shadowHost == null || shadowDb == null || shadowUser == null || shadowPass == null) {
+            // No shadow config present; skip initialization
+            return;
+        }
+
+        int shadowPort;
+        try {
+            shadowPort = Integer.parseInt(shadowPortStr != null ? shadowPortStr : DEFAULT_PORT);
+        } catch (NumberFormatException e) {
+            shadowPort = Integer.parseInt(DEFAULT_PORT);
+        }
+
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(String.format("jdbc:postgresql://%s:%d/%s", shadowHost, shadowPort, shadowDb));
+        config.setUsername(shadowUser);
+        config.setPassword(shadowPass);
+
+        // Pool settings (reuse primaries unless overridden)
+        config.setMaximumPoolSize(getIntProperty("shadow.db.pool.maxSize", getIntProperty("db.pool.maxSize", 10)));
+        config.setMinimumIdle(getIntProperty("shadow.db.pool.minIdle", getIntProperty("db.pool.minIdle", 5)));
+        config.setIdleTimeout(getIntProperty("shadow.db.pool.idleTimeout", getIntProperty("db.pool.idleTimeout", 300000)));
+        config.setMaxLifetime(getIntProperty("shadow.db.pool.maxLifetime", getIntProperty("db.pool.maxLifetime", 1800000)));
+        config.setConnectionTimeout(getIntProperty("shadow.db.pool.connectionTimeout", getIntProperty("db.pool.connectionTimeout", 30000)));
+
+        shadowDataSource = new HikariDataSource(config);
+        System.out.println("Shadow database connection initialized: host=" + shadowHost + ", db=" + shadowDb);
+    }
     
     /**
      * Initialize database with CLI parameters (overrides properties file)
@@ -135,6 +175,19 @@ public class DatabaseConfig {
         }
         return dataSource.getConnection();
     }
+
+    /**
+     * Get a connection for shadow writes if configured; otherwise returns a primary connection.
+     */
+    public static Connection getShadowConnection() throws SQLException {
+        if (shadowDataSource == null) {
+            initializeShadowIfConfigured();
+        }
+        if (shadowDataSource != null) {
+            return shadowDataSource.getConnection();
+        }
+        return getConnection();
+    }
     
     /**
      * Close the connection pool
@@ -142,6 +195,9 @@ public class DatabaseConfig {
     public static void close() {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
+        }
+        if (shadowDataSource != null && !shadowDataSource.isClosed()) {
+            shadowDataSource.close();
         }
     }
     
