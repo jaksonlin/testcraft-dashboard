@@ -121,6 +121,13 @@
             <version>1.19.3</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Flyway for database migrations (baseline + future versioned SQL) -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>10.15.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -133,6 +140,35 @@
                     <source>17</source>
                     <target>17</target>
                 </configuration>
+            </plugin>
+
+            <!-- Flyway Maven Plugin (not bound to lifecycle) -->
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <version>10.15.0</version>
+                <configuration>
+                    <!-- We intentionally do not set URL/credentials here; provide at runtime via -Dflyway.* -->
+                    <locations>
+                        <location>classpath:db/migration</location>
+                    </locations>
+                    <!-- Do not clean in CI by accident -->
+                    <cleanDisabled>true</cleanDisabled>
+                </configuration>
+                <dependencies>
+                    <!-- Flyway database support for PostgreSQL (Flyway 10 modular extension) -->
+                    <dependency>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-database-postgresql</artifactId>
+                        <version>10.15.0</version>
+                    </dependency>
+                    <!-- PostgreSQL JDBC driver available to the plugin classpath -->
+                    <dependency>
+                        <groupId>org.postgresql</groupId>
+                        <artifactId>postgresql</artifactId>
+                        <version>${postgresql.version}</version>
+                    </dependency>
+                </dependencies>
             </plugin>
             
             <!-- Maven Surefire Plugin - Test Execution -->
