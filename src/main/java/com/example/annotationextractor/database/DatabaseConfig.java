@@ -203,6 +203,16 @@ public class DatabaseConfig {
         }
         return dataSource.getConnection();
     }
+    
+    /**
+     * Get the data source for use with frameworks like Flyway
+     */
+    public static javax.sql.DataSource getDataSource() {
+        if (dataSource == null) {
+            initialize();
+        }
+        return dataSource;
+    }
 
     /**
      * Get a connection for shadow writes if configured; otherwise returns a primary connection.

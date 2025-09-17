@@ -9,8 +9,8 @@ import java.sql.*;
 import java.util.Arrays;
 
 import com.example.annotationextractor.database.DatabaseConfig;
-import com.example.annotationextractor.database.DatabaseSchemaManager;
 import com.example.annotationextractor.database.DataPersistenceService;
+import org.flywaydb.core.Flyway;
 import com.example.annotationextractor.database.DataPersistenceServiceTest;
 import com.example.annotationextractor.casemodel.TestClassInfo;
 import com.example.annotationextractor.casemodel.RepositoryTestInfo;
@@ -44,7 +44,10 @@ public class AnnotationFieldMappingTest {
     @Test
     public void testAllAnnotationFieldsAreMappedToDatabase() throws SQLException {
         // Initialize database schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         // Create a comprehensive test annotation with all fields populated
         UnittestCaseInfoData testAnnotation = createComprehensiveTestAnnotation();
@@ -80,7 +83,10 @@ public class AnnotationFieldMappingTest {
     @Test
     public void testDatabaseSchemaHasAllRequiredColumns() throws SQLException {
         // Initialize database schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         try (Connection conn = DatabaseConfig.getConnection()) {
             // Get table metadata
@@ -121,7 +127,10 @@ public class AnnotationFieldMappingTest {
     @Test
     public void testAnnotationDataJSONBContainsAllFields() throws SQLException {
         // Initialize database schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         // Create comprehensive test annotation
         UnittestCaseInfoData testAnnotation = createComprehensiveTestAnnotation();
@@ -151,7 +160,10 @@ public class AnnotationFieldMappingTest {
     @Test
     public void testArrayFieldsAreProperlyStored() throws SQLException {
         // Initialize database schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         // Create test annotation with array fields
         UnittestCaseInfoData testAnnotation = createComprehensiveTestAnnotation();
@@ -191,7 +203,10 @@ public class AnnotationFieldMappingTest {
     @Test
     public void testMissingFieldsAreHandledGracefully() throws SQLException {
         // Initialize database schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         // Create test annotation with missing fields
         UnittestCaseInfoData testAnnotation = new UnittestCaseInfoData();
@@ -227,7 +242,10 @@ public class AnnotationFieldMappingTest {
     @Test
     public void testArrayToStringConversionAndBack() throws SQLException {
         // Initialize database schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         // Create test annotation with specific array values
         UnittestCaseInfoData testAnnotation = new UnittestCaseInfoData();
@@ -276,7 +294,10 @@ public class AnnotationFieldMappingTest {
     @Test
     public void testDataFlowEndToEnd() throws SQLException {
         // Initialize database schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         // Create test annotation with complex data
         UnittestCaseInfoData testAnnotation = new UnittestCaseInfoData();
@@ -330,7 +351,10 @@ public class AnnotationFieldMappingTest {
     @Test
     public void testEdgeCasesAreHandledCorrectly() throws SQLException {
         // Initialize database schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         // Create test annotation with edge cases
         UnittestCaseInfoData testAnnotation = new UnittestCaseInfoData();
