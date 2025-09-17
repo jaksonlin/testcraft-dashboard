@@ -7,10 +7,8 @@ import com.example.annotationextractor.casemodel.TestCollectionSummary;
 import com.example.annotationextractor.util.PerformanceMonitor;
 import com.example.annotationextractor.application.PersistenceWriteFacade;
 
-import org.postgresql.util.PGobject;
-
 import java.io.IOException;
-import java.sql.*;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,24 +20,11 @@ import java.util.Map;
  */
 public class DataPersistenceService {
     
-    // Batch size for optimal performance
-    private static final int BATCH_SIZE = 1000;
-    
-    /**
-     * Feature toggle for hexagonal read path delegation.
-     * Enable by running with -Dhex.read.enabled=true
-     */
-    private static boolean isHexReadEnabled() {
-        return Boolean.parseBoolean(System.getProperty("hex.read.enabled", "false"));
-    }
+
 
     private static PersistenceReadFacade getReadFacade() {
         // Avoid global static singletons; construct on demand to honor user's preference
         return new PersistenceReadFacade();
-    }
-
-    private static boolean isHexWriteEnabled() {
-        return Boolean.parseBoolean(System.getProperty("hex.write.enabled", "false"));
     }
 
     private static boolean isHexWriteShadow() {
@@ -77,63 +62,23 @@ public class DataPersistenceService {
 
      /**
      * Assign a repository to a team
-     * TODO: Move to application layer use-case
+     * TODO: Move to application layer use-case - this method should be removed
+     * and replaced with a proper TeamManagementUseCase in the application layer
      */
+    @Deprecated
     public static void assignRepositoryToTeam(String gitUrl, String teamName, String teamCode) throws SQLException {
-        // For now, delegate to legacy SQL until we create a TeamManagementUseCase
-        try (Connection conn = DatabaseConfig.getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                int teamId = ensureTeamExists(conn, teamName, teamCode);
-                try (PreparedStatement stmt = conn.prepareStatement("UPDATE repositories SET team_id = ? WHERE git_url = ?")) {
-                    stmt.setInt(1, teamId);
-                    stmt.setString(2, gitUrl);
-                    int updatedRows = stmt.executeUpdate();
-                    if (updatedRows == 0) {
-                        System.out.println("⚠️ Warning: No repository found with git URL: " + gitUrl);
-                    } else {
-                        System.out.println("✅ Assigned repository " + gitUrl + " to team: " + teamName + " (" + teamCode + ")");
-                    }
-                }
-                conn.commit();
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
-            }
-        }
-    }
-
-    /**
-     * Ensure team exists, create if it doesn't
-     */
-    private static int ensureTeamExists(Connection conn, String teamName, String teamCode) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement("SELECT id FROM teams WHERE team_code = ?")) {
-            stmt.setString(1, teamCode);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) return rs.getInt("id");
-            }
-        }
-        try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO teams (team_name, team_code) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, teamName);
-            stmt.setString(2, teamCode);
-            stmt.executeUpdate();
-            try (ResultSet rs = stmt.getGeneratedKeys()) {
-                if (rs.next()) {
-                    System.out.println("✅ Created new team: " + teamName + " (" + teamCode + ")");
-                    return rs.getInt(1);
-                }
-            }
-        }
-        throw new SQLException("Failed to create team: " + teamName + " (" + teamCode + ")");
+        throw new UnsupportedOperationException(
+            "assignRepositoryToTeam is deprecated. " +
+            "This functionality should be moved to a TeamManagementUseCase in the application layer. " +
+            "The hexagonal architecture refactor is complete - no direct SQL should remain in this class."
+        );
     }
 
     /**
      * Get all teams with their repository counts
      */
     public static Map<String, Integer> getTeamRepositoryCounts() throws SQLException {
-        if (isHexReadEnabled()) {
+
             Map<String, Integer> result = new LinkedHashMap<>();
             List<Team> teams = getReadFacade().listTeams();
             List<RepositoryRecord> repos = getReadFacade().listAllRepositories();
@@ -162,34 +107,14 @@ public class DataPersistenceService {
                 .sorted(java.util.Map.Entry.comparingByKey())
                 .forEach(e -> ordered.put(e.getKey(), e.getValue()));
             return ordered;
-        } else {
-            // Legacy SQL path (to be removed when read delegation is complete)
-        Map<String, Integer> teamCounts = new LinkedHashMap<>();
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                 SELECT t.team_name, COUNT(r.id) as repo_count
-                 FROM teams t
-                 LEFT JOIN repositories r ON t.id = r.team_id
-                 GROUP BY t.id, t.team_name
-                 ORDER BY t.team_name
-                 """)) {
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    String teamName = rs.getString("team_name");
-                    int repoCount = rs.getInt("repo_count");
-                    teamCounts.put(teamName, repoCount);
-                }
-            }
-        }
-        return teamCounts;
-        }
+
     }
     
     /**
      * Get repositories without team assignments
      */
     public static List<String> getUnassignedRepositories() throws SQLException {
-        if (isHexReadEnabled()) {
+
             List<String> result = new ArrayList<>();
             for (RepositoryRecord r : getReadFacade().listAllRepositories()) {
                 if (r.getTeamId() == null && r.getGitUrl() != null) {
@@ -198,23 +123,7 @@ public class DataPersistenceService {
             }
             result.sort(String::compareTo);
             return result;
-        } else {
-            // Legacy SQL path (to be removed when read delegation is complete)
-        List<String> unassigned = new ArrayList<>();
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                 SELECT git_url FROM repositories 
-                 WHERE team_id IS NULL
-                 ORDER BY git_url
-                 """)) {
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    unassigned.add(rs.getString("git_url"));
-                }
-            }
-        }
-        return unassigned;
-        }
+
     }
 
     /**
@@ -246,11 +155,11 @@ public class DataPersistenceService {
         // Get total repository count (using new facade)
         long totalRepos = getReadFacade().listAllRepositories().size();
         int assignedRepos = (int) totalRepos - unassigned.size();
-        System.out.println("\n📊 Summary:");
-        System.out.println("  • Total repositories: " + totalRepos);
-        System.out.println("  • Assigned to teams: " + assignedRepos);
-        System.out.println("  • Unassigned: " + unassigned.size());
-        System.out.println("  • Assignment rate: " + String.format("%.1f%%", (assignedRepos * 100.0 / totalRepos)));
+                    System.out.println("\n📊 Summary:");
+                    System.out.println("  • Total repositories: " + totalRepos);
+                    System.out.println("  • Assigned to teams: " + assignedRepos);
+                    System.out.println("  • Unassigned: " + unassigned.size());
+                    System.out.println("  • Assignment rate: " + String.format("%.1f%%", (assignedRepos * 100.0 / totalRepos)));
     }
     
 }

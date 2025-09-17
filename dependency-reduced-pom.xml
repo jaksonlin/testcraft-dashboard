@@ -100,6 +100,7 @@
                 <transformer>
                   <mainClass>com.example.annotationextractor.runner.RepositoryHubRunner</mainClass>
                 </transformer>
+                <transformer />
               </transformers>
               <filters>
                 <filter>
