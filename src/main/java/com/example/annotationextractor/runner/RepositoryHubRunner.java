@@ -41,6 +41,13 @@ public class RepositoryHubRunner {
         String dbName = null;
         String dbUser = null;
         String dbPass = null;
+
+        // Shadow database connection parameters (optional)
+        String sHost = null;
+        String sPort = null;
+        String sName = null;
+        String sUser = null;
+        String sPass = null;
         
         // Parse arguments
         for (int i = 1; i < args.length; i++) {
@@ -56,6 +63,16 @@ public class RepositoryHubRunner {
                 dbPass = args[++i];
             } else if (args[i].equals("--temp-clone")) {
                 tempCloneMode = true;
+            } else if (args[i].equals("--shadow-db-host") && i + 1 < args.length) {
+                sHost = args[++i];
+            } else if (args[i].equals("--shadow-db-port") && i + 1 < args.length) {
+                sPort = args[++i];
+            } else if (args[i].equals("--shadow-db-name") && i + 1 < args.length) {
+                sName = args[++i];
+            } else if (args[i].equals("--shadow-db-user") && i + 1 < args.length) {
+                sUser = args[++i];
+            } else if (args[i].equals("--shadow-db-pass") && i + 1 < args.length) {
+                sPass = args[++i];
             } else if (sshKeyPath == null && !args[i].startsWith("--")) {
                 // First non-flag argument is username, second is password, third is ssh key
                 if (username == null) {
@@ -87,10 +104,24 @@ public class RepositoryHubRunner {
                 com.example.annotationextractor.database.DatabaseConfig.initializeFromCli(
                     finalDbHost, finalDbPort, finalDbName, finalDbUser, finalDbPass
                 );
+                // Initialize shadow database if provided
+                if (sHost != null || sPort != null || sName != null || sUser != null || sPass != null) {
+                    String finalSHost = sHost != null ? sHost : finalDbHost;
+                    String finalSPort = sPort != null ? sPort : finalDbPort;
+                    String finalSName = sName != null ? sName : finalDbName + "_shadow";
+                    String finalSUser = sUser != null ? sUser : finalDbUser;
+                    String finalSPass = sPass != null ? sPass : finalDbPass;
+                    System.out.println("Initializing SHADOW database connection with CLI parameters...");
+                    com.example.annotationextractor.database.DatabaseConfig.initializeShadowFromCli(
+                        finalSHost, finalSPort, finalSName, finalSUser, finalSPass
+                    );
+                }
             } else {
                 // Use properties file
                 System.out.println("Initializing database connection from properties file...");
                 com.example.annotationextractor.database.DatabaseConfig.initialize();
+                // Initialize shadow from properties if present
+                com.example.annotationextractor.database.DatabaseConfig.initializeShadowIfConfigured();
             }
             
             // Create and run the scanner
@@ -135,6 +166,12 @@ public class RepositoryHubRunner {
         System.out.println("  --db-name <name>     Database name (default: test_analytics)");
         System.out.println("  --db-user <user>     Database username (default: postgres)");
         System.out.println("  --db-pass <pass>     Database password (default: postgres)");
+        System.out.println("Shadow Database Options (optional, for shadow write & perf validation):");
+        System.out.println("  --shadow-db-host <host>    Shadow DB host (default: db-host)");
+        System.out.println("  --shadow-db-port <port>    Shadow DB port (default: db-port)");
+        System.out.println("  --shadow-db-name <name>    Shadow DB name (default: <db-name>_shadow)");
+        System.out.println("  --shadow-db-user <user>    Shadow DB username (default: db-user)");
+        System.out.println("  --shadow-db-pass <pass>    Shadow DB password (default: db-pass)");
         System.out.println();
         System.out.println("Authentication Methods:");
         System.out.println("  1. SSH (recommended if you have SSH keys configured):");
@@ -147,6 +184,7 @@ public class RepositoryHubRunner {
         System.out.println();
         System.out.println("Database Connection Examples:");
         System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt --db-host mydb.example.com --db-port 5433 --db-name mydb --db-user myuser --db-pass mypass");
+        System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt --db-host mydb --db-name primary --shadow-db-host myshadow --shadow-db-name shadow --hex.write.shadow=true");
         System.out.println("  java RepositoryHubRunner ./repos ./repo-list.txt --db-host localhost --db-name production_db");
         System.out.println();
         System.out.println("Temporary Clone Mode Examples:");

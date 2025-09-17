@@ -151,6 +151,34 @@ public class DatabaseConfig {
         shadowDataSource = new HikariDataSource(config);
         System.out.println("Shadow database connection initialized: host=" + shadowHost + ", db=" + shadowDb);
     }
+
+    /**
+     * Initialize shadow database with explicit parameters (CLI override).
+     */
+    public static void initializeShadowFromCli(String host, String port, String database, String username, String password) {
+        int portNum;
+        try {
+            portNum = Integer.parseInt(port);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid shadow DB port number: " + port + ", using default: 5432");
+            portNum = 5432;
+        }
+
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(String.format("jdbc:postgresql://%s:%d/%s", host, portNum, database));
+        config.setUsername(username);
+        config.setPassword(password);
+
+        // Pool settings (reuse defaults)
+        config.setMaximumPoolSize(getIntProperty("shadow.db.pool.maxSize", getIntProperty("db.pool.maxSize", 10)));
+        config.setMinimumIdle(getIntProperty("shadow.db.pool.minIdle", getIntProperty("db.pool.minIdle", 5)));
+        config.setIdleTimeout(getIntProperty("shadow.db.pool.idleTimeout", getIntProperty("db.pool.idleTimeout", 300000)));
+        config.setMaxLifetime(getIntProperty("shadow.db.pool.maxLifetime", getIntProperty("db.pool.maxLifetime", 1800000)));
+        config.setConnectionTimeout(getIntProperty("shadow.db.pool.connectionTimeout", getIntProperty("db.pool.connectionTimeout", 30000)));
+
+        shadowDataSource = new HikariDataSource(config);
+        System.out.println("Shadow database connection initialized from CLI: host=" + host + ", db=" + database);
+    }
     
     /**
      * Initialize database with CLI parameters (overrides properties file)
