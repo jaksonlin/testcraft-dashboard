@@ -3,6 +3,7 @@ package com.example.annotationextractor.database;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.flywaydb.core.Flyway;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -30,10 +31,14 @@ public class DatabaseIntegrationTest {
 
     @After
     public void tearDown() {
-        // Clean up database
+        // Clean up database - Flyway handles this through clean operation
         try {
-            DatabaseSchemaManager.dropAllTables();
-        } catch (SQLException e) {
+            Flyway flyway = Flyway.configure()
+                .dataSource(DatabaseConfig.getDataSource())
+                .cleanDisabled(false) // Enable clean for tests
+                .load();
+            flyway.clean(); // This will drop all tables
+        } catch (Exception e) {
             // Ignore cleanup errors
         }
         DatabaseConfig.close();
@@ -48,9 +53,18 @@ public class DatabaseIntegrationTest {
             assertTrue("Database connection should be valid", conn.isValid(5));
         }
         
-        // Test schema initialization
-        DatabaseSchemaManager.initializeSchema();
-        assertTrue("Schema should exist after initialization", DatabaseSchemaManager.schemaExists());
+        // Test schema initialization with Flyway
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
+        
+        // Verify schema exists by checking if tables exist
+        try (Connection conn = DatabaseConfig.getConnection();
+             Statement stmt = conn.createStatement()) {
+            ResultSet rs = stmt.executeQuery("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'repositories')");
+            assertTrue("Schema should exist after Flyway migration", rs.next() && rs.getBoolean(1));
+        }
         
         // Test basic table operations
         try (Connection conn = DatabaseConfig.getConnection();
@@ -92,17 +106,30 @@ public class DatabaseIntegrationTest {
 
     @Test
     public void testSchemaRecreation() throws SQLException {
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .cleanDisabled(false) // Enable clean for tests
+            .load();
+        
         // Initialize schema first time
-        DatabaseSchemaManager.initializeSchema();
-        assertTrue("Schema should exist after first initialization", DatabaseSchemaManager.schemaExists());
+        flyway.migrate();
+        assertTrue("Schema should exist after first migration", checkSchemaExists());
         
         // Drop all tables
-        DatabaseSchemaManager.dropAllTables();
-        assertFalse("Schema should not exist after dropping", DatabaseSchemaManager.schemaExists());
+        flyway.clean();
+        assertFalse("Schema should not exist after clean", checkSchemaExists());
         
         // Reinitialize schema
-        DatabaseSchemaManager.initializeSchema();
-        assertTrue("Schema should exist after reinitialization", DatabaseSchemaManager.schemaExists());
+        flyway.migrate();
+        assertTrue("Schema should exist after reinitialization", checkSchemaExists());
+    }
+    
+    private boolean checkSchemaExists() throws SQLException {
+        try (Connection conn = DatabaseConfig.getConnection();
+             Statement stmt = conn.createStatement()) {
+            ResultSet rs = stmt.executeQuery("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'repositories')");
+            return rs.next() && rs.getBoolean(1);
+        }
     }
 
     @Test
@@ -135,7 +162,10 @@ public class DatabaseIntegrationTest {
     @Test
     public void testDatabaseConstraints() throws SQLException {
         // Initialize schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         try (Connection conn = DatabaseConfig.getConnection();
              Statement stmt = conn.createStatement()) {
@@ -170,7 +200,10 @@ public class DatabaseIntegrationTest {
     @Test
     public void testIndexes() throws SQLException {
         // Initialize schema
-        DatabaseSchemaManager.initializeSchema();
+        Flyway flyway = Flyway.configure()
+            .dataSource(DatabaseConfig.getDataSource())
+            .load();
+        flyway.migrate();
         
         // Verify indexes were created
         assertTrue("Repository name index should exist", indexExists("idx_repositories_name", "repositories"));

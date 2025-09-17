@@ -1,27 +1,29 @@
 package com.example.annotationextractor.database;
 
+import org.flywaydb.core.Flyway;
+
 /**
- * Simple database initializer that can be run to set up the database schema
+ * Simple database initializer that uses Flyway to set up the database schema
  */
 public class DatabaseInitializer {
     
     public static void main(String[] args) {
-        System.out.println("Database Schema Initializer");
-        System.out.println("============================");
+        System.out.println("Database Schema Initializer (Flyway)");
+        System.out.println("====================================");
         
         try {
-            // Check if schema already exists
-            if (DatabaseSchemaManager.schemaExists()) {
-                System.out.println("✅ Database schema already exists");
-                System.out.println("Checking if team tables need to be added...");
-                
-                // Initialize schema (this will add missing tables/columns)
-                DatabaseSchemaManager.initializeSchema();
-                System.out.println("✅ Database schema updated successfully");
+            // Configure and run Flyway migrations
+            Flyway flyway = Flyway.configure()
+                .dataSource(DatabaseConfig.getDataSource())
+                .load();
+            
+            System.out.println("🔄 Running database migrations...");
+            var migrateResult = flyway.migrate();
+            
+            if (migrateResult.migrationsExecuted == 0) {
+                System.out.println("✅ Database is up to date - no migrations needed");
             } else {
-                System.out.println("🔄 Creating new database schema...");
-                DatabaseSchemaManager.initializeSchema();
-                System.out.println("✅ Database schema created successfully");
+                System.out.println("✅ Executed " + migrateResult.migrationsExecuted + " migration(s) successfully");
             }
             
             System.out.println("\nDatabase is ready for use!");

@@ -9,6 +9,7 @@ import com.example.annotationextractor.casemodel.UnittestCaseInfoData;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.flywaydb.core.Flyway;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -35,16 +36,16 @@ public class DataPersistenceServiceTest {
     public void setUp() {
         // Initialize database connection and schema
         DatabaseConfig.initialize(TEST_HOST, TEST_PORT, TEST_DATABASE, TEST_USERNAME, TEST_PASSWORD);
-        // Clean up database
+        // Clean up database and initialize with Flyway
         try {
-            DatabaseSchemaManager.dropAllTables();
-        } catch (SQLException e) {
-            // Ignore cleanup errors
-        }
-        try {
-            DatabaseSchemaManager.initializeSchema();
-        } catch (SQLException e) {
-            fail("Failed to initialize database schema: " + e.getMessage());
+            Flyway flyway = Flyway.configure()
+                .dataSource(DatabaseConfig.getDataSource())
+                .cleanDisabled(false) // Enable clean for tests
+                .load();
+            flyway.clean(); // Clean existing tables
+            flyway.migrate(); // Run migrations
+        } catch (Exception e) {
+            fail("Failed to initialize database schema with Flyway: " + e.getMessage());
         }
     }
 

@@ -16,7 +16,6 @@ import com.example.annotationextractor.AnnotationFieldMappingTest;
 @SuiteClasses({
     // Unit tests - run first
     DatabaseConfigTest.class,
-    DatabaseSchemaManagerTest.class,
     
     // Integration tests - run last
     DatabaseIntegrationTest.class,

@@ -17,6 +17,29 @@
         </configuration>
       </plugin>
       <plugin>
+        <groupId>org.flywaydb</groupId>
+        <artifactId>flyway-maven-plugin</artifactId>
+        <version>10.15.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>10.15.0</version>
+          </dependency>
+          <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <locations>
+            <location>classpath:db/migration</location>
+          </locations>
+          <cleanDisabled>true</cleanDisabled>
+        </configuration>
+      </plugin>
+      <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.2</version>
         <configuration>
@@ -77,6 +100,7 @@
                 <transformer>
                   <mainClass>com.example.annotationextractor.runner.RepositoryHubRunner</mainClass>
                 </transformer>
+                <transformer />
               </transformers>
               <filters>
                 <filter>

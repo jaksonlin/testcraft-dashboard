@@ -1,11 +1,11 @@
 package com.example.annotationextractor.runner;
 
-import com.example.annotationextractor.database.DatabaseSchemaManager;
 import com.example.annotationextractor.reporting.ExcelReportGenerator;
 import com.example.annotationextractor.util.GitRepositoryManager;
 import com.example.annotationextractor.casemodel.RepositoryTestInfo;
 import com.example.annotationextractor.casemodel.TestCollectionSummary;
 import com.example.annotationextractor.database.DataPersistenceService;
+import com.example.annotationextractor.database.DatabaseConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,9 +37,17 @@ public class RepositoryHubScanner {
             System.out.println("Temporary Clone Mode: " + (tempCloneMode ? "ENABLED" : "DISABLED"));
             System.out.println();
             
-            // Initialize database schema
-            if (!DatabaseSchemaManager.schemaExists()) {
-                DatabaseSchemaManager.initializeSchema();
+            // Database schema is now managed by Flyway
+            // Run migrations if needed
+            try {
+                org.flywaydb.core.Flyway flyway = org.flywaydb.core.Flyway.configure()
+                    .dataSource(DatabaseConfig.getDataSource())
+                    .load();
+                flyway.migrate();
+            } catch (Exception e) {
+                System.err.println("Failed to run database migrations: " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Database migration failed", e);
             }
             
             

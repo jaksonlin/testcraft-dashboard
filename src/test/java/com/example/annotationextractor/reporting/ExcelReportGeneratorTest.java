@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 import com.example.annotationextractor.database.DatabaseConfig;
-import com.example.annotationextractor.database.DatabaseSchemaManager;
 
 /**
  * Tests for ExcelReportGenerator class
