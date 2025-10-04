@@ -1,0 +1,73 @@
+server:
+  port: 8090
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: testcraft-dashboard
+  
+  # Database configuration - matches existing database.properties
+  datasource:
+    url: jdbc:postgresql://localhost:5432/test_analytics
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+    
+  # Disable JPA auto-configuration since we're using direct JDBC
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    
+  # Flyway configuration - disabled since database schema already exists
+  flyway:
+    enabled: false
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Application specific configuration
+testcraft:
+  dashboard:
+    title: "TestCraft Dashboard"
+    description: "Continuous Git Repository Monitoring"
+    version: "1.0.0"
+  
+  # Database configuration
+  database:
+    enabled: true  # Enable database integration
+  
+  # Scheduling configuration
+  scheduler:
+    enabled: true
+    cron:
+      # Run daily at 2 AM
+      daily-scan: "0 0 2 * * ?"
+    
+  # Repository scanning configuration
+  scanning:
+    temp-clone-mode: false
+    max-repositories-per-scan: 100
+    
+# Logging configuration
+logging:
+  level:
+    com.example.annotationextractor: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
