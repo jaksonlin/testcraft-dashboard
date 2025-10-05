@@ -273,16 +273,125 @@ public class RepositoryDataService {
             .collect(Collectors.toList());
     }
 
-    public List<TestMethodDetailDto> getTestMethodDetailsByTeamId(Long teamId, Integer limit) {
-        Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-        if (latestScan.isEmpty()) {
-            System.err.println("No completed scan session found");
+    /**
+     * Get all test method details for dashboard overview
+     */
+    public List<TestMethodDetailDto> getAllTestMethodDetails(Integer limit) {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
+                if (latestScan.isEmpty()) {
+                    System.err.println("No completed scan session found");
+                    return List.of();
+                }
+                Long scanSessionId = latestScan.get().getId();
+                System.err.println("Using scan session ID: " + scanSessionId + " for all test methods");
+                List<TestMethodDetailRecord> records = persistenceReadFacade.get().listTestMethodDetailsByScanSessionId(scanSessionId, limit);
+                System.err.println("Found " + records.size() + " total test method records");
+                return records.stream()
+                    .map(this::convertToTestMethodDetailDto)
+                    .collect(Collectors.toList());
+            } catch (Exception e) {
+                System.err.println("Error fetching all test method details: " + e.getMessage());
+                e.printStackTrace();
+                return List.of();
+            }
+        } else {
+            System.err.println("PersistenceReadFacade is not available - database may not be configured");
             return List.of();
         }
-        Long scanSessionId = latestScan.get().getId();
-        List<TestMethodDetailRecord> records = persistenceReadFacade.get().listTestMethodDetailsByTeamIdAndScanSessionId(teamId, scanSessionId, limit);
-        return records.stream()
-            .map(this::convertToTestMethodDetailDto)
-            .collect(Collectors.toList());
+    }
+
+    /**
+     * Get test methods for a specific repository
+     */
+    public List<TestMethodDetailDto> getTestMethodsByRepositoryId(Long repositoryId, Integer limit) {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                // Find the latest scan session that has data for this repository
+                //Long scanSessionId = findLatestScanSessionWithDataForRepository(repositoryId);
+                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
+                if (latestScan.isEmpty()) {
+                    System.err.println("No scan session found with data for repository: " + repositoryId);
+                    return List.of();
+                }
+                Long scanSessionId = latestScan.get().getId();
+                System.err.println("Using scan session ID: " + scanSessionId + " for repository: " + repositoryId);
+                List<TestMethodDetailRecord> records = persistenceReadFacade.get().listTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, scanSessionId, limit);
+                System.err.println("Found " + records.size() + " test method records for repository " + repositoryId);
+                return records.stream()
+                    .map(this::convertToTestMethodDetailDto)
+                    .collect(Collectors.toList());
+            } catch (Exception e) {
+                System.err.println("Error fetching test methods by repository: " + e.getMessage());
+                e.printStackTrace();
+                return List.of();
+            }
+        } else {
+            System.err.println("PersistenceReadFacade is not available - database may not be configured");
+            return List.of();
+        }
+    }
+
+    /**
+     * Find the latest scan session that has data for a specific repository
+     */
+    private Long findLatestScanSessionWithDataForRepository(Long repositoryId) {
+        try {
+            // Check scan sessions from latest to oldest
+            List<ScanSession> recentSessions = persistenceReadFacade.get().recentScanSessions(20);
+            
+            for (ScanSession session : recentSessions) {
+                if (session.getScanStatus().equals("COMPLETED")) {
+                    // Check for test classes first (more reliable indicator)
+                    List<TestClass> classes = persistenceReadFacade.get()
+                        .listClassesByRepositoryIdAndScanSessionId(repositoryId, session.getId());
+                    if (!classes.isEmpty()) {
+                        System.err.println("Found test classes for repository " + repositoryId + " in scan session " + session.getId());
+                        return session.getId();
+                    }
+                    
+                    // Fallback: check for test methods
+                    List<TestMethodDetailRecord> methods = persistenceReadFacade.get()
+                        .listTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, session.getId(), 1);
+                    if (!methods.isEmpty()) {
+                        System.err.println("Found test methods for repository " + repositoryId + " in scan session " + session.getId());
+                        return session.getId();
+                    }
+                }
+            }
+            
+            System.err.println("No scan session found with data for repository: " + repositoryId);
+            return null;
+        } catch (Exception e) {
+            System.err.println("Error finding scan session for repository: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public List<TestMethodDetailDto> getTestMethodDetailsByTeamId(Long teamId, Integer limit) {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
+                if (latestScan.isEmpty()) {
+                    System.err.println("No completed scan session found");
+                    return List.of();
+                }
+                Long scanSessionId = latestScan.get().getId();
+                System.err.println("Using scan session ID: " + scanSessionId + " for team: " + teamId);
+                List<TestMethodDetailRecord> records = persistenceReadFacade.get().listTestMethodDetailsByTeamIdAndScanSessionId(teamId, scanSessionId, limit);
+                System.err.println("Found " + records.size() + " test method records");
+                return records.stream()
+                    .map(this::convertToTestMethodDetailDto)
+                    .collect(Collectors.toList());
+            } catch (Exception e) {
+                System.err.println("Error fetching test method details by team: " + e.getMessage());
+                e.printStackTrace();
+                return List.of();
+            }
+        } else {
+            System.err.println("PersistenceReadFacade is not available - database may not be configured");
+            return List.of();
+        }
     }
 }

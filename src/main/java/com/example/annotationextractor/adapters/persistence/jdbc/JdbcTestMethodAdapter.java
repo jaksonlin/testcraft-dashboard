@@ -116,7 +116,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             JOIN test_classes tc ON tm.test_class_id = tc.id
             JOIN repositories r ON tc.repository_id = r.id
             LEFT JOIN teams t ON r.team_id = t.id
-            WHERE tm.has_annotation = true AND tc.scan_session_id = ? AND r.team_id = ?
+            WHERE tc.scan_session_id = ? AND r.team_id = ?
             ORDER BY r.repository_name, tc.class_name, tm.method_name
             """);
         
@@ -237,7 +237,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             JOIN test_classes tc ON tm.test_class_id = tc.id
             JOIN repositories r ON tc.repository_id = r.id
             LEFT JOIN teams t ON r.team_id = t.id
-            WHERE tm.has_annotation = true AND tc.scan_session_id = ? AND r.id = ?
+            WHERE tc.scan_session_id = ? AND r.id = ?
             ORDER BY r.repository_name, tc.class_name, tm.method_name
             """);
                 
@@ -358,7 +358,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             JOIN test_classes tc ON tm.test_class_id = tc.id
             JOIN repositories r ON tc.repository_id = r.id
             LEFT JOIN teams t ON r.team_id = t.id
-            WHERE tm.has_annotation = true AND tc.id = ?
+            WHERE tc.id = ?
             ORDER BY r.repository_name, tc.class_name, tm.method_name
             """);
                 
@@ -478,7 +478,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             JOIN test_classes tc ON tm.test_class_id = tc.id
             JOIN repositories r ON tc.repository_id = r.id
             LEFT JOIN teams t ON r.team_id = t.id
-            WHERE tm.has_annotation = true AND tc.scan_session_id = ?
+            WHERE tc.scan_session_id = ?
             ORDER BY r.repository_name, tc.class_name, tm.method_name
             """);
                 

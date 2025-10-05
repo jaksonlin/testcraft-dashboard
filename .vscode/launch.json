@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Spring Boot: TestCraftDashboardApplication",
+      "request": "launch",
+      "mainClass": "com.example.annotationextractor.TestCraftDashboardApplication",
+      "console": "integratedTerminal",
+      "vmArgs": "-Dhex.write.shadow=false -Dspring.profiles.active=dev",
+      "args": "--logging.level.com.example=DEBUG --logging.level.org.springframework.jdbc.core=DEBUG"
+    },
+    {
+      "type": "java",
+      "name": "Attach to Java (port 5005)",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 5005
+    },
+    {
+      "type": "java",
+      "name": "Spring Boot: TestCraftDashboardApplication (Shadow Enabled)",
+      "request": "launch",
+      "mainClass": "com.example.annotationextractor.TestCraftDashboardApplication",
+      "console": "integratedTerminal",
+      "vmArgs": "-Dhex.write.shadow=true -Dspring.profiles.active=dev",
+      "args": "--logging.level.com.example=DEBUG --logging.level.org.springframework.jdbc.core=DEBUG"
+    }
+  ]
+}
+
+

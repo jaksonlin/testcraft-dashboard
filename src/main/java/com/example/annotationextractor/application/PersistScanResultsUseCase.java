@@ -166,39 +166,19 @@ public class PersistScanResultsUseCase {
 
     private void persistTestClassesBatch(Connection conn, RepositoryTestInfo repo, long repositoryId, long scanSessionId) throws SQLException {
         if (repo.getTestClasses().isEmpty()) return;
-        // Portable upsert: update-then-insert strategy per row
         for (TestClassInfo tc : repo.getTestClasses()) {
-            Long existingId = null;
-            try (PreparedStatement sel = conn.prepareStatement("SELECT id FROM test_classes WHERE repository_id = ? AND file_path = ?")) {
-                sel.setLong(1, repositoryId);
-                sel.setString(2, tc.getFilePath());
-                try (ResultSet rs = sel.executeQuery()) { if (rs.next()) existingId = rs.getLong(1); }
-            }
             double coverage = tc.getTotalTestMethods() > 0 ? (double) tc.getAnnotatedTestMethods() / tc.getTotalTestMethods() * 100 : 0.0;
-            if (existingId != null) {
-                try (PreparedStatement upd = conn.prepareStatement("UPDATE test_classes SET class_name = ?, package_name = ?, total_test_methods = ?, annotated_test_methods = ?, coverage_rate = ?, last_modified_date = CURRENT_TIMESTAMP, scan_session_id = ? WHERE id = ?")) {
-                    upd.setString(1, tc.getClassName());
-                    upd.setString(2, tc.getPackageName());
-                    upd.setInt(3, tc.getTotalTestMethods());
-                    upd.setInt(4, tc.getAnnotatedTestMethods());
-                    upd.setDouble(5, coverage);
-                    upd.setLong(6, scanSessionId);
-                    upd.setLong(7, existingId);
-                    upd.executeUpdate();
-                }
-            } else {
-                try (PreparedStatement ins = conn.prepareStatement("INSERT INTO test_classes (repository_id, class_name, package_name, file_path, total_test_methods, annotated_test_methods, coverage_rate, scan_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-                    ins.setLong(1, repositoryId);
-                    ins.setString(2, tc.getClassName());
-                    ins.setString(3, tc.getPackageName());
-                    ins.setString(4, tc.getFilePath());
-                    ins.setInt(5, tc.getTotalTestMethods());
-                    ins.setInt(6, tc.getAnnotatedTestMethods());
-                    ins.setDouble(7, coverage);
-                    ins.setLong(8, scanSessionId);
-                    ins.executeUpdate();
-                    try (ResultSet k = ins.getGeneratedKeys()) { if (k.next()) { /* id available if needed */ } }
-                }
+            try (PreparedStatement ins = conn.prepareStatement("INSERT INTO test_classes (repository_id, class_name, package_name, file_path, total_test_methods, annotated_test_methods, coverage_rate, scan_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+                ins.setLong(1, repositoryId);
+                ins.setString(2, tc.getClassName());
+                ins.setString(3, tc.getPackageName());
+                ins.setString(4, tc.getFilePath());
+                ins.setInt(5, tc.getTotalTestMethods());
+                ins.setInt(6, tc.getAnnotatedTestMethods());
+                ins.setDouble(7, coverage);
+                ins.setLong(8, scanSessionId);
+                ins.executeUpdate();
+                try (ResultSet k = ins.getGeneratedKeys()) { if (k.next()) { /* id available if needed */ } }
             }
         }
     }
@@ -210,92 +190,83 @@ public class PersistScanResultsUseCase {
         }
         if (allMethods.isEmpty()) return;
 
-        // Portable upsert per method
         for (TestMethodInfo method : allMethods) {
-            long testClassId = getTestClassId(conn, repositoryId, method.getClassName(), method.getPackageName());
+            long testClassId = getTestClassId(conn, repositoryId, method.getClassName(), method.getPackageName(), scanSessionId);
             UnittestCaseInfoData data = method.getAnnotationData();
-            String methodSignature = data != null ? data.getMethodSignature() : null;
-            Long existingId = null;
-            String selSql = "SELECT id FROM test_methods WHERE test_class_id = ? AND method_name = ? AND ((method_signature IS NULL AND ? IS NULL) OR method_signature = ?)";
-            try (PreparedStatement sel = conn.prepareStatement(selSql)) {
-                sel.setLong(1, testClassId);
-                sel.setString(2, method.getMethodName());
-                sel.setString(3, methodSignature);
-                sel.setString(4, methodSignature);
-                try (ResultSet rs = sel.executeQuery()) { if (rs.next()) existingId = rs.getLong(1); }
-            }
+            String methodSignature = (data != null) ? data.getMethodSignature() : null;
 
-            boolean has = data != null && !data.getTitle().isEmpty();
+            String title = (data != null) ? data.getTitle() : null;
+            boolean has = title != null && !title.isEmpty();
             String annotationJson = null;
-            if (has) {
+            String author = null;
+            String status = null;
+            String targetClass = null;
+            String targetMethod = null;
+            String description = null;
+            String tags = null;
+            String testPoints = null;
+            String requirements = null;
+            String defects = null;
+            String testcases = null;
+            String lastUpdateTime = null;
+            String lastUpdateAuthor = null;
+            if (has && data != null) {
                 try {
                     annotationJson = objectMapper.writeValueAsString(data);
                 } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                     throw new SQLException("Failed to serialize annotation JSON", e);
                 }
+                author = data.getAuthor();
+                status = data.getStatus();
+                targetClass = data.getTargetClass();
+                targetMethod = data.getTargetMethod();
+                description = data.getDescription();
+                tags = arrayToString(data.getTags());
+                testPoints = arrayToString(data.getTestPoints());
+                requirements = arrayToString(data.getRelatedRequirements());
+                defects = arrayToString(data.getRelatedDefects());
+                testcases = arrayToString(data.getRelatedTestcases());
+                lastUpdateTime = data.getLastUpdateTime();
+                lastUpdateAuthor = data.getLastUpdateAuthor();
             }
-            if (existingId != null) {
-                String upd = "UPDATE test_methods SET line_number = ?, has_annotation = ?, annotation_data = ?, annotation_title = ?, annotation_author = ?, annotation_status = ?, annotation_target_class = ?, annotation_target_method = ?, annotation_description = ?, annotation_tags = ?, annotation_test_points = ?, annotation_requirements = ?, annotation_defects = ?, annotation_testcases = ?, annotation_last_update_time = ?, annotation_last_update_author = ?, last_modified_date = CURRENT_TIMESTAMP, scan_session_id = ? WHERE id = ?";
-                try (PreparedStatement stmt = conn.prepareStatement(upd)) {
-                    stmt.setInt(1, method.getLineNumber());
-                    stmt.setBoolean(2, has);
-                    stmt.setString(3, annotationJson);
-                    stmt.setString(4, has ? data.getTitle() : null);
-                    stmt.setString(5, has ? data.getAuthor() : null);
-                    stmt.setString(6, has ? data.getStatus() : null);
-                    stmt.setString(7, has ? data.getTargetClass() : null);
-                    stmt.setString(8, has ? data.getTargetMethod() : null);
-                    stmt.setString(9, has ? data.getDescription() : null);
-                    stmt.setString(10, has ? arrayToString(data.getTags()) : null);
-                    stmt.setString(11, has ? arrayToString(data.getTestPoints()) : null);
-                    stmt.setString(12, has ? arrayToString(data.getRelatedRequirements()) : null);
-                    stmt.setString(13, has ? arrayToString(data.getRelatedDefects()) : null);
-                    stmt.setString(14, has ? arrayToString(data.getRelatedTestcases()) : null);
-                    stmt.setString(15, has ? data.getLastUpdateTime() : null);
-                    stmt.setString(16, has ? data.getLastUpdateAuthor() : null);
-                    stmt.setLong(17, scanSessionId);
-                    stmt.setLong(18, existingId);
-                    stmt.executeUpdate();
-                }
-            } else {
-                String ins = "INSERT INTO test_methods (test_class_id, method_name, method_signature, line_number, has_annotation, annotation_data, annotation_title, annotation_author, annotation_status, annotation_target_class, annotation_target_method, annotation_description, annotation_tags, annotation_test_points, annotation_requirements, annotation_defects, annotation_testcases, annotation_last_update_time, annotation_last_update_author, scan_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                try (PreparedStatement stmt = conn.prepareStatement(ins)) {
-                    stmt.setLong(1, testClassId);
-                    stmt.setString(2, method.getMethodName());
-                    stmt.setString(3, methodSignature);
-                    stmt.setInt(4, method.getLineNumber());
-                    stmt.setBoolean(5, has);
-                    stmt.setString(6, annotationJson);
-                    stmt.setString(7, has ? data.getTitle() : null);
-                    stmt.setString(8, has ? data.getAuthor() : null);
-                    stmt.setString(9, has ? data.getStatus() : null);
-                    stmt.setString(10, has ? data.getTargetClass() : null);
-                    stmt.setString(11, has ? data.getTargetMethod() : null);
-                    stmt.setString(12, has ? data.getDescription() : null);
-                    stmt.setString(13, has ? arrayToString(data.getTags()) : null);
-                    stmt.setString(14, has ? arrayToString(data.getTestPoints()) : null);
-                    stmt.setString(15, has ? arrayToString(data.getRelatedRequirements()) : null);
-                    stmt.setString(16, has ? arrayToString(data.getRelatedDefects()) : null);
-                    stmt.setString(17, has ? arrayToString(data.getRelatedTestcases()) : null);
-                    stmt.setString(18, has ? data.getLastUpdateTime() : null);
-                    stmt.setString(19, has ? data.getLastUpdateAuthor() : null);
-                    stmt.setLong(20, scanSessionId);
-                    stmt.executeUpdate();
-                }
+            String ins = "INSERT INTO test_methods (test_class_id, method_name, method_signature, line_number, has_annotation, annotation_data, annotation_title, annotation_author, annotation_status, annotation_target_class, annotation_target_method, annotation_description, annotation_tags, annotation_test_points, annotation_requirements, annotation_defects, annotation_testcases, annotation_last_update_time, annotation_last_update_author, scan_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(ins)) {
+                stmt.setLong(1, testClassId);
+                stmt.setString(2, method.getMethodName());
+                stmt.setString(3, methodSignature);
+                stmt.setInt(4, method.getLineNumber());
+                stmt.setBoolean(5, has);
+                stmt.setString(6, annotationJson);
+                stmt.setString(7, has ? title : null);
+                stmt.setString(8, has ? author : null);
+                stmt.setString(9, has ? status : null);
+                stmt.setString(10, has ? targetClass : null);
+                stmt.setString(11, has ? targetMethod : null);
+                stmt.setString(12, has ? description : null);
+                stmt.setString(13, has ? tags : null);
+                stmt.setString(14, has ? testPoints : null);
+                stmt.setString(15, has ? requirements : null);
+                stmt.setString(16, has ? defects : null);
+                stmt.setString(17, has ? testcases : null);
+                stmt.setString(18, has ? lastUpdateTime : null);
+                stmt.setString(19, has ? lastUpdateAuthor : null);
+                stmt.setLong(20, scanSessionId);
+                stmt.executeUpdate();
             }
         }
     }
 
-    private long getTestClassId(Connection conn, long repositoryId, String className, String packageName) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement("SELECT id FROM test_classes WHERE repository_id = ? AND class_name = ? AND package_name = ?")) {
+    private long getTestClassId(Connection conn, long repositoryId, String className, String packageName, long scanSessionId) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement("SELECT id FROM test_classes WHERE repository_id = ? AND class_name = ? AND package_name = ? AND scan_session_id = ? ORDER BY id DESC")) {
             stmt.setLong(1, repositoryId);
             stmt.setString(2, className);
             stmt.setString(3, packageName);
+            stmt.setLong(4, scanSessionId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) return rs.getLong(1);
             }
         }
-        throw new SQLException("Test class not found: " + packageName + "." + className);
+        throw new SQLException("Test class not found for session: " + scanSessionId + ", " + packageName + "." + className);
     }
 
     private void updateDailyMetrics(Connection conn, TestCollectionSummary summary) throws SQLException {

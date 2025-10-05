@@ -77,6 +77,17 @@ public class RepositoryController {
     }
 
     /**
+     * Get all test methods for a specific repository
+     */
+    @GetMapping("/{repositoryId}/test-methods")
+    public ResponseEntity<List<TestMethodDetailDto>> getRepositoryTestMethods(
+            @PathVariable Long repositoryId,
+            @RequestParam(defaultValue = "100") Integer limit) {
+        List<TestMethodDetailDto> methods = repositoryDataService.getTestMethodsByRepositoryId(repositoryId, limit);
+        return ResponseEntity.ok(methods);
+    }
+
+    /**
      * Get repositories by team
      */
     @GetMapping("/team/{teamId}")
