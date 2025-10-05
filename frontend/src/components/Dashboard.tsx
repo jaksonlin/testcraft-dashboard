@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { RefreshCw, AlertCircle } from 'lucide-react';
-import { api } from '../lib/api';
+import { api, type RepositorySummary } from '../lib/api';
 
 // Import refactored components
 import DashboardHeader from './dashboard/DashboardHeader';
@@ -21,7 +21,7 @@ const DashboardRefactored: React.FC = () => {
   const configModal = useModal();
   const repositoryDetailModal = useModal();
   const [scanning, setScanning] = useState(false);
-  const [selectedRepository, setSelectedRepository] = useState<any>(null);
+  const [selectedRepository, setSelectedRepository] = useState<RepositorySummary | null>(null);
 
   const {
     overview,
@@ -68,7 +68,7 @@ const DashboardRefactored: React.FC = () => {
     clearMessages();
   };
 
-  const handleRepositoryClick = (repository: any) => {
+  const handleRepositoryClick = (repository: RepositorySummary) => {
     setSelectedRepository(repository);
     repositoryDetailModal.open();
   };
@@ -138,7 +138,7 @@ const DashboardRefactored: React.FC = () => {
         {/* Reports & Analytics Section */}
         <ReportsSection 
           repositories={overview?.topRepositories || []} 
-          dashboardOverview={overview}
+          dashboardOverview={overview || undefined}
         />
       </main>
 
