@@ -3,6 +3,8 @@ package com.example.annotationextractor.web.controller;
 import com.example.annotationextractor.domain.model.DailyMetric;
 import com.example.annotationextractor.domain.model.ScanSession;
 import com.example.annotationextractor.service.DashboardDataService;
+import com.example.annotationextractor.service.RepositoryDataService;
+import com.example.annotationextractor.service.TeamDataService;
 import com.example.annotationextractor.web.dto.DashboardOverviewDto;
 import com.example.annotationextractor.web.dto.TeamMetricsDto;
 import com.example.annotationextractor.web.dto.RepositoryMetricsDto;
@@ -23,9 +25,13 @@ import java.util.List;
 public class DashboardController {
 
     private final DashboardDataService dashboardDataService;
+    private final TeamDataService teamDataService;
+    private final RepositoryDataService repositoryDataService;
 
-    public DashboardController(DashboardDataService dashboardDataService) {
+    public DashboardController(DashboardDataService dashboardDataService, TeamDataService teamDataService, RepositoryDataService repositoryDataService) {
         this.dashboardDataService = dashboardDataService;
+        this.teamDataService = teamDataService;
+        this.repositoryDataService = repositoryDataService;
     }
 
     /**
@@ -42,7 +48,7 @@ public class DashboardController {
      */
     @GetMapping("/teams")
     public ResponseEntity<List<TeamMetricsDto>> getTeamMetrics() {
-        List<TeamMetricsDto> teams = dashboardDataService.getTeamMetrics();
+        List<TeamMetricsDto> teams = teamDataService.getTeamMetrics();
         return ResponseEntity.ok(teams);
     }
 
@@ -52,7 +58,7 @@ public class DashboardController {
     @GetMapping("/teams/{teamId}/repositories")
     public ResponseEntity<List<RepositoryMetricsDto>> getRepositoryMetrics(
             @PathVariable Long teamId) {
-        List<RepositoryMetricsDto> repositories = dashboardDataService.getRepositoryMetrics(teamId);
+        List<RepositoryMetricsDto> repositories = repositoryDataService.getRepositoryMetricsByTeamId(teamId);
         return ResponseEntity.ok(repositories);
     }
 
@@ -81,7 +87,7 @@ public class DashboardController {
      */
     @GetMapping("/repositories/details")
     public ResponseEntity<List<RepositoryDetailDto>> getRepositoryDetails() {
-        List<RepositoryDetailDto> repositories = dashboardDataService.getRepositoryDetails();
+        List<RepositoryDetailDto> repositories = repositoryDataService.getRepositoryDetails();
         return ResponseEntity.ok(repositories);
     }
 
@@ -92,7 +98,7 @@ public class DashboardController {
     public ResponseEntity<List<TestMethodDetailDto>> getTestMethodDetails(
             @RequestParam(required = false) Long teamId,
             @RequestParam(defaultValue = "100") Integer limit) {
-        List<TestMethodDetailDto> testMethods = dashboardDataService.getTestMethodDetails(teamId, limit);
+        List<TestMethodDetailDto> testMethods = repositoryDataService.getTestMethodDetails(teamId, limit);
         return ResponseEntity.ok(testMethods);
     }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -10,7 +10,6 @@ import {
   FileText,
   GitBranch,
   Activity,
-  TrendingUp,
   AlertCircle
 } from 'lucide-react';
 import { api, type RepositoryDetail, type TestMethodDetail } from '../lib/api';
@@ -25,32 +24,20 @@ const RepositoryDetailView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      fetchRepositoryDetails();
-    }
-  }, [id]);
-
-  const fetchRepositoryDetails = async () => {
+  const fetchRepositoryDetails = useCallback(async () => {
+    if (!id) return;
+    
     try {
       setLoading(true);
       setError(null);
       
-      // Fetch repository details
-      const repoDetails = await api.dashboard.getRepositoryDetails();
-      const repo = repoDetails.find(r => r.id.toString() === id);
-      
-      if (!repo) {
-        setError('Repository not found');
-        return;
-      }
-      
+      // Fetch repository details using repository API
+      const repo = await api.repositories.getById(parseInt(id));
       setRepository(repo);
       
-      // Fetch test methods for this repository
-      const methods = await api.dashboard.getTestMethodDetails();
-      const repoMethods = methods.filter(m => m.repository === repo.repository);
-      setTestMethods(repoMethods);
+      // Fetch test methods for this repository using repository API
+      const methods = await api.repositories.getTestMethods(parseInt(id));
+      setTestMethods(methods);
       
     } catch (err) {
       console.error('Error fetching repository details:', err);
@@ -58,7 +45,13 @@ const RepositoryDetailView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      fetchRepositoryDetails();
+    }
+  }, [id, fetchRepositoryDetails]);
 
   const handleScanRepository = async () => {
     try {

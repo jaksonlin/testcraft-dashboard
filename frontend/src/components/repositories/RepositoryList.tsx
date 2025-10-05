@@ -40,10 +40,9 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
     const fetchRepositories = async () => {
       try {
         setLoading(true);
-        // Use the overview endpoint which we know works, and extract repositories from it
-        const overview = await api.dashboard.getOverview();
-        const repositories = overview.topRepositories || [];
-        setRepositories(repositories);
+        // Use the dedicated repositories endpoint
+        const data = await api.repositories.getAll();
+        setRepositories(data);
         setError(null);
       } catch (err) {
         console.error('Error fetching repositories:', err);

@@ -1,14 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  FileText, 
-  Target, 
-  Users, 
-  Calendar,
+import {
+  ArrowLeft,
+  FileText,
+  Target,
+  Users,
   ChevronRight,
   ChevronDown,
-  Play,
   Download,
   AlertCircle
 } from 'lucide-react';
@@ -26,38 +24,31 @@ interface ClassGroup {
 const ClassLevelView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [testMethods, setTestMethods] = useState<TestMethodDetail[]>([]);
   const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [repositoryName, setRepositoryName] = useState<string>('');
 
-  useEffect(() => {
-    if (id) {
-      fetchClassData();
-    }
-  }, [id]);
-
-  const fetchClassData = async () => {
+  const fetchClassData = useCallback(async () => {
+    if (!id) return;
+    
     try {
       setLoading(true);
       setError(null);
       
-      // Fetch test methods for this repository
-      const methods = await api.dashboard.getTestMethodDetails();
-      const repoMethods = methods.filter(m => m.repositoryId?.toString() === id || m.repository === id);
+      // Fetch test methods for this repository using repository API
+      const methods = await api.repositories.getTestMethods(parseInt(id));
       
-      if (repoMethods.length === 0) {
+      if (methods.length === 0) {
         setError('No test methods found for this repository');
         return;
       }
       
-      setTestMethods(repoMethods);
-      setRepositoryName(repoMethods[0]?.repository || 'Unknown Repository');
+      setRepositoryName(methods[0]?.repository || 'Unknown Repository');
       
       // Group methods by class
-      const grouped = groupMethodsByClass(repoMethods);
+      const grouped = groupMethodsByClass(methods);
       setClassGroups(grouped);
       
     } catch (err) {
@@ -66,7 +57,13 @@ const ClassLevelView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      fetchClassData();
+    }
+  }, [id, fetchClassData]);
 
   const groupMethodsByClass = (methods: TestMethodDetail[]): ClassGroup[] => {
     const groups = new Map<string, TestMethodDetail[]>();

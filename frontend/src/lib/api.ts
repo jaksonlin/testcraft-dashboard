@@ -171,6 +171,49 @@ export const api = {
     },
   },
 
+  // Repository endpoints
+  repositories: {
+    getAll: (): Promise<RepositorySummary[]> =>
+      apiClient.get('/repositories').then(res => res.data),
+    
+    getById: (id: number): Promise<RepositoryDetail> =>
+      apiClient.get(`/repositories/${id}`).then(res => res.data),
+    
+    getTestMethods: (repositoryId: number, limit?: number): Promise<TestMethodDetail[]> => {
+      const params = new URLSearchParams();
+      if (limit) params.append('limit', limit.toString());
+      const queryString = params.toString();
+      return apiClient.get(`/repositories/${repositoryId}/test-methods${queryString ? `?${queryString}` : ''}`).then(res => res.data);
+    },
+    
+    getByTeam: (teamId: number): Promise<RepositorySummary[]> =>
+      apiClient.get(`/repositories/team/${teamId}`).then(res => res.data),
+    
+    search: (name?: string, team?: string, coverage?: string): Promise<RepositorySummary[]> => {
+      const params = new URLSearchParams();
+      if (name) params.append('name', name);
+      if (team) params.append('team', team);
+      if (coverage) params.append('coverage', coverage);
+      const queryString = params.toString();
+      return apiClient.get(`/repositories/search${queryString ? `?${queryString}` : ''}`).then(res => res.data);
+    },
+  },
+
+  // Team endpoints
+  teams: {
+    getAll: (): Promise<TeamSummary[]> =>
+      apiClient.get('/teams').then(res => res.data),
+    
+    getById: (id: number): Promise<TeamSummary> =>
+      apiClient.get(`/teams/${id}`).then(res => res.data),
+    
+    getRepositories: (teamId: number): Promise<RepositorySummary[]> =>
+      apiClient.get(`/teams/${teamId}/repositories`).then(res => res.data),
+    
+    getComparison: (): Promise<TeamSummary[]> =>
+      apiClient.get('/teams/comparison').then(res => res.data),
+  },
+
   // Scan endpoints
   scan: {
     trigger: (): Promise<{ success: boolean; message: string; timestamp: number }> =>
