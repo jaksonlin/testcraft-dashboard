@@ -14,7 +14,7 @@ import java.util.*;
  */
 @RestController
 @RequestMapping("/debug")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"})
 public class DebugController {
 
     private final Optional<PersistenceReadFacade> persistenceReadFacade;

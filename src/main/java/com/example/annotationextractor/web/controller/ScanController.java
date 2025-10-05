@@ -19,7 +19,7 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/scan")
-@CrossOrigin(origins = "http://localhost:3000") // React dev server
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"}) // React dev server and Vite dev server
 public class ScanController {
 
     private final ScheduledScanService scheduledScanService;
