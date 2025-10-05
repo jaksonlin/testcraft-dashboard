@@ -3,21 +3,21 @@ import { RefreshCw, AlertCircle } from 'lucide-react';
 import { api, type RepositorySummary } from '../lib/api';
 
 // Import refactored components
-import DashboardHeader from './dashboard/DashboardHeader';
-import StatsOverview from './dashboard/StatsOverview';
-import TeamPerformanceChart from './dashboard/TeamPerformanceChart';
-import CoverageChart from './dashboard/CoverageChart';
-import RepositoriesTable from './dashboard/RepositoriesTable';
-import ReportsSection from './reports/ReportsSection';
-import RepositoryDetailModal from './reports/RepositoryDetailModal';
-import ScanConfigModal from './config/ScanConfigModal';
+import DashboardHeader from '../components/dashboard/DashboardHeader';
+import StatsOverview from '../components/dashboard/StatsOverview';
+import TeamPerformanceChart from '../components/dashboard/TeamPerformanceChart';
+import CoverageChart from '../components/dashboard/CoverageChart';
+import RepositoriesTable from '../components/dashboard/RepositoriesTable';
+import ReportsSection from '../components/reports/ReportsSection';
+import RepositoryDetailModal from '../components/reports/RepositoryDetailModal';
+import ScanConfigModal from '../components/config/ScanConfigModal';
 
 // Import custom hooks
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useScanConfig } from '../hooks/useScanConfig';
 import { useModal } from '../hooks/useModal';
 
-const DashboardRefactored: React.FC = () => {
+const DashboardView: React.FC = () => {
   const configModal = useModal();
   const repositoryDetailModal = useModal();
   const [scanning, setScanning] = useState(false);
@@ -164,4 +164,4 @@ const DashboardRefactored: React.FC = () => {
   );
 };
 
-export default DashboardRefactored;
+export default DashboardView;

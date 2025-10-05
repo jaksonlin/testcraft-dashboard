@@ -117,4 +117,24 @@
       transform: scale(1);
     }
   }
+
+  /* Sidebar specific styles */
+  .sidebar-transition {
+    transition: width 0.3s ease-in-out;
+  }
+
+  .sidebar-collapsed {
+    width: 4rem;
+  }
+
+  .sidebar-expanded {
+    width: 16rem;
+  }
+
+  /* Responsive sidebar */
+  @media (max-width: 768px) {
+    .sidebar-mobile-hidden {
+      transform: translateX(-100%);
+    }
+  }
 }
