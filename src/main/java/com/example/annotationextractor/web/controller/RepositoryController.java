@@ -1,10 +1,10 @@
 package com.example.annotationextractor.web.controller;
 
-import com.example.annotationextractor.service.DashboardDataService;
 import com.example.annotationextractor.service.RepositoryDataService;
 import com.example.annotationextractor.web.dto.RepositoryMetricsDto;
 import com.example.annotationextractor.web.dto.RepositoryDetailDto;
 import com.example.annotationextractor.web.dto.TestMethodDetailDto;
+import com.example.annotationextractor.web.dto.TestClassSummaryDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -56,19 +56,24 @@ public class RepositoryController {
     }
 
     /**
-     * Get test methods for a specific repository
+     * Get test classes for a specific repository
      */
-    @GetMapping("/{repositoryId}/test-methods")
-    public ResponseEntity<List<TestMethodDetailDto>> getRepositoryTestMethods(
+    @GetMapping("/{repositoryId}/classes")
+    public ResponseEntity<List<TestClassSummaryDto>> getRepositoryClasses(@PathVariable Long repositoryId) {
+        List<TestClassSummaryDto> classes = repositoryDataService.getRepositoryClasses(repositoryId);
+        return ResponseEntity.ok(classes);
+    }
+
+    /**
+     * Get test methods for a specific class in a repository
+     */
+    @GetMapping("/{repositoryId}/classes/{classId}/methods")
+    public ResponseEntity<List<TestMethodDetailDto>> getClassMethods(
             @PathVariable Long repositoryId,
+            @PathVariable Long classId,
             @RequestParam(defaultValue = "100") Integer limit) {
-        List<TestMethodDetailDto> testMethods = repositoryDataService.getTestMethodDetails(null, limit);
-        // Filter by repository name if needed (since TestMethodDetailDto doesn't have repositoryId)
-        List<TestMethodDetailDto> repositoryTestMethods = testMethods.stream()
-            .filter(method -> method.getRepository() != null && method.getRepository().contains(String.valueOf(repositoryId)))
-            .collect(java.util.stream.Collectors.toList());
-        
-        return ResponseEntity.ok(repositoryTestMethods);
+        List<TestMethodDetailDto> methods = repositoryDataService.getTestMethodsByClassId(classId, limit);
+        return ResponseEntity.ok(methods);
     }
 
     /**

@@ -64,6 +64,21 @@ public class JdbcScanSessionAdapter implements ScanSessionPort {
     }
 
     @Override
+    public Optional<ScanSession> findLatestCompleted() {
+        String sql = "SELECT * FROM scan_sessions WHERE scan_status = 'COMPLETED' ORDER BY scan_date DESC LIMIT 1";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return Optional.of(mapRow(rs));
+            }
+            return Optional.empty();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public long count() {
         String sql = "SELECT COUNT(*) FROM scan_sessions";
         try (Connection conn = DatabaseConfig.getConnection();

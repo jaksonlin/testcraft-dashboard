@@ -30,12 +30,13 @@ public class JdbcTestClassAdapter implements TestClassPort {
     }
 
     @Override
-    public List<TestClass> findByRepositoryId(Long repositoryId) {
-        String sql = "SELECT * FROM test_classes WHERE repository_id = ? ORDER BY id";
+    public List<TestClass> findByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId) {
+        String sql = "SELECT * FROM test_classes WHERE repository_id = ? and scan_session_id = ? ORDER BY id";
         List<TestClass> result = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, repositoryId);
+            stmt.setLong(2, scanSessionId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     result.add(mapRow(rs));
@@ -48,12 +49,13 @@ public class JdbcTestClassAdapter implements TestClassPort {
     }
 
     @Override
-    public Optional<TestClass> findByRepositoryIdAndFilePath(Long repositoryId, String filePath) {
-        String sql = "SELECT * FROM test_classes WHERE repository_id = ? AND file_path = ?";
+    public Optional<TestClass> findByRepositoryIdAndScanSessionIdAndFilePath(Long repositoryId, Long scanSessionId, String filePath) {
+        String sql = "SELECT * FROM test_classes WHERE repository_id = ? AND scan_session_id = ? AND file_path = ?";
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, repositoryId);
-            stmt.setString(2, filePath);
+            stmt.setLong(2, scanSessionId);
+            stmt.setString(3, filePath);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return Optional.of(mapRow(rs));
@@ -66,14 +68,16 @@ public class JdbcTestClassAdapter implements TestClassPort {
     }
 
     @Override
-    public List<TestClass> findAll() {
-        String sql = "SELECT * FROM test_classes ORDER BY id";
+    public List<TestClass> findAllByScanSessionId(Long scanSessionId) {
+        String sql = "SELECT * FROM test_classes WHERE scan_session_id = ? ORDER BY id";
         List<TestClass> result = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                result.add(mapRow(rs));
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, scanSessionId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapRow(rs));
+                }
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -82,13 +86,15 @@ public class JdbcTestClassAdapter implements TestClassPort {
     }
 
     @Override
-    public long count() {
-        String sql = "SELECT COUNT(*) FROM test_classes";
+    public long countAllByScanSessionId(Long scanSessionId) {
+        String sql = "SELECT COUNT(*) FROM test_classes WHERE scan_session_id = ?";
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) {
-                return rs.getLong(1);
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, scanSessionId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
             }
             return 0;
         } catch (SQLException e) {

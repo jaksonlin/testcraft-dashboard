@@ -11,6 +11,7 @@ public interface ScanSessionPort {
     Optional<ScanSession> findById(Long id);
     List<ScanSession> findAll();
     List<ScanSession> findRecent(int limit);
+    Optional<ScanSession> findLatestCompleted();
     long count();
 }
 

@@ -4,6 +4,7 @@ import com.example.annotationextractor.domain.model.ScanSession;
 import com.example.annotationextractor.domain.port.ScanSessionPort;
 
 import java.util.List;
+import java.util.Optional;
 
 public class ScanSessionQueryService {
 
@@ -15,6 +16,10 @@ public class ScanSessionQueryService {
 
     public List<ScanSession> recent(int limit) {
         return scanSessionPort.findRecent(limit);
+    }
+
+    public Optional<ScanSession> getLatestCompleted() {
+        return scanSessionPort.findLatestCompleted();
     }
 
     public List<ScanSession> listAll() {

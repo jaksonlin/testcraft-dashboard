@@ -92,13 +92,13 @@ public class DashboardController {
     }
 
     /**
-     * Get test method details matching Excel Test Method Details sheet format
+     * Get test method details by team (for dashboard overview)
      */
-    @GetMapping("/test-methods/details")
-    public ResponseEntity<List<TestMethodDetailDto>> getTestMethodDetails(
+    @GetMapping("/test-methods/by-team")
+    public ResponseEntity<List<TestMethodDetailDto>> getTestMethodDetailsByTeam(
             @RequestParam(required = false) Long teamId,
             @RequestParam(defaultValue = "100") Integer limit) {
-        List<TestMethodDetailDto> testMethods = repositoryDataService.getTestMethodDetails(teamId, limit);
+        List<TestMethodDetailDto> testMethods = repositoryDataService.getTestMethodDetailsByTeamId(teamId, limit);
         return ResponseEntity.ok(testMethods);
     }
 
