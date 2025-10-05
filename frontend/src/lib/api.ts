@@ -116,6 +116,19 @@ export interface ScanStatus {
   repositoryHubPath: string;
   repositoryListFile: string;
   tempCloneMode: boolean;
+  maxRepositoriesPerScan: number;
+  schedulerEnabled: boolean;
+  dailyScanCron: string;
+  timestamp: number;
+}
+
+export interface ScanConfig {
+  tempCloneMode: boolean;
+  repositoryHubPath: string;
+  repositoryListFile: string;
+  maxRepositoriesPerScan: number;
+  schedulerEnabled: boolean;
+  dailyScanCron: string;
   timestamp: number;
 }
 
@@ -166,8 +179,11 @@ export const api = {
     getStatus: (): Promise<ScanStatus> =>
       apiClient.get('/scan/status').then(res => res.data),
     
-    getConfig: (): Promise<Omit<ScanStatus, 'isScanning' | 'lastScanTime' | 'lastScanStatus' | 'lastScanError'>> =>
+    getConfig: (): Promise<ScanConfig> =>
       apiClient.get('/scan/config').then(res => res.data),
+    
+    updateConfig: (config: Partial<ScanConfig>): Promise<{ success: boolean; message: string; timestamp: number }> =>
+      apiClient.put('/scan/config', config).then(res => res.data),
     
     getSessions: (limit: number = 10): Promise<ScanSession[]> =>
       apiClient.get(`/scan/sessions?limit=${limit}`).then(res => res.data),

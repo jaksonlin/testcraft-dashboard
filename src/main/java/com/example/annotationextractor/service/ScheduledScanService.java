@@ -3,14 +3,17 @@ package com.example.annotationextractor.service;
 import com.example.annotationextractor.database.DatabaseConfig;
 import com.example.annotationextractor.runner.RepositoryHubScanner;
 import com.example.annotationextractor.util.GitRepositoryManager;
+import com.example.annotationextractor.web.dto.ScanConfigDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -31,11 +34,41 @@ public class ScheduledScanService {
     @Value("${testcraft.scanner.temp-clone-mode:false}")
     private boolean tempCloneMode;
 
+    @Value("${testcraft.scanning.max-repositories-per-scan:100}")
+    private int maxRepositoriesPerScan;
+
+    @Value("${testcraft.scheduler.enabled:true}")
+    private boolean schedulerEnabled;
+
+    @Value("${testcraft.scheduler.cron.daily-scan:0 0 2 * * ?}")
+    private String dailyScanCron;
+
     // Thread-safe state tracking
     private final AtomicBoolean isScanning = new AtomicBoolean(false);
     private final AtomicReference<LocalDateTime> lastScanTime = new AtomicReference<>();
     private final AtomicReference<String> lastScanStatus = new AtomicReference<>("Never run");
     private final AtomicReference<String> lastScanError = new AtomicReference<>();
+    
+    // Thread-safe configuration tracking
+    private final AtomicReference<String> repositoryHubPathRef = new AtomicReference<>();
+    private final AtomicReference<String> repositoryListFileRef = new AtomicReference<>();
+    private final AtomicBoolean tempCloneModeRef = new AtomicBoolean();
+    private final AtomicInteger maxRepositoriesPerScanRef = new AtomicInteger();
+    private final AtomicBoolean schedulerEnabledRef = new AtomicBoolean();
+    private final AtomicReference<String> dailyScanCronRef = new AtomicReference<>();
+
+    /**
+     * Initialize atomic references with default values
+     */
+    @PostConstruct
+    public void initializeConfiguration() {
+        repositoryHubPathRef.set(repositoryHubPath);
+        repositoryListFileRef.set(repositoryListFile);
+        tempCloneModeRef.set(tempCloneMode);
+        maxRepositoriesPerScanRef.set(maxRepositoriesPerScan);
+        schedulerEnabledRef.set(schedulerEnabled);
+        dailyScanCronRef.set(dailyScanCron);
+    }
 
     /**
      * Daily scheduled scan - runs at 2 AM
@@ -61,7 +94,7 @@ public class ScheduledScanService {
             
             // Create git manager and scanner
             GitRepositoryManager gitManager = new GitRepositoryManager(
-                repositoryHubPath, 
+                repositoryHubPathRef.get(), 
                 null, // username - use SSH keys
                 null, // password - use SSH keys
                 null  // sshKeyPath - use default
@@ -70,7 +103,7 @@ public class ScheduledScanService {
             RepositoryHubScanner scanner = new RepositoryHubScanner(gitManager);
             
             // Execute the scan
-            boolean success = scanner.executeFullScan(tempCloneMode);
+            boolean success = scanner.executeFullScan(tempCloneModeRef.get());
             
             if (success) {
                 lastScanStatus.set("Success");
@@ -111,7 +144,7 @@ public class ScheduledScanService {
             
             // Create git manager and scanner
             GitRepositoryManager gitManager = new GitRepositoryManager(
-                repositoryHubPath, 
+                repositoryHubPathRef.get(), 
                 null, // username - use SSH keys
                 null, // password - use SSH keys
                 null  // sshKeyPath - use default
@@ -120,7 +153,7 @@ public class ScheduledScanService {
             RepositoryHubScanner scanner = new RepositoryHubScanner(gitManager);
             
             // Execute the scan
-            boolean success = scanner.executeFullScan(tempCloneMode);
+            boolean success = scanner.executeFullScan(tempCloneModeRef.get());
             
             if (success) {
                 lastScanStatus.set("Success");
@@ -151,10 +184,51 @@ public class ScheduledScanService {
             lastScanTime.get(),
             lastScanStatus.get(),
             lastScanError.get(),
-            repositoryHubPath,
-            repositoryListFile,
-            tempCloneMode
+            repositoryHubPathRef.get(),
+            repositoryListFileRef.get(),
+            tempCloneModeRef.get(),
+            maxRepositoriesPerScanRef.get(),
+            schedulerEnabledRef.get(),
+            dailyScanCronRef.get()
         );
+    }
+
+    /**
+     * Update scan configuration
+     */
+    public boolean updateScanConfiguration(ScanConfigDto configDto) {
+        try {
+            if (configDto.getTempCloneMode() != null) {
+                tempCloneModeRef.set(configDto.getTempCloneMode());
+            }
+            
+            if (configDto.getRepositoryHubPath() != null) {
+                repositoryHubPathRef.set(configDto.getRepositoryHubPath());
+            }
+            
+            if (configDto.getRepositoryListFile() != null) {
+                repositoryListFileRef.set(configDto.getRepositoryListFile());
+            }
+            
+            if (configDto.getMaxRepositoriesPerScan() != null) {
+                maxRepositoriesPerScanRef.set(configDto.getMaxRepositoriesPerScan());
+            }
+            
+            if (configDto.getSchedulerEnabled() != null) {
+                schedulerEnabledRef.set(configDto.getSchedulerEnabled());
+            }
+            
+            if (configDto.getDailyScanCron() != null) {
+                dailyScanCronRef.set(configDto.getDailyScanCron());
+            }
+            
+            logger.info("Scan configuration updated: {}", configDto);
+            return true;
+            
+        } catch (Exception e) {
+            logger.error("Failed to update scan configuration", e);
+            return false;
+        }
     }
 
     /**
@@ -168,10 +242,14 @@ public class ScheduledScanService {
         private final String repositoryHubPath;
         private final String repositoryListFile;
         private final boolean tempCloneMode;
+        private final int maxRepositoriesPerScan;
+        private final boolean schedulerEnabled;
+        private final String dailyScanCron;
 
         public ScanStatus(boolean isScanning, LocalDateTime lastScanTime, String lastScanStatus, 
                          String lastScanError, String repositoryHubPath, String repositoryListFile, 
-                         boolean tempCloneMode) {
+                         boolean tempCloneMode, int maxRepositoriesPerScan, boolean schedulerEnabled, 
+                         String dailyScanCron) {
             this.isScanning = isScanning;
             this.lastScanTime = lastScanTime;
             this.lastScanStatus = lastScanStatus;
@@ -179,6 +257,9 @@ public class ScheduledScanService {
             this.repositoryHubPath = repositoryHubPath;
             this.repositoryListFile = repositoryListFile;
             this.tempCloneMode = tempCloneMode;
+            this.maxRepositoriesPerScan = maxRepositoriesPerScan;
+            this.schedulerEnabled = schedulerEnabled;
+            this.dailyScanCron = dailyScanCron;
         }
 
         // Getters
@@ -189,5 +270,8 @@ public class ScheduledScanService {
         public String getRepositoryHubPath() { return repositoryHubPath; }
         public String getRepositoryListFile() { return repositoryListFile; }
         public boolean isTempCloneMode() { return tempCloneMode; }
+        public int getMaxRepositoriesPerScan() { return maxRepositoriesPerScan; }
+        public boolean isSchedulerEnabled() { return schedulerEnabled; }
+        public String getDailyScanCron() { return dailyScanCron; }
     }
 }

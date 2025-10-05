@@ -3,7 +3,7 @@ package com.example.annotationextractor.web.controller;
 import com.example.annotationextractor.service.ScheduledScanService;
 import com.example.annotationextractor.application.PersistenceReadFacade;
 import com.example.annotationextractor.domain.model.ScanSession;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.annotationextractor.web.dto.ScanConfigDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -99,9 +99,61 @@ public class ScanController {
         config.put("tempCloneMode", status.isTempCloneMode());
         config.put("repositoryHubPath", status.getRepositoryHubPath());
         config.put("repositoryListFile", status.getRepositoryListFile());
+        config.put("maxRepositoriesPerScan", status.getMaxRepositoriesPerScan());
+        config.put("schedulerEnabled", status.isSchedulerEnabled());
+        config.put("dailyScanCron", status.getDailyScanCron());
         config.put("timestamp", System.currentTimeMillis());
         
         return ResponseEntity.ok(config);
+    }
+
+    /**
+     * Update scan configuration
+     */
+    @PutMapping("/config")
+    public ResponseEntity<Map<String, Object>> updateScanConfig(@RequestBody ScanConfigDto configDto) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Validate configuration
+            if (configDto.getRepositoryHubPath() != null && configDto.getRepositoryHubPath().trim().isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Repository hub path cannot be empty");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            if (configDto.getRepositoryListFile() != null && configDto.getRepositoryListFile().trim().isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Repository list file cannot be empty");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            if (configDto.getMaxRepositoriesPerScan() != null && configDto.getMaxRepositoriesPerScan() <= 0) {
+                response.put("success", false);
+                response.put("message", "Max repositories per scan must be greater than 0");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Update configuration
+            boolean updated = scheduledScanService.updateScanConfiguration(configDto);
+            
+            if (updated) {
+                response.put("success", true);
+                response.put("message", "Scan configuration updated successfully");
+                response.put("timestamp", System.currentTimeMillis());
+                return ResponseEntity.ok(response);
+            } else {
+                response.put("success", false);
+                response.put("message", "Failed to update scan configuration");
+                return ResponseEntity.status(500).body(response);
+            }
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error updating scan configuration: " + e.getMessage());
+            response.put("timestamp", System.currentTimeMillis());
+            return ResponseEntity.status(500).body(response);
+        }
     }
 
     /**
