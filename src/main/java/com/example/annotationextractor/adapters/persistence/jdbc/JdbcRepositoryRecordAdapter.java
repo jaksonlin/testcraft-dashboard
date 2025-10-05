@@ -2,10 +2,12 @@ package com.example.annotationextractor.adapters.persistence.jdbc;
 
 import com.example.annotationextractor.database.DatabaseConfig;
 import com.example.annotationextractor.domain.model.RepositoryRecord;
+import com.example.annotationextractor.domain.model.RepositoryDetailRecord;
 import com.example.annotationextractor.domain.port.RepositoryRecordPort;
 
 import java.sql.*;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -78,6 +80,63 @@ public class JdbcRepositoryRecordAdapter implements RepositoryRecordPort {
             throw new RuntimeException(e);
         }
         return result;
+    }
+
+    @Override
+    public List<RepositoryDetailRecord> findRepositoryDetails() {
+        String sql = """
+            SELECT 
+                r.id,
+                r.repository_name,
+                r.repository_path,
+                r.git_url,
+                r.total_test_classes,
+                r.total_test_methods,
+                r.total_annotated_methods,
+                r.annotation_coverage_rate,
+                r.last_scan_date,
+                t.team_name,
+                t.team_code
+            FROM repositories r
+            LEFT JOIN teams t ON r.team_id = t.id
+            ORDER BY r.annotation_coverage_rate DESC
+            """;
+        
+        List<RepositoryDetailRecord> repositories = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
+            while (rs.next()) {
+                Long id = rs.getLong("id");
+                String repositoryName = rs.getString("repository_name");
+                String repositoryPath = rs.getString("repository_path");
+                String gitUrl = rs.getString("git_url");
+                Integer testClasses = rs.getInt("total_test_classes");
+                Integer testMethods = rs.getInt("total_test_methods");
+                Integer annotatedMethods = rs.getInt("total_annotated_methods");
+                Double coverageRate = rs.getDouble("annotation_coverage_rate");
+                
+                Timestamp lastScan = rs.getTimestamp("last_scan_date");
+                LocalDateTime lastScanDateTime = null;
+                if (lastScan != null) {
+                    lastScanDateTime = lastScan.toLocalDateTime();
+                }
+                
+                String teamName = rs.getString("team_name");
+                String teamCode = rs.getString("team_code");
+                
+                repositories.add(new RepositoryDetailRecord(
+                    id, repositoryName, repositoryPath, gitUrl,
+                    testClasses, testMethods, annotatedMethods,
+                    coverageRate, lastScanDateTime, teamName, teamCode
+                ));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        
+        return repositories;
     }
 
     @Override

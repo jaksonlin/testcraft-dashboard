@@ -1,6 +1,7 @@
 package com.example.annotationextractor.domain.port;
 
 import com.example.annotationextractor.domain.model.TestMethod;
+import com.example.annotationextractor.domain.model.TestMethodDetailRecord;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,6 +13,7 @@ public interface TestMethodPort {
     List<TestMethod> findByTestClassId(Long testClassId);
     List<TestMethod> findByScanSessionId(Long scanSessionId);
     List<TestMethod> findAnnotatedByRepository(Long repositoryId);
+    List<TestMethodDetailRecord> findTestMethodDetails(Long teamId, Integer limit);
     long count();
 }
 

@@ -1,6 +1,7 @@
 package com.example.annotationextractor.application;
 
 import com.example.annotationextractor.domain.model.RepositoryRecord;
+import com.example.annotationextractor.domain.model.RepositoryDetailRecord;
 import com.example.annotationextractor.domain.port.RepositoryRecordPort;
 
 import java.util.List;
@@ -24,6 +25,10 @@ public class RepositoryQueryService {
 
     public List<RepositoryRecord> listAll() {
         return repositoryRecordPort.findAll();
+    }
+
+    public List<RepositoryDetailRecord> listRepositoryDetails() {
+        return repositoryRecordPort.findRepositoryDetails();
     }
 
     public long count() { return repositoryRecordPort.count(); }

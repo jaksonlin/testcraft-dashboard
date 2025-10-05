@@ -47,6 +47,14 @@ public class PersistenceReadFacade {
     // Daily metrics
     public List<DailyMetric> recentDailyMetrics(int limit) { return dailyMetricQueryService.recent(limit); }
     public List<DailyMetric> dailyMetricsRange(LocalDate start, LocalDate end) { return dailyMetricQueryService.range(start, end); }
+    
+    // Dashboard-specific detailed queries
+    public List<RepositoryDetailRecord> listRepositoryDetails() { 
+        return repositoryQueryService.listRepositoryDetails(); 
+    }
+    public List<TestMethodDetailRecord> listTestMethodDetails(Long teamId, Integer limit) { 
+        return testArtifactQueryService.listTestMethodDetails(teamId, limit); 
+    }
 }
 
 

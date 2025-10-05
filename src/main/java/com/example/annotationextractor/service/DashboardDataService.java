@@ -390,187 +390,77 @@ public class DashboardDataService {
      * Get repository details from database matching Excel format
      */
     private List<RepositoryDetailDto> getRepositoryDetailsFromDatabase() throws SQLException {
-        List<RepositoryDetailDto> repositories = new ArrayList<>();
-        
         if (!persistenceReadFacade.isPresent()) {
-            return repositories;
+            return new ArrayList<>();
         }
         
-        // Get DataSource from the facade's database config
-        try (Connection conn = com.example.annotationextractor.database.DatabaseConfig.getConnection()) {
-            
-            String sql = """
-                SELECT 
-                    r.id,
-                    r.repository_name,
-                    r.repository_path,
-                    r.git_url,
-                    r.total_test_classes,
-                    r.total_test_methods,
-                    r.total_annotated_methods,
-                    r.annotation_coverage_rate,
-                    r.last_scan_date,
-                    t.team_name,
-                    t.team_code
-                FROM repositories r
-                LEFT JOIN teams t ON r.team_id = t.id
-                ORDER BY r.annotation_coverage_rate DESC
-                """;
-            
-            try (PreparedStatement stmt = conn.prepareStatement(sql);
-                 ResultSet rs = stmt.executeQuery()) {
-                
-                while (rs.next()) {
-                    RepositoryDetailDto dto = new RepositoryDetailDto();
-                    dto.setId(rs.getLong("id"));
-                    dto.setRepository(rs.getString("repository_name"));
-                    dto.setPath(rs.getString("repository_path"));
-                    dto.setGitUrl(rs.getString("git_url"));
-                    dto.setTestClasses(rs.getInt("total_test_classes"));
-                    dto.setTestMethodCount(rs.getInt("total_test_methods"));
-                    dto.setAnnotatedMethods(rs.getInt("total_annotated_methods"));
-                    dto.setCoverageRate(rs.getDouble("annotation_coverage_rate"));
-                    
-                    Timestamp lastScan = rs.getTimestamp("last_scan_date");
-                    if (lastScan != null) {
-                        dto.setLastScan(lastScan.toLocalDateTime());
-                    }
-                    
-                    dto.setTeamName(rs.getString("team_name"));
-                    dto.setTeamCode(rs.getString("team_code"));
-                    
-                    repositories.add(dto);
-                }
-            }
-        }
+        List<RepositoryDetailRecord> records = persistenceReadFacade.get().listRepositoryDetails();
         
-        return repositories;
+        return records.stream()
+            .map(this::convertToRepositoryDetailDto)
+            .collect(Collectors.toList());
     }
 
     /**
      * Get test method details from database matching Excel format
      */
     private List<TestMethodDetailDto> getTestMethodDetailsFromDatabase(Long teamId, Integer limit) throws SQLException {
-        List<TestMethodDetailDto> testMethods = new ArrayList<>();
-        
         if (!persistenceReadFacade.isPresent()) {
-            return testMethods;
-        }
-        
-        try (Connection conn = com.example.annotationextractor.database.DatabaseConfig.getConnection()) {
-            
-            StringBuilder sql = new StringBuilder("""
-                SELECT 
-                    tm.id,
-                    r.repository_name,
-                    tc.class_name,
-                    tm.method_name,
-                    tm.line_number,
-                    tm.annotation_title,
-                    tm.annotation_author,
-                    tm.annotation_status,
-                    tm.annotation_target_class,
-                    tm.annotation_target_method,
-                    tm.annotation_description,
-                    tm.annotation_test_points,
-                    tm.annotation_tags,
-                    tm.annotation_requirements,
-                    tm.annotation_testcases,
-                    tm.annotation_defects,
-                    tm.annotation_last_update_time,
-                    tm.annotation_last_update_author,
-                    t.team_name,
-                    t.team_code,
-                    r.git_url
-                FROM test_methods tm
-                JOIN test_classes tc ON tm.test_class_id = tc.id
-                JOIN repositories r ON tc.repository_id = r.id
-                LEFT JOIN teams t ON r.team_id = t.id
-                WHERE tm.has_annotation = true
-                """);
-            
-            // Add team filter if specified
-            if (teamId != null) {
-                sql.append(" AND r.team_id = ?");
-            }
-            
-            sql.append(" ORDER BY r.repository_name, tc.class_name, tm.method_name");
-            
-            // Add limit if specified
-            if (limit != null && limit > 0) {
-                sql.append(" LIMIT ?");
-            }
-            
-            try (PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
-                int paramIndex = 1;
-                
-                if (teamId != null) {
-                    stmt.setLong(paramIndex++, teamId);
-                }
-                
-                if (limit != null && limit > 0) {
-                    stmt.setInt(paramIndex, limit);
-                }
-                
-                try (ResultSet rs = stmt.executeQuery()) {
-                    while (rs.next()) {
-                        TestMethodDetailDto dto = new TestMethodDetailDto();
-                        dto.setId(rs.getLong("id"));
-                        dto.setRepository(rs.getString("repository_name"));
-                        dto.setTestClass(rs.getString("class_name"));
-                        dto.setTestMethod(rs.getString("method_name"));
-                        dto.setLine(rs.getInt("line_number"));
-                        dto.setTitle(rs.getString("annotation_title"));
-                        dto.setAuthor(rs.getString("annotation_author"));
-                        dto.setStatus(rs.getString("annotation_status"));
-                        dto.setTargetClass(rs.getString("annotation_target_class"));
-                        dto.setTargetMethod(rs.getString("annotation_target_method"));
-                        dto.setDescription(rs.getString("annotation_description"));
-                        dto.setTestPoints(rs.getString("annotation_test_points"));
-                        
-                        // Parse JSON-like fields (stored as TEXT)
-                        dto.setTags(parseStringArray(rs.getString("annotation_tags")));
-                        dto.setRequirements(parseStringArray(rs.getString("annotation_requirements")));
-                        dto.setTestCaseIds(parseStringArray(rs.getString("annotation_testcases")));
-                        dto.setDefects(parseStringArray(rs.getString("annotation_defects")));
-                        
-                        // Parse timestamp
-                        String lastUpdateTime = rs.getString("annotation_last_update_time");
-                        if (lastUpdateTime != null && !lastUpdateTime.trim().isEmpty()) {
-                            try {
-                                dto.setLastModified(LocalDateTime.parse(lastUpdateTime));
-                            } catch (Exception e) {
-                                // If parsing fails, set to null
-                                dto.setLastModified(null);
-                            }
-                        }
-                        
-                        dto.setLastUpdateAuthor(rs.getString("annotation_last_update_author"));
-                        dto.setTeamName(rs.getString("team_name"));
-                        dto.setTeamCode(rs.getString("team_code"));
-                        dto.setGitUrl(rs.getString("git_url"));
-                        
-                        testMethods.add(dto);
-                    }
-                }
-            }
-        }
-        
-        return testMethods;
-    }
-    
-    /**
-     * Helper method to parse comma-separated string into list
-     */
-    private List<String> parseStringArray(String str) {
-        if (str == null || str.trim().isEmpty()) {
             return new ArrayList<>();
         }
         
-        // Split by comma and clean up
-        return Arrays.stream(str.split(","))
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
+        List<TestMethodDetailRecord> records = persistenceReadFacade.get().listTestMethodDetails(teamId, limit);
+        
+        return records.stream()
+            .map(this::convertToTestMethodDetailDto)
             .collect(Collectors.toList());
+    }
+    
+    /**
+     * Convert RepositoryDetailRecord to RepositoryDetailDto
+     */
+    private RepositoryDetailDto convertToRepositoryDetailDto(RepositoryDetailRecord record) {
+        RepositoryDetailDto dto = new RepositoryDetailDto();
+        dto.setId(record.getId());
+        dto.setRepository(record.getRepositoryName());
+        dto.setPath(record.getRepositoryPath());
+        dto.setGitUrl(record.getGitUrl());
+        dto.setTestClasses(record.getTestClasses());
+        dto.setTestMethodCount(record.getTestMethodCount());
+        dto.setAnnotatedMethods(record.getAnnotatedMethods());
+        dto.setCoverageRate(record.getCoverageRate());
+        dto.setLastScan(record.getLastScan());
+        dto.setTeamName(record.getTeamName());
+        dto.setTeamCode(record.getTeamCode());
+        return dto;
+    }
+
+    /**
+     * Convert TestMethodDetailRecord to TestMethodDetailDto
+     */
+    private TestMethodDetailDto convertToTestMethodDetailDto(TestMethodDetailRecord record) {
+        TestMethodDetailDto dto = new TestMethodDetailDto();
+        dto.setId(record.getId());
+        dto.setRepository(record.getRepositoryName());
+        dto.setTestClass(record.getTestClassName());
+        dto.setTestMethod(record.getTestMethodName());
+        dto.setLine(record.getLineNumber());
+        dto.setTitle(record.getAnnotationTitle());
+        dto.setAuthor(record.getAnnotationAuthor());
+        dto.setStatus(record.getAnnotationStatus());
+        dto.setTargetClass(record.getAnnotationTargetClass());
+        dto.setTargetMethod(record.getAnnotationTargetMethod());
+        dto.setDescription(record.getAnnotationDescription());
+        dto.setTestPoints(record.getAnnotationTestPoints());
+        dto.setTags(record.getAnnotationTags());
+        dto.setRequirements(record.getAnnotationRequirements());
+        dto.setTestCaseIds(record.getAnnotationTestcases());
+        dto.setDefects(record.getAnnotationDefects());
+        dto.setLastModified(record.getAnnotationLastUpdateTime());
+        dto.setLastUpdateAuthor(record.getAnnotationLastUpdateAuthor());
+        dto.setTeamName(record.getTeamName());
+        dto.setTeamCode(record.getTeamCode());
+        dto.setGitUrl(record.getGitUrl());
+        return dto;
     }
 }

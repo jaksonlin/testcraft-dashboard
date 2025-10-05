@@ -2,6 +2,7 @@ package com.example.annotationextractor.application;
 
 import com.example.annotationextractor.domain.model.TestClass;
 import com.example.annotationextractor.domain.model.TestMethod;
+import com.example.annotationextractor.domain.model.TestMethodDetailRecord;
 import com.example.annotationextractor.domain.port.TestClassPort;
 import com.example.annotationextractor.domain.port.TestMethodPort;
 
@@ -23,6 +24,10 @@ public class TestArtifactQueryService {
 
     public List<TestMethod> listAnnotatedMethodsByRepository(Long repositoryId) {
         return testMethodPort.findAnnotatedByRepository(repositoryId);
+    }
+
+    public List<TestMethodDetailRecord> listTestMethodDetails(Long teamId, Integer limit) {
+        return testMethodPort.findTestMethodDetails(teamId, limit);
     }
 
     public long countClasses() { return testClassPort.count(); }
