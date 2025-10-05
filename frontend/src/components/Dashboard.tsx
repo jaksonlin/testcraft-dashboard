@@ -61,24 +61,31 @@ const Dashboard: React.FC = () => {
   const [configLoading, setConfigLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
   const [configSuccess, setConfigSuccess] = useState<string | null>(null);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (skipConfig = false) => {
     try {
       setLoading(true);
       setError(null);
       
-      const [overviewData, teamsData, statusData, configData] = await Promise.all([
+      const [overviewData, teamsData, statusData] = await Promise.all([
         api.dashboard.getOverview(),
         api.dashboard.getTeamMetrics(),
-        api.scan.getStatus(),
-        api.scan.getConfig()
+        api.scan.getStatus()
       ]);
-      
       
       setOverview(overviewData);
       setTeamMetrics(teamsData);
       setScanStatus(statusData);
-      setScanConfig(configData);
+      
+      // Only fetch config data if not skipping and config modal is not open
+      if (!skipConfig && !showConfigPanel) {
+        const configData = await api.scan.getConfig();
+        setScanConfig(configData);
+      }
+      
+      // Update last refresh time
+      setLastRefreshTime(new Date());
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError('Failed to load dashboard data. Please check if the backend is running.');
@@ -164,10 +171,12 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchDashboardData();
     
-    // Refresh data every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000);
+    // Refresh data every 30 seconds, but skip config if modal is open
+    const interval = setInterval(() => {
+      fetchDashboardData(showConfigPanel); // Skip config when modal is open
+    }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [showConfigPanel]);
 
   if (loading) {
     return (
@@ -233,6 +242,12 @@ const Dashboard: React.FC = () => {
                   </p>
                 </div>
               )}
+              <div className="text-right">
+                <p className="text-xs text-gray-500">Data refreshed</p>
+                <p className="text-xs text-gray-500">
+                  {lastRefreshTime.toLocaleTimeString()}
+                </p>
+              </div>
               <button
                 onClick={async () => {
                   setShowConfigPanel(true);
