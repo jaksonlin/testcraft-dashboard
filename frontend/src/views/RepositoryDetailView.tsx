@@ -12,7 +12,7 @@ import {
   Activity,
   AlertCircle
 } from 'lucide-react';
-import { api, type RepositoryDetail, type TestMethodDetail } from '../lib/api';
+import { api, type RepositoryDetail, type TestMethodDetail, type TestClassSummary } from '../lib/api';
 import BreadcrumbNavigation from '../components/shared/BreadcrumbNavigation';
 
 const RepositoryDetailView: React.FC = () => {
@@ -20,6 +20,10 @@ const RepositoryDetailView: React.FC = () => {
   const navigate = useNavigate();
   const [repository, setRepository] = useState<RepositoryDetail | null>(null);
   const [testMethods, setTestMethods] = useState<TestMethodDetail[]>([]);
+  const [classes, setClasses] = useState<TestClassSummary[]>([]);
+  const [activeTab, setActiveTab] = useState<'classes' | 'methods'>('classes');
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [selectedClassName, setSelectedClassName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -35,9 +39,9 @@ const RepositoryDetailView: React.FC = () => {
       const repo = await api.repositories.getById(parseInt(id));
       setRepository(repo);
       
-      // Fetch test methods for this repository using repository API
-      const methods = await api.repositories.getTestMethods(parseInt(id));
-      setTestMethods(methods);
+      // Fetch classes for this repository
+      const classList = await api.repositories.getClasses(parseInt(id));
+      setClasses(classList);
       
     } catch (err) {
       console.error('Error fetching repository details:', err);
@@ -46,6 +50,21 @@ const RepositoryDetailView: React.FC = () => {
       setLoading(false);
     }
   }, [id]);
+  // When a class is selected, load its methods and switch to Methods tab
+  const handleSelectClass = async (cls: TestClassSummary) => {
+    if (!id) return;
+    setSelectedClassId(cls.id);
+    setSelectedClassName(cls.className);
+    setActiveTab('methods');
+    try {
+      const methods = await api.repositories.getClassMethods(parseInt(id), cls.id, 500);
+      setTestMethods(methods);
+    } catch (e) {
+      console.error('Error fetching class methods', e);
+      setTestMethods([]);
+    }
+  };
+
 
   useEffect(() => {
     if (id) {
@@ -282,78 +301,116 @@ const RepositoryDetailView: React.FC = () => {
         </div>
       </div>
 
-      {/* Test Methods Table */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Test Methods</h3>
-          <span className="text-sm text-gray-600">{testMethods.length} methods found</span>
-        </div>
-        
-        {testMethods.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Test Class
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Method Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Author
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Target
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Modified
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {testMethods.map((method) => (
-                  <tr key={method.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {method.testClass}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {method.testMethod}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        method.status === 'PASS' ? 'bg-green-100 text-green-800' :
-                        method.status === 'FAIL' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {method.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {method.author}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {method.targetClass}.{method.targetMethod}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {method.lastModified ? formatDate(method.lastModified) : 'N/A'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Test Methods Found</h3>
-            <p className="text-gray-600">This repository doesn't have any test methods yet.</p>
-          </div>
-        )}
+      {/* Tabs */}
+      <div className="mb-4 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab('classes')}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'classes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+          >
+            Classes
+          </button>
+          <button
+            onClick={() => selectedClassId && setActiveTab('methods')}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'methods' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} ${!selectedClassId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={!selectedClassId}
+          >
+            Methods{selectedClassName ? `: ${selectedClassName}` : ''}
+          </button>
+        </nav>
       </div>
+
+      {activeTab === 'classes' && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Test Classes</h3>
+            <span className="text-sm text-gray-600">{classes.length} classes</span>
+          </div>
+          {classes.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Methods</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Annotated</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coverage</th>
+                    <th className="px-6 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {classes.map((cls) => (
+                    <tr key={cls.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{cls.className}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{cls.testMethodCount}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{cls.annotatedMethodCount}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{cls.coverageRate?.toFixed(1)}%</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                        <button className="btn btn-secondary" onClick={() => handleSelectClass(cls)}>View Methods</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Test Classes Found</h3>
+              <p className="text-gray-600">This repository doesn't have any test classes yet.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'methods' && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Methods {selectedClassName ? `for ${selectedClassName}` : ''}</h3>
+            <span className="text-sm text-gray-600">{testMethods.length} methods</span>
+          </div>
+          {testMethods.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Modified</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {testMethods.map((method) => (
+                    <tr key={method.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{method.testMethod}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          method.status === 'PASS' ? 'bg-green-100 text-green-800' :
+                          method.status === 'FAIL' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {method.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{method.author}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{method.targetClass}.{method.targetMethod}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{method.lastModified ? formatDate(method.lastModified) : 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Select a class first</h3>
+              <p className="text-gray-600">Choose a class on the Classes tab to view its methods.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

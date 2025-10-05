@@ -108,6 +108,17 @@ export interface TestMethodDetail {
   gitUrl: string;
 }
 
+export interface TestClassSummary {
+  id: number;
+  className: string;
+  packageName: string;
+  filePath: string;
+  testMethodCount: number;
+  annotatedMethodCount: number;
+  coverageRate: number;
+  lastModifiedDate: string;
+}
+
 export interface ScanStatus {
   isScanning: boolean;
   lastScanTime: string | null;
@@ -185,6 +196,13 @@ export const api = {
       const queryString = params.toString();
       return apiClient.get(`/repositories/${repositoryId}/test-methods${queryString ? `?${queryString}` : ''}`).then(res => res.data);
     },
+
+    // New: repository classes and class methods
+    getClasses: (repositoryId: number): Promise<TestClassSummary[]> =>
+      apiClient.get(`/repositories/${repositoryId}/classes`).then(res => res.data),
+
+    getClassMethods: (repositoryId: number, classId: number, limit: number = 200): Promise<TestMethodDetail[]> =>
+      apiClient.get(`/repositories/${repositoryId}/classes/${classId}/methods?limit=${limit}`).then(res => res.data),
     
     getByTeam: (teamId: number): Promise<RepositorySummary[]> =>
       apiClient.get(`/repositories/team/${teamId}`).then(res => res.data),
