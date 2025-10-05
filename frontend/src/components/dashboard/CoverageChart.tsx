@@ -17,7 +17,7 @@ const CoverageChart: React.FC<CoverageChartProps> = ({ overview }) => {
     { 
       name: 'Annotated Methods', 
       value: overview?.totalAnnotatedMethods || 0, 
-      color: '#22c55e' 
+      color: '#8b5cf6' 
     },
     { 
       name: 'Unannotated Methods', 

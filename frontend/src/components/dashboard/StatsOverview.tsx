@@ -26,13 +26,13 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ overview }) => {
         title="Test Methods"
         value={overview?.totalTestMethods || 0}
         icon={<TestTube className="h-6 w-6 text-white" />}
-        color="bg-purple-500"
+        color="bg-purple-custom"
       />
       <StatCard
         title="Coverage Rate"
         value={`${overview?.overallCoverageRate.toFixed(1) || 0}%`}
         icon={<CheckCircle className="h-6 w-6 text-white" />}
-        color="bg-orange-500"
+        color="bg-orange-custom"
       />
     </div>
   );

@@ -8,6 +8,8 @@ import StatsOverview from './dashboard/StatsOverview';
 import TeamPerformanceChart from './dashboard/TeamPerformanceChart';
 import CoverageChart from './dashboard/CoverageChart';
 import RepositoriesTable from './dashboard/RepositoriesTable';
+import ReportsSection from './reports/ReportsSection';
+import RepositoryDetailModal from './reports/RepositoryDetailModal';
 import ScanConfigModal from './config/ScanConfigModal';
 
 // Import custom hooks
@@ -17,7 +19,9 @@ import { useModal } from '../hooks/useModal';
 
 const DashboardRefactored: React.FC = () => {
   const configModal = useModal();
+  const repositoryDetailModal = useModal();
   const [scanning, setScanning] = useState(false);
+  const [selectedRepository, setSelectedRepository] = useState<any>(null);
 
   const {
     overview,
@@ -62,6 +66,16 @@ const DashboardRefactored: React.FC = () => {
   const handleCloseConfig = () => {
     configModal.close();
     clearMessages();
+  };
+
+  const handleRepositoryClick = (repository: any) => {
+    setSelectedRepository(repository);
+    repositoryDetailModal.open();
+  };
+
+  const handleCloseRepositoryDetail = () => {
+    repositoryDetailModal.close();
+    setSelectedRepository(null);
   };
 
   if (loading) {
@@ -116,8 +130,24 @@ const DashboardRefactored: React.FC = () => {
         </div>
 
         {/* Top Repositories Table */}
-        <RepositoriesTable repositories={overview?.topRepositories || null} />
+        <RepositoriesTable 
+          repositories={overview?.topRepositories || null}
+          onRepositoryClick={handleRepositoryClick}
+        />
+
+        {/* Reports & Analytics Section */}
+        <ReportsSection 
+          repositories={overview?.topRepositories || []} 
+          dashboardOverview={overview}
+        />
       </main>
+
+      {/* Repository Detail Modal */}
+      <RepositoryDetailModal
+        isOpen={repositoryDetailModal.isOpen}
+        onClose={handleCloseRepositoryDetail}
+        repository={selectedRepository}
+      />
 
       {/* Configuration Modal */}
       <ScanConfigModal

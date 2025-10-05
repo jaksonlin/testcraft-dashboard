@@ -142,8 +142,8 @@ export interface ScanSession {
   totalAnnotatedMethods: number;
   scanDurationMs: number;
   scanStatus: string;
-  errorLog: string | null;
-  metadata: string | null;
+  errorLog?: string;
+  metadata?: string;
 }
 
 // API Methods
@@ -185,8 +185,11 @@ export const api = {
     updateConfig: (config: Partial<ScanConfig>): Promise<{ success: boolean; message: string; timestamp: number }> =>
       apiClient.put('/scan/config', config).then(res => res.data),
     
-    getSessions: (limit: number = 10): Promise<ScanSession[]> =>
-      apiClient.get(`/scan/sessions?limit=${limit}`).then(res => res.data),
+        getSessions: (limit: number = 10): Promise<ScanSession[]> =>
+          apiClient.get(`/scan/sessions?limit=${limit}`).then(res => res.data),
+        
+        getHistory: (limit: number = 20): Promise<ScanSession[]> =>
+          apiClient.get(`/scan/sessions?limit=${limit}`).then(res => res.data),
     
     getHealth: (): Promise<{ status: string; service: string; databaseAvailable: boolean; timestamp: number }> =>
       apiClient.get('/scan/health').then(res => res.data),

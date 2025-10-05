@@ -3,9 +3,10 @@ import { type DashboardOverview } from '../../lib/api';
 
 interface RepositoriesTableProps {
   repositories: DashboardOverview['topRepositories'];
+  onRepositoryClick?: (repository: any) => void;
 }
 
-const RepositoriesTable: React.FC<RepositoriesTableProps> = ({ repositories }) => {
+const RepositoriesTable: React.FC<RepositoriesTableProps> = ({ repositories, onRepositoryClick }) => {
   if (!repositories || repositories.length === 0) {
     return null;
   }
@@ -38,7 +39,11 @@ const RepositoriesTable: React.FC<RepositoriesTableProps> = ({ repositories }) =
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {repositories.map((repo) => (
-              <tr key={repo.id}>
+              <tr 
+                key={repo.id}
+                onClick={() => onRepositoryClick?.(repo)}
+                className="cursor-pointer hover:bg-gray-50 transition-colors"
+              >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
                     <div className="text-sm font-medium text-gray-900">{repo.repositoryName}</div>

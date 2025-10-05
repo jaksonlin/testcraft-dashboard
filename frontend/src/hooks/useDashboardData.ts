@@ -65,12 +65,13 @@ export const useDashboardData = (showConfigPanel: boolean = false): UseDashboard
   useEffect(() => {
     fetchDashboardData();
     
+    // Auto refresh disabled for testing - uncomment to re-enable
     // Refresh data every 30 seconds, but skip config if modal is open
-    const interval = setInterval(() => {
-      fetchDashboardData(showConfigPanel);
-    }, 30000);
+    // const interval = setInterval(() => {
+    //   fetchDashboardData(showConfigPanel);
+    // }, 30000);
     
-    return () => clearInterval(interval);
+    // return () => clearInterval(interval);
   }, [fetchDashboardData, showConfigPanel]);
 
   return {

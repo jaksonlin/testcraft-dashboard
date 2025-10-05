@@ -52,6 +52,39 @@
     @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500;
   }
   
+  /* Custom colors for repository metrics */
+  .text-purple-custom {
+    color: #8b5cf6;
+  }
+  
+  .text-orange-custom {
+    color: #f59e0b;
+  }
+  
+  .text-purple-custom-dark {
+    color: #6b21a8;
+  }
+  
+  .text-orange-custom-dark {
+    color: #d97706;
+  }
+  
+  .bg-purple-custom-light {
+    background-color: #f3e8ff;
+  }
+  
+  .bg-orange-custom-light {
+    background-color: #fef3c7;
+  }
+  
+  .bg-purple-custom {
+    background-color: #8b5cf6;
+  }
+  
+  .bg-orange-custom {
+    background-color: #f59e0b;
+  }
+  
   /* Modal animations */
   .animate-in {
     animation: fadeIn 0.2s ease-out;
