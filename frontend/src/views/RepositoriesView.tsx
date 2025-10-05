@@ -42,7 +42,8 @@ const RepositoriesView: React.FC = () => {
 
   const handleExportAll = async () => {
     try {
-      const repositories = await api.dashboard.getRepositoryMetrics();
+      const overview = await api.dashboard.getOverview();
+      const repositories = overview.topRepositories || [];
       const data = {
         exportDate: new Date().toISOString(),
         totalRepositories: repositories.length,
