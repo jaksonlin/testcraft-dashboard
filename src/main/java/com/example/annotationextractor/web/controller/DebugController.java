@@ -1,6 +1,9 @@
 package com.example.annotationextractor.web.controller;
 
 import com.example.annotationextractor.application.PersistenceReadFacade;
+import com.example.annotationextractor.domain.model.RepositoryRecord;
+
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.*;
@@ -70,27 +73,15 @@ public class DebugController {
         return counts;
     }
 
-    /**
-     * Raw database query to check tables
-     */
-    @GetMapping("/raw-query")
-    public Map<String, Object> getRawQuery(@RequestParam(defaultValue = "SELECT COUNT(*) FROM repositories") String query) {
-        Map<String, Object> result = new HashMap<>();
-        
+    @GetMapping("/repositories-raw")
+    public ResponseEntity<List<RepositoryRecord>> getRawRepositories() {
         if (persistenceReadFacade.isPresent()) {
             try {
-                // This is a hack - we'll need to access the DataSource directly
-                result.put("status", "facade_available");
-                result.put("message", "Raw queries not implemented yet - facade only provides high-level methods");
-                result.put("query", query);
+                return ResponseEntity.ok(persistenceReadFacade.get().listAllRepositories());
             } catch (Exception e) {
-                result.put("status", "error");
-                result.put("error", e.getMessage());
+                return ResponseEntity.status(500).build();
             }
-        } else {
-            result.put("status", "no_connection");
         }
-        
-        return result;
+        return ResponseEntity.ok(List.of());
     }
 }
