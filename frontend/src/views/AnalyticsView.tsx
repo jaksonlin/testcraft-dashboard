@@ -110,7 +110,7 @@ const AnalyticsView: React.FC = () => {
     { name: 'High Coverage (≥80%)', value: teams.filter(t => t.averageCoverageRate >= 80).length, color: '#10b981' },
     { name: 'Medium Coverage (60-79%)', value: teams.filter(t => t.averageCoverageRate >= 60 && t.averageCoverageRate < 80).length, color: '#f59e0b' },
     { name: 'Low Coverage (<60%)', value: teams.filter(t => t.averageCoverageRate < 60).length, color: '#ef4444' }
-  ];
+  ].filter(item => item.value > 0); // Only show categories with teams
 
   if (loading) {
     return (
@@ -143,8 +143,8 @@ const AnalyticsView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-          <TrendingUp className="h-8 w-8 text-blue-600 mr-3" />
-          <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
+        <TrendingUp className="h-8 w-8 text-blue-600 mr-3" />
+        <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -226,7 +226,7 @@ const AnalyticsView: React.FC = () => {
           ))}
         </nav>
       </div>
-
+      
       {/* Tab Content */}
       <div className="space-y-6">
         {activeTab === 'overview' && (
@@ -255,25 +255,37 @@ const AnalyticsView: React.FC = () => {
             {/* Team Coverage Distribution */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Coverage Distribution</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={coverageDistribution}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {coverageDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {coverageDistribution.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={coverageDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name}: ${((percent as number) * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {coverageDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number, name: string) => [`${value} teams`, name]}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-gray-500">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No team coverage data available</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -446,8 +458,8 @@ const AnalyticsView: React.FC = () => {
                   <Bar dataKey="newAnnotatedMethods" fill="#8b5cf6" name="New Annotated Methods" />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
           </div>
+        </div>
         )}
       </div>
     </div>
