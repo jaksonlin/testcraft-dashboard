@@ -1,11 +1,14 @@
 import AppRouter from './routes';
+import { PreferencesProvider } from './contexts/PreferencesContext';
 import './App.css';
 
 function App() {
   return (
-    <div className="App">
-      <AppRouter />
-    </div>
+    <PreferencesProvider>
+      <div className="App">
+        <AppRouter />
+      </div>
+    </PreferencesProvider>
   );
 }
 

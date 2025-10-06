@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Settings } from 'lucide-react';
 import SidebarNavigation from './SidebarNavigation';
+import SettingsPanel from '../shared/SettingsPanel';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 const MainLayout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { preferences } = usePreferences();
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
@@ -15,19 +19,45 @@ const MainLayout: React.FC = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
+  const toggleSettings = () => {
+    setSettingsOpen(!settingsOpen);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className={`min-h-screen flex density-${preferences.density}`} style={{
+      backgroundColor: 'var(--color-background)',
+      color: 'var(--color-foreground)'
+    }}>
       {/* Mobile menu button */}
       <button
         onClick={toggleMobileMenu}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg shadow-md"
+        style={{
+          backgroundColor: 'var(--color-background)',
+          color: 'var(--color-foreground)',
+          border: '1px solid var(--color-border)'
+        }}
         aria-label="Toggle menu"
       >
         {mobileMenuOpen ? (
-          <X className="h-6 w-6 text-gray-600" />
+          <X className="h-6 w-6" style={{ color: 'var(--color-muted-foreground)' }} />
         ) : (
-          <Menu className="h-6 w-6 text-gray-600" />
+          <Menu className="h-6 w-6" style={{ color: 'var(--color-muted-foreground)' }} />
         )}
+      </button>
+
+      {/* Settings button */}
+      <button
+        onClick={toggleSettings}
+        className="fixed top-4 right-4 z-50 p-2 rounded-lg shadow-md transition-colors"
+        style={{
+          backgroundColor: 'var(--color-background)',
+          color: 'var(--color-foreground)',
+          border: '1px solid var(--color-border)'
+        }}
+        aria-label="Open settings"
+      >
+        <Settings className="h-6 w-6" style={{ color: 'var(--color-muted-foreground)' }} />
       </button>
 
       {/* Sidebar */}
@@ -48,11 +78,14 @@ const MainLayout: React.FC = () => {
 
       {/* Mobile overlay */}
       {mobileMenuOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={toggleMobileMenu}
         />
       )}
+
+      {/* Settings Panel */}
+      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 };

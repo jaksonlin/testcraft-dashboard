@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Download, AlertCircle, CheckCircle, Play, Trash2, RefreshCw } from 'lucide-react';
+import { FolderOpen, Download, AlertCircle, CheckCircle, Play, Trash2, RefreshCw, Columns } from 'lucide-react';
 import RepositoryList from '../components/repositories/RepositoryList';
 import AdvancedFilter, { type FilterOption } from '../components/shared/AdvancedFilter';
 import BulkOperations, { type BulkAction } from '../components/shared/BulkOperations';
 import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
+import ColumnManager from '../components/shared/ColumnManager';
 import { useBulkOperations } from '../hooks/useBulkOperations';
 import { exportData as exportDataUtil, prepareRepositoryExportData, type ExportScope } from '../utils/exportUtils';
 import { api, type RepositorySummary } from '../lib/api';
@@ -16,6 +17,19 @@ const RepositoriesView: React.FC = () => {
   const [repositories, setRepositories] = useState<RepositorySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamOptions, setTeamOptions] = useState<{ value: string; label: string }[]>([]);
+  const [columnManagerOpen, setColumnManagerOpen] = useState(false);
+
+  // Column definitions for the repositories table
+  const repositoryColumns = [
+    { id: 'select', label: 'Select', required: false },
+    { id: 'repository', label: 'Repository Name', required: true },
+    { id: 'team', label: 'Team', required: true },
+    { id: 'testClasses', label: 'Test Classes', required: false },
+    { id: 'testMethods', label: 'Test Methods', required: false },
+    { id: 'coverage', label: 'Coverage', required: true },
+    { id: 'lastScan', label: 'Last Scan', required: false },
+    { id: 'actions', label: 'Actions', required: true },
+  ];
 
   // Advanced filtering configuration
   const filterOptions: FilterOption[] = React.useMemo(() => [
@@ -334,6 +348,13 @@ const RepositoriesView: React.FC = () => {
         </div>
         
         <div className="flex gap-2">
+          <button
+            onClick={() => setColumnManagerOpen(true)}
+            className="btn btn-secondary flex items-center"
+          >
+            <Columns className="h-4 w-4 mr-2" />
+            Columns
+          </button>
           <ExportManager
             data={repositories}
             dataType="repositories"
@@ -433,6 +454,14 @@ const RepositoriesView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Column Manager */}
+      <ColumnManager
+        tableId="repositories"
+        columns={repositoryColumns}
+        isOpen={columnManagerOpen}
+        onClose={() => setColumnManagerOpen(false)}
+      />
     </div>
   );
 };
