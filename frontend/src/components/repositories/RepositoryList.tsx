@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Search, 
   Filter, 
@@ -10,23 +10,24 @@ import {
   Square,
   FolderOpen
 } from 'lucide-react';
-import { api, type RepositorySummary } from '../../lib/api';
+import { type RepositorySummary } from '../../lib/api';
 
 interface RepositoryListProps {
+  repositories: RepositorySummary[];
   onRepositoryClick: (repository: RepositorySummary) => void;
   onBulkScan: (repositoryIds: number[]) => void;
+  loading?: boolean;
 }
 
 type SortField = 'repositoryName' | 'teamName' | 'testClassCount' | 'testMethodCount' | 'coverageRate' | 'lastScanDate';
 type SortDirection = 'asc' | 'desc';
 
 const RepositoryList: React.FC<RepositoryListProps> = ({ 
+  repositories,
   onRepositoryClick, 
-  onBulkScan 
+  onBulkScan,
+  loading = false
 }) => {
-  const [repositories, setRepositories] = useState<RepositorySummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [teamFilter, setTeamFilter] = useState<string>('');
   const [coverageFilter, setCoverageFilter] = useState<string>('');
@@ -34,26 +35,6 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [selectedRepositories, setSelectedRepositories] = useState<Set<number>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
-
-  // Fetch repositories data
-  useEffect(() => {
-    const fetchRepositories = async () => {
-      try {
-        setLoading(true);
-        // Use the dedicated repositories endpoint
-        const data = await api.repositories.getAll();
-        setRepositories(data);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching repositories:', err);
-        setError('Failed to load repositories');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRepositories();
-  }, []);
 
   // Get unique teams for filter
   const uniqueTeams = useMemo(() => {
@@ -163,24 +144,6 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-600">Loading repositories...</p>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="card text-center py-12">
-        <div className="text-red-500 mb-4">
-          <Filter className="h-12 w-12 mx-auto" />
-        </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Repositories</h3>
-        <p className="text-gray-600 mb-4">{error}</p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="btn btn-primary"
-        >
-          Retry
-        </button>
       </div>
     );
   }
