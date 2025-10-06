@@ -58,6 +58,20 @@ export interface TeamSummary {
   coverageRate: number;
 }
 
+export interface TeamMetrics {
+  id: number;
+  teamName: string;
+  teamCode: string;
+  department?: string;
+  repositoryCount: number;
+  totalTestClasses: number;
+  totalTestMethods: number;
+  totalAnnotatedMethods: number;
+  averageCoverageRate: number;
+  lastScanDate?: string;
+  repositories: RepositorySummary[];
+}
+
 export interface RepositorySummary {
   repositoryId: number;
   repositoryName: string;
@@ -219,16 +233,16 @@ export const api = {
 
   // Team endpoints
   teams: {
-    getAll: (): Promise<TeamSummary[]> =>
+    getAll: (): Promise<TeamMetrics[]> =>
       apiClient.get('/teams').then(res => res.data),
     
-    getById: (id: number): Promise<TeamSummary> =>
+    getById: (id: number): Promise<TeamMetrics> =>
       apiClient.get(`/teams/${id}`).then(res => res.data),
     
     getRepositories: (teamId: number): Promise<RepositorySummary[]> =>
       apiClient.get(`/teams/${teamId}/repositories`).then(res => res.data),
     
-    getComparison: (): Promise<TeamSummary[]> =>
+    getComparison: (): Promise<TeamMetrics[]> =>
       apiClient.get('/teams/comparison').then(res => res.data),
   },
 
