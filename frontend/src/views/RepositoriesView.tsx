@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import { FolderOpen, Download, AlertCircle, CheckCircle, Play, Trash2, RefreshCw } from 'lucide-react';
 import RepositoryList from '../components/repositories/RepositoryList';
 import AdvancedFilter, { type FilterOption } from '../components/shared/AdvancedFilter';
+import BulkOperations, { type BulkAction } from '../components/shared/BulkOperations';
+import { useBulkOperations } from '../hooks/useBulkOperations';
 import { api, type RepositorySummary } from '../lib/api';
 
 const RepositoriesView: React.FC = () => {
@@ -136,6 +138,59 @@ const RepositoriesView: React.FC = () => {
     setFilters({});
   };
 
+  // Bulk operations
+  const bulkOps = useBulkOperations({
+    items: filteredRepositories,
+    getId: (repo) => repo.repositoryId
+  });
+
+  const bulkActions: BulkAction[] = [
+    {
+      id: 'scan',
+      label: 'Scan Selected',
+      icon: <Play className="h-4 w-4" />,
+      variant: 'success',
+      onClick: async (selectedIds) => {
+        await handleBulkScan(selectedIds);
+        bulkOps.clearSelection();
+      },
+      loadingText: 'Scanning...'
+    },
+    {
+      id: 'export',
+      label: 'Export Selected',
+      icon: <Download className="h-4 w-4" />,
+      variant: 'primary',
+      onClick: async (selectedIds) => {
+        await handleBulkExport(selectedIds);
+      },
+      loadingText: 'Exporting...'
+    },
+    {
+      id: 'refresh',
+      label: 'Refresh Data',
+      icon: <RefreshCw className="h-4 w-4" />,
+      variant: 'secondary',
+      onClick: async () => {
+        await handleBulkRefresh();
+        bulkOps.clearSelection();
+      },
+      loadingText: 'Refreshing...'
+    },
+    {
+      id: 'delete',
+      label: 'Remove from List',
+      icon: <Trash2 className="h-4 w-4" />,
+      variant: 'danger',
+      onClick: async (selectedIds) => {
+        await handleBulkDelete(selectedIds);
+        bulkOps.clearSelection();
+      },
+      confirmMessage: 'Are you sure you want to remove these repositories from the list?',
+      loadingText: 'Removing...'
+    }
+  ];
+
   const handleRepositoryClick = (repository: RepositorySummary) => {
     navigate(`/repositories/${repository.repositoryId}`);
   };
@@ -188,6 +243,71 @@ const RepositoriesView: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error exporting repositories:', err);
+    }
+  };
+
+  const handleBulkExport = async (repositoryIds: number[]) => {
+    try {
+      const selectedRepos = repositories.filter(repo => repositoryIds.includes(repo.repositoryId));
+      const data = {
+        exportDate: new Date().toISOString(),
+        totalRepositories: selectedRepos.length,
+        repositories: selectedRepos
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `repositories-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting selected repositories:', err);
+    }
+  };
+
+  const handleBulkRefresh = async () => {
+    try {
+      setScanning(true);
+      // Trigger refresh for all repositories
+      const result = await api.scan.trigger();
+      
+      if (result.success) {
+        // Refresh the repositories data
+        const data = await api.repositories.getAll();
+        setRepositories(data);
+        
+        // Update team filter options
+        const uniqueTeams = Array.from(new Set(data.map(repo => repo.teamName)))
+          .sort()
+          .map(team => ({ value: team, label: team }));
+        
+        setTeamOptions(uniqueTeams);
+      }
+    } catch (err) {
+      console.error('Error refreshing repositories:', err);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleBulkDelete = async (repositoryIds: number[]) => {
+    try {
+      // Remove selected repositories from the local state
+      setRepositories(prev => prev.filter(repo => !repositoryIds.includes(repo.repositoryId)));
+      
+      // Update team filter options
+      const remainingRepos = repositories.filter(repo => !repositoryIds.includes(repo.repositoryId));
+      const uniqueTeams = Array.from(new Set(remainingRepos.map(repo => repo.teamName)))
+        .sort()
+        .map(team => ({ value: team, label: team }));
+      
+      setTeamOptions(uniqueTeams);
+    } catch (err) {
+      console.error('Error removing repositories:', err);
     }
   };
 
@@ -267,12 +387,26 @@ const RepositoriesView: React.FC = () => {
         )}
       </div>
 
+      {/* Bulk Operations */}
+      <BulkOperations
+        selectedItems={bulkOps.selectedItems}
+        totalItems={filteredRepositories.length}
+        onSelectAll={bulkOps.selectAll}
+        onClearSelection={bulkOps.clearSelection}
+        actions={bulkActions}
+        itemType="repositories"
+        className="mb-6"
+      />
+
       {/* Repository List */}
       <RepositoryList 
         repositories={filteredRepositories}
         onRepositoryClick={handleRepositoryClick}
         onBulkScan={handleBulkScan}
         loading={loading}
+        selectedRepositories={bulkOps.selectedItems}
+        onSelectRepository={bulkOps.toggleItem}
+        onSelectAll={bulkOps.selectAll}
       />
 
       {/* Loading Overlay */}

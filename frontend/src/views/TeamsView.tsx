@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, TrendingUp, BarChart3, GitBranch, Search, Download, ChevronLeft, ChevronRight, Eye, X, Calendar, ExternalLink, TestTube, CheckCircle } from 'lucide-react';
+import { Users, TrendingUp, BarChart3, GitBranch, Search, Download, ChevronLeft, ChevronRight, Eye, X, Calendar, ExternalLink, TestTube, CheckCircle, Play, RefreshCw } from 'lucide-react';
 import { api, type TeamMetrics } from '../lib/api';
 import StatCard from '../components/shared/StatCard';
+import BulkOperations, { type BulkAction } from '../components/shared/BulkOperations';
+import { useBulkOperations } from '../hooks/useBulkOperations';
 import { useModal } from '../hooks/useModal';
 
 interface TeamDetailModalProps {
@@ -535,6 +537,84 @@ const TeamsView: React.FC = () => {
     openDetailModal();
   };
 
+  // Bulk operations
+  const bulkOps = useBulkOperations({
+    items: filteredTeams,
+    getId: (team) => team.id
+  });
+
+  const bulkActions: BulkAction[] = [
+    {
+      id: 'export',
+      label: 'Export Selected',
+      icon: <Download className="h-4 w-4" />,
+      variant: 'primary',
+      onClick: async (selectedIds) => {
+        await handleBulkExportTeams(selectedIds);
+      },
+      loadingText: 'Exporting...'
+    },
+    {
+      id: 'refresh',
+      label: 'Refresh Data',
+      icon: <RefreshCw className="h-4 w-4" />,
+      variant: 'secondary',
+      onClick: async () => {
+        await fetchTeams();
+        bulkOps.clearSelection();
+      },
+      loadingText: 'Refreshing...'
+    },
+    {
+      id: 'scan',
+      label: 'Scan All Repositories',
+      icon: <Play className="h-4 w-4" />,
+      variant: 'success',
+      onClick: async () => {
+        await handleBulkScanTeams();
+        bulkOps.clearSelection();
+      },
+      loadingText: 'Scanning...'
+    }
+  ];
+
+  const handleBulkExportTeams = async (teamIds: number[]) => {
+    try {
+      const selectedTeams = teams.filter(team => teamIds.includes(team.id));
+      const data = {
+        exportDate: new Date().toISOString(),
+        totalTeams: selectedTeams.length,
+        teams: selectedTeams
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `teams-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting selected teams:', err);
+    }
+  };
+
+  const handleBulkScanTeams = async () => {
+    try {
+      // Trigger scan for all repositories
+      const result = await api.scan.trigger();
+      
+      if (result.success) {
+        // Refresh teams data after scan
+        await fetchTeams();
+      }
+    } catch (err) {
+      console.error('Error scanning teams:', err);
+    }
+  };
+
   // Pagination calculations
   const totalPages = Math.ceil(filteredTeams.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -686,12 +766,36 @@ const TeamsView: React.FC = () => {
         </div>
       </div>
 
+      {/* Bulk Operations */}
+      <BulkOperations
+        selectedItems={bulkOps.selectedItems}
+        totalItems={filteredTeams.length}
+        onSelectAll={bulkOps.selectAll}
+        onClearSelection={bulkOps.clearSelection}
+        actions={bulkActions}
+        itemType="teams"
+        className="mb-6"
+      />
+
       {/* Teams Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={bulkOps.selectAll}
+                    className="flex items-center hover:text-gray-700"
+                  >
+                    {bulkOps.isAllSelected ? (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    ) : (
+                      <div className="h-4 w-4 mr-2 border-2 border-gray-400 rounded"></div>
+                    )}
+                    Select All
+                  </button>
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Team
                 </th>
@@ -715,6 +819,18 @@ const TeamsView: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {currentTeams.map((team) => (
                 <tr key={team.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => bulkOps.toggleItem(team.id)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      {bulkOps.isSelected(team.id) ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <div className="h-4 w-4 border-2 border-gray-400 rounded"></div>
+                      )}
+                    </button>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{team.teamName}</div>

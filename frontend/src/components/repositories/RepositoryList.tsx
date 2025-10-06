@@ -17,6 +17,9 @@ interface RepositoryListProps {
   onRepositoryClick: (repository: RepositorySummary) => void;
   onBulkScan: (repositoryIds: number[]) => void;
   loading?: boolean;
+  selectedRepositories?: Set<number>;
+  onSelectRepository?: (repositoryId: number) => void;
+  onSelectAll?: () => void;
 }
 
 type SortField = 'repositoryName' | 'teamName' | 'testClassCount' | 'testMethodCount' | 'coverageRate' | 'lastScanDate';
@@ -26,15 +29,22 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
   repositories,
   onRepositoryClick, 
   onBulkScan,
-  loading = false
+  loading = false,
+  selectedRepositories: externalSelectedRepositories,
+  onSelectRepository: externalOnSelectRepository,
+  onSelectAll: externalOnSelectAll
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [teamFilter, setTeamFilter] = useState<string>('');
   const [coverageFilter, setCoverageFilter] = useState<string>('');
   const [sortField, setSortField] = useState<SortField>('repositoryName');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [selectedRepositories, setSelectedRepositories] = useState<Set<number>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
+
+  // Use external bulk operations if provided, otherwise use internal state
+  const selectedRepositories = externalSelectedRepositories || new Set<number>();
+  const onSelectRepository = externalOnSelectRepository || (() => {});
+  const onSelectAll = externalOnSelectAll || (() => {});
 
   // Get unique teams for filter
   const uniqueTeams = useMemo(() => {
@@ -92,26 +102,15 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
   };
 
   const handleSelectRepository = (repositoryId: number) => {
-    const newSelected = new Set(selectedRepositories);
-    if (newSelected.has(repositoryId)) {
-      newSelected.delete(repositoryId);
-    } else {
-      newSelected.add(repositoryId);
-    }
-    setSelectedRepositories(newSelected);
+    onSelectRepository(repositoryId);
   };
 
   const handleSelectAll = () => {
-    if (selectedRepositories.size === filteredAndSortedRepositories.length) {
-      setSelectedRepositories(new Set());
-    } else {
-      setSelectedRepositories(new Set(filteredAndSortedRepositories.map(repo => repo.repositoryId)));
-    }
+    onSelectAll();
   };
 
   const handleBulkScan = () => {
     onBulkScan(Array.from(selectedRepositories));
-    setSelectedRepositories(new Set());
   };
 
   const clearFilters = () => {
