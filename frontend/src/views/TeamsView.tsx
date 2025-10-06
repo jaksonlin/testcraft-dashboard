@@ -3,7 +3,9 @@ import { Users, TrendingUp, BarChart3, GitBranch, Search, Download, ChevronLeft,
 import { api, type TeamMetrics } from '../lib/api';
 import StatCard from '../components/shared/StatCard';
 import BulkOperations, { type BulkAction } from '../components/shared/BulkOperations';
+import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
 import { useBulkOperations } from '../hooks/useBulkOperations';
+import { exportData as exportDataUtil, prepareTeamExportData, type ExportScope } from '../utils/exportUtils';
 import { useModal } from '../hooks/useModal';
 
 interface TeamDetailModalProps {
@@ -550,7 +552,23 @@ const TeamsView: React.FC = () => {
       icon: <Download className="h-4 w-4" />,
       variant: 'primary',
       onClick: async (selectedIds) => {
-        await handleBulkExportTeams(selectedIds);
+        // Use ExportManager for selected items
+        const exportData = prepareTeamExportData(
+          teams,
+          'selected',
+          new Set(selectedIds)
+        );
+        
+        const option = {
+          id: 'csv-selected',
+          label: 'Export Selected (CSV)',
+          description: `Export ${selectedIds.length} selected teams to CSV`,
+          format: 'csv' as const,
+          scope: 'selected' as const,
+          filename: `teams-selected-${new Date().toISOString().split('T')[0]}.csv`
+        };
+        
+        exportDataUtil(exportData, option);
       },
       loadingText: 'Exporting...'
     },
@@ -578,28 +596,28 @@ const TeamsView: React.FC = () => {
     }
   ];
 
-  const handleBulkExportTeams = async (teamIds: number[]) => {
-    try {
-      const selectedTeams = teams.filter(team => teamIds.includes(team.id));
-      const data = {
-        exportDate: new Date().toISOString(),
-        totalTeams: selectedTeams.length,
-        teams: selectedTeams
-      };
+  // const handleBulkExportTeams = async (teamIds: number[]) => {
+  //   try {
+  //     const selectedTeams = teams.filter(team => teamIds.includes(team.id));
+  //     const data = {
+  //       exportDate: new Date().toISOString(),
+  //       totalTeams: selectedTeams.length,
+  //       teams: selectedTeams
+  //     };
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `teams-export-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error exporting selected teams:', err);
-    }
-  };
+  //     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  //     const url = URL.createObjectURL(blob);
+  //     const a = document.createElement('a');
+  //     a.href = url;
+  //     a.download = `teams-export-${new Date().toISOString().split('T')[0]}.json`;
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     document.body.removeChild(a);
+  //     URL.revokeObjectURL(url);
+  //   } catch (err) {
+  //     console.error('Error exporting selected teams:', err);
+  //   }
+  // };
 
   const handleBulkScanTeams = async () => {
     try {
@@ -615,6 +633,21 @@ const TeamsView: React.FC = () => {
     }
   };
 
+  const handleExport = async (option: ExportOption) => {
+    try {
+      const scope = option.scope as ExportScope;
+      const exportData = prepareTeamExportData(
+        teams,
+        scope,
+        scope === 'selected' ? bulkOps.selectedItems : undefined
+      );
+      
+      exportDataUtil(exportData, option);
+    } catch (err) {
+      console.error('Error exporting teams:', err);
+    }
+  };
+
   // Pagination calculations
   const totalPages = Math.ceil(filteredTeams.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -626,30 +659,30 @@ const TeamsView: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const exportTeamsData = () => {
-    const csvContent = [
-      ['Team Name', 'Team Code', 'Department', 'Repositories', 'Test Classes', 'Test Methods', 'Coverage Rate'],
-      ...filteredTeams.map(team => [
-        team.teamName,
-        team.teamCode,
-        team.department || '',
-        team.repositoryCount.toString(),
-        team.totalTestClasses.toString(),
-        team.totalTestMethods.toString(),
-        team.averageCoverageRate.toFixed(2)
-      ])
-    ].map(row => row.join(',')).join('\n');
+  // const exportTeamsData = () => {
+  //   const csvContent = [
+  //     ['Team Name', 'Team Code', 'Department', 'Repositories', 'Test Classes', 'Test Methods', 'Coverage Rate'],
+  //     ...filteredTeams.map(team => [
+  //       team.teamName,
+  //       team.teamCode,
+  //       team.department || '',
+  //       team.repositoryCount.toString(),
+  //       team.totalTestClasses.toString(),
+  //       team.totalTestMethods.toString(),
+  //       team.averageCoverageRate.toFixed(2)
+  //     ])
+  //   ].map(row => row.join(',')).join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `teams-export-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
+  //   const blob = new Blob([csvContent], { type: 'text/csv' });
+  //   const url = window.URL.createObjectURL(blob);
+  //   const a = document.createElement('a');
+  //   a.href = url;
+  //   a.download = `teams-export-${new Date().toISOString().split('T')[0]}.csv`;
+  //   document.body.appendChild(a);
+  //   a.click();
+  //   document.body.removeChild(a);
+  //   window.URL.revokeObjectURL(url);
+  // };
 
   if (loading) {
     return (
@@ -691,13 +724,13 @@ const TeamsView: React.FC = () => {
         <Users className="h-8 w-8 text-blue-600 mr-3" />
         <h1 className="text-3xl font-bold text-gray-900">Teams</h1>
         </div>
-        <button
-          onClick={exportTeamsData}
-          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </button>
+        <ExportManager
+          data={teams}
+          dataType="teams"
+          selectedItems={bulkOps.selectedItems}
+          filteredData={filteredTeams}
+          onExport={handleExport}
+        />
       </div>
 
       {/* Summary Stats */}

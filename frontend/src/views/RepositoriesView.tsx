@@ -4,7 +4,9 @@ import { FolderOpen, Download, AlertCircle, CheckCircle, Play, Trash2, RefreshCw
 import RepositoryList from '../components/repositories/RepositoryList';
 import AdvancedFilter, { type FilterOption } from '../components/shared/AdvancedFilter';
 import BulkOperations, { type BulkAction } from '../components/shared/BulkOperations';
+import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
 import { useBulkOperations } from '../hooks/useBulkOperations';
+import { exportData as exportDataUtil, prepareRepositoryExportData, type ExportScope } from '../utils/exportUtils';
 import { api, type RepositorySummary } from '../lib/api';
 
 const RepositoriesView: React.FC = () => {
@@ -162,7 +164,23 @@ const RepositoriesView: React.FC = () => {
       icon: <Download className="h-4 w-4" />,
       variant: 'primary',
       onClick: async (selectedIds) => {
-        await handleBulkExport(selectedIds);
+        // Use ExportManager for selected items
+        const exportData = prepareRepositoryExportData(
+          repositories,
+          'selected',
+          new Set(selectedIds)
+        );
+        
+        const option = {
+          id: 'csv-selected',
+          label: 'Export Selected (CSV)',
+          description: `Export ${selectedIds.length} selected repositories to CSV`,
+          format: 'csv' as const,
+          scope: 'selected' as const,
+          filename: `repositories-selected-${new Date().toISOString().split('T')[0]}.csv`
+        };
+        
+        exportDataUtil(exportData, option);
       },
       loadingText: 'Exporting...'
     },
@@ -222,52 +240,29 @@ const RepositoriesView: React.FC = () => {
     }
   };
 
-  const handleExportAll = async () => {
-    try {
-      const overview = await api.dashboard.getOverview();
-      const repositories = overview.topRepositories || [];
-      const data = {
-        exportDate: new Date().toISOString(),
-        totalRepositories: repositories.length,
-        repositories: repositories
-      };
+  // const handleExportAll = async () => {
+  //   try {
+  //     const overview = await api.dashboard.getOverview();
+  //     const repositories = overview.topRepositories || [];
+  //     const data = {
+  //       exportDate: new Date().toISOString(),
+  //       totalRepositories: repositories.length,
+  //       repositories: repositories
+  //     };
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `repositories-export-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error exporting repositories:', err);
-    }
-  };
-
-  const handleBulkExport = async (repositoryIds: number[]) => {
-    try {
-      const selectedRepos = repositories.filter(repo => repositoryIds.includes(repo.repositoryId));
-      const data = {
-        exportDate: new Date().toISOString(),
-        totalRepositories: selectedRepos.length,
-        repositories: selectedRepos
-      };
-
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `repositories-export-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error exporting selected repositories:', err);
-    }
-  };
+  //     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  //     const url = URL.createObjectURL(blob);
+  //     const a = document.createElement('a');
+  //     a.href = url;
+  //     a.download = `repositories-export-${new Date().toISOString().split('T')[0]}.json`;
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     document.body.removeChild(a);
+  //     URL.revokeObjectURL(url);
+  //   } catch (err) {
+  //     console.error('Error exporting repositories:', err);
+  //   }
+  //   // };
 
   const handleBulkRefresh = async () => {
     try {
@@ -311,6 +306,21 @@ const RepositoriesView: React.FC = () => {
     }
   };
 
+  const handleExport = async (option: ExportOption) => {
+    try {
+      const scope = option.scope as ExportScope;
+      const exportData = prepareRepositoryExportData(
+        repositories,
+        scope,
+        scope === 'selected' ? bulkOps.selectedItems : undefined
+      );
+      
+      exportDataUtil(exportData, option);
+    } catch (err) {
+      console.error('Error exporting repositories:', err);
+    }
+  };
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -324,13 +334,13 @@ const RepositoriesView: React.FC = () => {
         </div>
         
         <div className="flex gap-2">
-          <button
-            onClick={handleExportAll}
-            className="btn btn-secondary"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export All
-          </button>
+          <ExportManager
+            data={repositories}
+            dataType="repositories"
+            selectedItems={bulkOps.selectedItems}
+            filteredData={filteredRepositories}
+            onExport={handleExport}
+          />
         </div>
       </div>
 

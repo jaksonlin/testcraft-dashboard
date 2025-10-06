@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, BarChart3, Users, GitBranch, Calendar, Download, RefreshCw } from 'lucide-react';
+import { TrendingUp, BarChart3, Users, GitBranch, Calendar, RefreshCw } from 'lucide-react';
 import { api, type DailyMetric, type TeamMetrics } from '../lib/api';
 import StatCard from '../components/shared/StatCard';
+import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
+import { exportData as exportDataUtil, prepareAnalyticsExportData, type ExportScope } from '../utils/exportUtils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 const AnalyticsView: React.FC = () => {
@@ -63,28 +65,15 @@ const AnalyticsView: React.FC = () => {
     }
   };
 
-  const exportAnalyticsData = () => {
-    const csvContent = [
-      ['Date', 'Total Repositories', 'Total Test Classes', 'Total Test Methods', 'Total Annotated Methods', 'Coverage Rate (%)'],
-      ...dailyMetrics.map(metric => [
-        metric.date,
-        metric.totalRepositories.toString(),
-        metric.totalTestClasses.toString(),
-        metric.totalTestMethods.toString(),
-        metric.totalAnnotatedMethods.toString(),
-        metric.overallCoverageRate.toFixed(2)
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `analytics-export-${timeRange}days-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+  const handleExport = async (option: ExportOption) => {
+    try {
+      const scope = option.scope as ExportScope;
+      const exportData = prepareAnalyticsExportData(dailyMetrics, scope);
+      
+      exportDataUtil(exportData, option);
+    } catch (err) {
+      console.error('Error exporting analytics:', err);
+    }
   };
 
   const chartData = dailyMetrics.map(metric => ({
@@ -164,13 +153,11 @@ const AnalyticsView: React.FC = () => {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </button>
-          <button
-            onClick={exportAnalyticsData}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </button>
+          <ExportManager
+            data={dailyMetrics}
+            dataType="analytics"
+            onExport={handleExport}
+          />
         </div>
       </div>
 
