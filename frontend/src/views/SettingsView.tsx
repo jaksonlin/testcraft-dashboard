@@ -1,29 +1,535 @@
-import React from 'react';
-import { Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Save, RefreshCw, AlertCircle, CheckCircle, Clock, Database, GitBranch, Shield, Bell, FileText } from 'lucide-react';
+import { api } from '../lib/api';
 
 const SettingsView: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'scan' | 'system' | 'notifications' | 'advanced'>('scan');
+
+  // Form state
+  const [formData, setFormData] = useState({
+    tempCloneMode: false,
+    repositoryHubPath: '',
+    repositoryListFile: '',
+    maxRepositoriesPerScan: 10,
+    schedulerEnabled: false,
+    dailyScanCron: '0 0 2 * * ?' // Default: 2 AM daily
+  });
+
+  const fetchConfig = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const configData = await api.scan.getConfig();
+      setFormData({
+        tempCloneMode: configData.tempCloneMode || false,
+        repositoryHubPath: configData.repositoryHubPath || '',
+        repositoryListFile: configData.repositoryListFile || '',
+        maxRepositoriesPerScan: configData.maxRepositoriesPerScan || 10,
+        schedulerEnabled: configData.schedulerEnabled || false,
+        dailyScanCron: configData.dailyScanCron || '0 0 2 * * ?'
+      });
+    } catch (err) {
+      setError('Failed to load configuration');
+      console.error('Error fetching config:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(null);
+
+      const response = await api.scan.updateConfig(formData);
+      
+      if (response.success) {
+        setSuccess('Configuration saved successfully');
+        await fetchConfig(); // Refresh config
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || 'Failed to save configuration');
+      }
+    } catch (err) {
+      setError('Failed to save configuration');
+      console.error('Error saving config:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string | number | boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const resetToDefaults = () => {
+    setFormData({
+      tempCloneMode: false,
+      repositoryHubPath: '',
+      repositoryListFile: '',
+      maxRepositoriesPerScan: 10,
+      schedulerEnabled: false,
+      dailyScanCron: '0 0 2 * * ?'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
-      <div className="flex items-center mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
         <Settings className="h-8 w-8 text-blue-600 mr-3" />
         <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchConfig}
+            className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {saving ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+
+      {/* Status Messages */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+          <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
+          <span className="text-red-800">{error}</span>
+        </div>
+      )}
+
+      {success && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+          <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
+          <span className="text-green-800">{success}</span>
+        </div>
+      )}
+
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <nav className="flex space-x-8">
+          {[
+            { id: 'scan', label: 'Scan Configuration', icon: GitBranch },
+            { id: 'system', label: 'System Settings', icon: Database },
+            { id: 'notifications', label: 'Notifications', icon: Bell },
+            { id: 'advanced', label: 'Advanced', icon: Shield }
+          ].map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id as 'scan' | 'system' | 'notifications' | 'advanced')}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === id
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Icon className="h-4 w-4 mr-2" />
+              {label}
+            </button>
+          ))}
+        </nav>
       </div>
       
-      <div className="card">
-        <div className="text-center py-12">
-          <Settings className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Configuration</h2>
-          <p className="text-gray-600 mb-4">
-            This view will contain system configuration and management options.
-          </p>
-          <div className="text-sm text-gray-500">
-            <p>• Scan configuration (current modal content)</p>
-            <p>• System settings and preferences</p>
-            <p>• User preferences and customization</p>
-            <p>• Integration settings</p>
-            <p>• Advanced configuration options</p>
+      {/* Tab Content */}
+      <div className="space-y-6">
+        {activeTab === 'scan' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Repository Configuration */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <GitBranch className="h-5 w-5 mr-2 text-blue-600" />
+                Repository Configuration
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Repository Hub Path
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.repositoryHubPath}
+                    onChange={(e) => handleInputChange('repositoryHubPath', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="/path/to/repositories"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Base directory where repositories are stored
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Repository List File
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.repositoryListFile}
+                    onChange={(e) => handleInputChange('repositoryListFile', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="repositories.txt"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    File containing list of repositories to scan
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Repositories Per Scan
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={formData.maxRepositoriesPerScan}
+                    onChange={(e) => handleInputChange('maxRepositoriesPerScan', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maximum number of repositories to process in a single scan
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Scan Behavior */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Clock className="h-5 w-5 mr-2 text-green-600" />
+                Scan Behavior
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Temporary Clone Mode
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Clone repositories to temporary directories during scan
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.tempCloneMode}
+                      onChange={(e) => handleInputChange('tempCloneMode', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Scheduler Enabled
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Enable automatic scheduled scans
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.schedulerEnabled}
+                      onChange={(e) => handleInputChange('schedulerEnabled', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Daily Scan Schedule (Cron Expression)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.dailyScanCron}
+                    onChange={(e) => handleInputChange('dailyScanCron', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0 0 2 * * ?"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Cron expression for scheduled scans (default: 2 AM daily)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'system' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Database Configuration */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Database className="h-5 w-5 mr-2 text-purple-600" />
+                Database Configuration
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Database Status</span>
+                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                      Connected
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    H2 Database running on localhost:8090
+                  </p>
+                </div>
+
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Connection Pool</span>
+                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                      Active
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    HikariCP connection pool configured
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* System Information */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Shield className="h-5 w-5 mr-2 text-orange-600" />
+                System Information
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Application Version</span>
+                    <span className="text-sm text-gray-600">v1.0.0</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Java Version</span>
+                    <span className="text-sm text-gray-600">17.0.x</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Spring Boot</span>
+                    <span className="text-sm text-gray-600">3.x</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'notifications' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Bell className="h-5 w-5 mr-2 text-yellow-600" />
+              Notification Settings
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">
+                    Scan Completion Notifications
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    Receive notifications when scans complete
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">
+                    Error Notifications
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    Receive notifications when scans fail
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">
+                    Coverage Threshold Alerts
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    Alert when coverage drops below threshold
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'advanced' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Advanced Configuration */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Shield className="h-5 w-5 mr-2 text-red-600" />
+                Advanced Configuration
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+                    <span className="text-sm font-medium text-yellow-800">
+                      Advanced Settings
+                    </span>
+                  </div>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    These settings require system administrator privileges
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Debug Mode
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Enable detailed logging and debugging
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Performance Monitoring
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Enable performance metrics collection
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <FileText className="h-5 w-5 mr-2 text-gray-600" />
+                Actions
+              </h3>
+              
+              <div className="space-y-4">
+                <button
+                  onClick={resetToDefaults}
+                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Reset to Defaults
+                </button>
+
+                <button
+                  onClick={fetchConfig}
+                  className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                >
+                  Reload Configuration
+                </button>
+
+                <div className="pt-4 border-t border-gray-200">
+                  <button
+                    className="w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                  >
+                    Clear All Data
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    This will remove all scan history and metrics
+                  </p>
+                </div>
+              </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
