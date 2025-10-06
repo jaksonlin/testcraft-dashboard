@@ -157,18 +157,31 @@ export interface ScanConfig {
   timestamp: number;
 }
 
-export interface ScanSession {
+export interface DailyMetric {
   id: number;
-  scanDate: string;
-  scanDirectory: string;
+  date: string;
   totalRepositories: number;
   totalTestClasses: number;
   totalTestMethods: number;
   totalAnnotatedMethods: number;
-  scanDurationMs: number;
-  scanStatus: string;
-  errorLog?: string;
-  metadata?: string;
+  overallCoverageRate: number;
+  newTestMethods: number;
+  newAnnotatedMethods: number;
+}
+
+export interface AnalyticsOverview {
+  totalDaysTracked: number;
+  averageCoverageRate: number;
+  coverageTrend: 'up' | 'down' | 'stable';
+  totalGrowth: {
+    repositories: number;
+    testMethods: number;
+    annotatedMethods: number;
+  };
+  recentActivity: {
+    lastWeek: number;
+    lastMonth: number;
+  };
 }
 
 // API Methods
@@ -268,6 +281,24 @@ export const api = {
     
     getHealth: (): Promise<{ status: string; service: string; databaseAvailable: boolean; timestamp: number }> =>
       apiClient.get('/scan/health').then(res => res.data),
+  },
+
+  // Analytics endpoints
+  analytics: {
+    getDailyMetrics: (days: number = 30): Promise<DailyMetric[]> =>
+      apiClient.get(`/analytics/daily-metrics?days=${days}`).then(res => res.data),
+    
+    getCoverageTrend: (days: number = 30): Promise<{ date: string; coverage: number }[]> =>
+      apiClient.get(`/analytics/coverage-trend?days=${days}`).then(res => res.data),
+    
+    getTeamComparison: (): Promise<TeamMetrics[]> =>
+      apiClient.get('/analytics/team-comparison').then(res => res.data),
+    
+    getGrowthMetrics: (days: number = 30): Promise<{ date: string; repositories: number; testMethods: number; annotatedMethods: number }[]> =>
+      apiClient.get(`/analytics/growth-metrics?days=${days}`).then(res => res.data),
+    
+    getOverview: (): Promise<AnalyticsOverview> =>
+      apiClient.get('/analytics/overview').then(res => res.data),
   },
 
   // Debug endpoints
