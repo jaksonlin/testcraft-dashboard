@@ -87,7 +87,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
             value={value as string}
             onChange={(e) => handleFilterChange(filter.id, e.target.value)}
             placeholder={`Filter by ${filter.label.toLowerCase()}...`}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           />
         );
 
@@ -96,7 +96,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
           <select
             value={value as string}
             onChange={(e) => handleFilterChange(filter.id, e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           >
             <option value="">All {filter.label}</option>
             {filter.options?.map(option => (
@@ -122,9 +122,9 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
                       : multiValue.filter(v => v !== option.value);
                     handleFilterChange(filter.id, newValue);
                   }}
-                  className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="mr-2 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-gray-800"
                 />
-                <span className="text-sm text-gray-700">{option.label}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">{option.label}</span>
               </label>
             ))}
           </div>
@@ -141,10 +141,10 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
                 step={filter.step}
                 value={value as number || filter.min || 0}
                 onChange={(e) => handleFilterChange(filter.id, parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 placeholder="Min"
               />
-              <span className="text-gray-500">to</span>
+              <span className="text-gray-500 dark:text-gray-400">to</span>
               <input
                 type="number"
                 min={filter.min}
@@ -152,11 +152,11 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
                 step={filter.step}
                 value={value as number || filter.max || 100}
                 onChange={(e) => handleFilterChange(filter.id, parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 placeholder="Max"
               />
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
               Range: {filter.min || 0} - {filter.max || 100}
             </div>
           </div>
@@ -169,9 +169,9 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
               type="checkbox"
               checked={value as boolean || false}
               onChange={(e) => handleFilterChange(filter.id, e.target.checked)}
-              className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="mr-2 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-gray-800"
             />
-            <span className="text-sm text-gray-700">{filter.label}</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">{filter.label}</span>
           </label>
         );
 
@@ -181,22 +181,22 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 ${className}`}>
       {/* Search Bar */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             placeholder={searchPlaceholder}
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           />
           {searchTerm && (
             <button
               onClick={() => handleSearchChange('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
             >
               <X className="h-4 w-4" />
             </button>
@@ -205,11 +205,11 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
       </div>
 
       {/* Filter Toggle */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900"
+            className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
           >
             <Filter className="h-4 w-4 mr-2" />
             Advanced Filters
@@ -222,12 +222,12 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
 
           {hasActiveFilters && (
             <div className="flex items-center space-x-2">
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 {Object.values(filterState).filter(v => v !== null && v !== '' && (Array.isArray(v) ? v.length > 0 : true)).length + (searchTerm ? 1 : 0)} active
               </span>
               <button
                 onClick={clearAllFilters}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
               >
                 Clear All
               </button>
@@ -242,7 +242,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filters.map(filter => (
               <div key={filter.id} className="space-y-2">
-                <label className="flex items-center text-sm font-medium text-gray-700">
+                <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
                   {getFilterIcon(filter.id)}
                   <span className="ml-2">{filter.label}</span>
                 </label>
@@ -253,14 +253,14 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
 
           {/* Active Filters Summary */}
           {hasActiveFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div className="flex flex-wrap gap-2">
                 {searchTerm && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
                     Search: "{searchTerm}"
                     <button
                       onClick={() => handleSearchChange('')}
-                      className="ml-1 text-blue-600 hover:text-blue-800"
+                      className="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                     >
                       <X className="h-3 w-3" />
                     </button>

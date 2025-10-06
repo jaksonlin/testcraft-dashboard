@@ -115,7 +115,7 @@ const AnalyticsView: React.FC = () => {
     return (
       <div className="p-8">
         <div className="text-center py-12">
-          <div className="text-red-600 mb-4">{error}</div>
+          <div className="mb-4" style={{ color: 'var(--color-destructive)' }}>{error}</div>
           <button
             onClick={fetchAnalyticsData}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -132,14 +132,14 @@ const AnalyticsView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-        <TrendingUp className="h-8 w-8 text-blue-600 mr-3" />
-        <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
+        <TrendingUp className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
+        <h1 className="text-3xl font-bold" style={{ color: 'var(--color-foreground)' }}>Analytics</h1>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value as '7' | '30' | '90' | '365')}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-foreground)' }}
           >
             <option value="7">Last 7 days</option>
             <option value="30">Last 30 days</option>
@@ -148,7 +148,7 @@ const AnalyticsView: React.FC = () => {
           </select>
           <button
             onClick={fetchAnalyticsData}
-            className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className="flex items-center px-3 py-2 rounded-lg transition-colors" style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-foreground)' }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -202,10 +202,24 @@ const AnalyticsView: React.FC = () => {
               key={id}
               onClick={() => setActiveTab(id as 'overview' | 'trends' | 'teams' | 'growth')}
               className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === id
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                activeTab === id ? 'opacity-100' : 'opacity-70'
               }`}
+              style={{
+                backgroundColor: activeTab === id ? 'var(--color-accent)' : 'transparent',
+                color: activeTab === id ? 'var(--color-primary)' : 'var(--color-muted-foreground)'
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== id) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-accent)';
+                  e.currentTarget.style.color = 'var(--color-foreground)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== id) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = 'var(--color-muted-foreground)';
+                }
+              }}
             >
               <Icon className="h-4 w-4 mr-2" />
               {label}
@@ -219,8 +233,8 @@ const AnalyticsView: React.FC = () => {
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Coverage Trend Chart */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Coverage Trend</h3>
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-foreground)' }}>Coverage Trend</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -240,8 +254,8 @@ const AnalyticsView: React.FC = () => {
             </div>
 
             {/* Team Coverage Distribution */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Coverage Distribution</h3>
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-foreground)' }}>Team Coverage Distribution</h3>
               {coverageDistribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
@@ -266,9 +280,9 @@ const AnalyticsView: React.FC = () => {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-64 text-gray-500">
+                <div className="flex items-center justify-center h-64" style={{ color: 'var(--color-muted-foreground)' }}>
                   <div className="text-center">
-                    <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4" style={{ color: 'var(--color-muted-foreground)' }} />
                     <p>No team coverage data available</p>
                   </div>
                 </div>
@@ -280,8 +294,8 @@ const AnalyticsView: React.FC = () => {
         {activeTab === 'trends' && (
           <div className="space-y-6">
             {/* Coverage Trend */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Coverage Trend Over Time</h3>
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-foreground)' }}>Coverage Trend Over Time</h3>
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -305,8 +319,8 @@ const AnalyticsView: React.FC = () => {
             </div>
 
             {/* Test Methods Growth */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Test Methods Growth</h3>
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-foreground)' }}>Test Methods Growth</h3>
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -337,8 +351,8 @@ const AnalyticsView: React.FC = () => {
         {activeTab === 'teams' && (
           <div className="space-y-6">
             {/* Team Coverage Comparison */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Coverage Comparison</h3>
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-foreground)' }}>Team Coverage Comparison</h3>
               <ResponsiveContainer width="100%" height={400}>
                 <BarChart data={teamComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -352,33 +366,33 @@ const AnalyticsView: React.FC = () => {
             </div>
 
             {/* Team Metrics Table */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Team Performance Summary</h3>
+            <div className="rounded-lg shadow-sm border overflow-hidden" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                <h3 className="text-lg font-semibold" style={{ color: 'var(--color-foreground)' }}>Team Performance Summary</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y" style={{ borderColor: 'var(--color-border)' }}>
+                  <thead style={{ backgroundColor: 'var(--color-muted)' }}>
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repositories</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test Methods</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coverage</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performance</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Team</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Repositories</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Test Methods</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Coverage</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Performance</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="divide-y" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
                     {teams.map((team) => (
                       <tr key={team.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{team.teamName}</div>
-                          <div className="text-sm text-gray-500">{team.teamCode}</div>
+                          <div className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{team.teamName}</div>
+                          <div className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{team.teamCode}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{team.repositoryCount}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{team.totalTestMethods}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--color-foreground)' }}>{team.repositoryCount}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--color-foreground)' }}>{team.totalTestMethods}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="w-20 bg-gray-200 rounded-full h-2 mr-3">
+                            <div className="w-20 rounded-full h-2 mr-3" style={{ backgroundColor: 'var(--color-border)' }}>
                               <div
                                 className={`h-2 rounded-full ${
                                   team.averageCoverageRate >= 80 ? 'bg-green-500' :
@@ -387,7 +401,7 @@ const AnalyticsView: React.FC = () => {
                                 style={{ width: `${Math.min(team.averageCoverageRate, 100)}%` }}
                               />
                             </div>
-                            <span className="text-sm font-medium text-gray-900">{team.averageCoverageRate.toFixed(1)}%</span>
+                            <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{team.averageCoverageRate.toFixed(1)}%</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -411,8 +425,8 @@ const AnalyticsView: React.FC = () => {
         {activeTab === 'growth' && (
           <div className="space-y-6">
             {/* Repository Growth */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Repository Growth</h3>
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-foreground)' }}>Repository Growth</h3>
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -432,8 +446,8 @@ const AnalyticsView: React.FC = () => {
             </div>
 
             {/* New Methods Added */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">New Methods Added Daily</h3>
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-foreground)' }}>New Methods Added Daily</h3>
               <ResponsiveContainer width="100%" height={400}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />

@@ -141,7 +141,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading repositories...</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Loading repositories...</p>
         </div>
       </div>
     );
@@ -153,7 +153,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex-1 max-w-md">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
             <input
               type="text"
               placeholder="Search repositories or teams..."
@@ -190,7 +190,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
         <div className="card">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Team</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Team</label>
               <select
                 value={teamFilter}
                 onChange={(e) => setTeamFilter(e.target.value)}
@@ -204,7 +204,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Coverage</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Coverage</label>
               <select
                 value={coverageFilter}
                 onChange={(e) => setCoverageFilter(e.target.value)}
@@ -230,12 +230,12 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
       )}
 
       {/* Results Summary */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
+      <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
         <span>
           Showing {filteredAndSortedRepositories.length} of {repositories.length} repositories
         </span>
         {selectedRepositories.size > 0 && (
-          <span className="text-blue-600 font-medium">
+          <span className="text-blue-600 dark:text-blue-400 font-medium">
             {selectedRepositories.size} selected
           </span>
         )}
@@ -244,13 +244,13 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
       {/* Repository Table */}
       <div className="card p-0 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 <th className="px-6 py-3 text-left">
                   <button
                     onClick={handleSelectAll}
-                    className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
                   >
                     {selectedRepositories.size === filteredAndSortedRepositories.length && filteredAndSortedRepositories.length > 0 ? (
                       <CheckSquare className="h-4 w-4 mr-2" />
@@ -263,7 +263,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                 <th className="px-6 py-3 text-left">
                   <button
                     onClick={() => handleSort('repositoryName')}
-                    className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
                   >
                     Repository Name
                     {getSortIcon('repositoryName')}
@@ -272,7 +272,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                 <th className="px-6 py-3 text-left">
                   <button
                     onClick={() => handleSort('teamName')}
-                    className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
                   >
                     Team
                     {getSortIcon('teamName')}
@@ -281,7 +281,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                 <th className="px-6 py-3 text-left">
                   <button
                     onClick={() => handleSort('testClassCount')}
-                    className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
                   >
                     Test Classes
                     {getSortIcon('testClassCount')}
@@ -290,7 +290,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                 <th className="px-6 py-3 text-left">
                   <button
                     onClick={() => handleSort('testMethodCount')}
-                    className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
                   >
                     Test Methods
                     {getSortIcon('testMethodCount')}
@@ -299,7 +299,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                 <th className="px-6 py-3 text-left">
                   <button
                     onClick={() => handleSort('coverageRate')}
-                    className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
                   >
                     Coverage
                     {getSortIcon('coverageRate')}
@@ -308,24 +308,24 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                 <th className="px-6 py-3 text-left">
                   <button
                     onClick={() => handleSort('lastScanDate')}
-                    className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
+                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
                   >
                     Last Scan
                     {getSortIcon('lastScanDate')}
                   </button>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredAndSortedRepositories.map((repository) => (
-                <tr key={repository.repositoryId} className="hover:bg-gray-50">
+                <tr key={repository.repositoryId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => handleSelectRepository(repository.repositoryId)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
                     >
                       {selectedRepositories.has(repository.repositoryId) ? (
                         <CheckSquare className="h-4 w-4" />
@@ -335,52 +335,52 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {repository.repositoryName}
                     </div>
-                    <div className="text-sm text-gray-500 truncate max-w-xs">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
                       {repository.gitUrl}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
                       {repository.teamName}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {repository.testClassCount}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {repository.testMethodCount}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                      <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
                         <div 
                           className="bg-orange-custom h-2 rounded-full" 
                           style={{ width: `${repository.coverageRate}%` }}
                         ></div>
                       </div>
-                      <span className="text-sm text-gray-900 font-medium">
+                      <span className="text-sm text-gray-900 dark:text-gray-100 font-medium">
                         {repository.coverageRate.toFixed(1)}%
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {formatDate(repository.lastScanDate)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => onRepositoryClick(repository)}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
                         title="View Details"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => onBulkScan([repository.repositoryId])}
-                        className="text-green-600 hover:text-green-900"
+                        className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
                         title="Scan Repository"
                       >
                         <Play className="h-4 w-4" />
@@ -395,9 +395,9 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
         
         {filteredAndSortedRepositories.length === 0 && (
           <div className="text-center py-12">
-            <FolderOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No repositories found</h3>
-            <p className="text-gray-600">
+            <FolderOpen className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No repositories found</h3>
+            <p className="text-gray-600 dark:text-gray-400">
               {searchTerm || teamFilter || coverageFilter 
                 ? 'Try adjusting your search or filters'
                 : 'No repositories are available'

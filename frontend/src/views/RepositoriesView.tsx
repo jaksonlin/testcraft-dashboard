@@ -368,22 +368,22 @@ const RepositoriesView: React.FC = () => {
       {/* Scan Results Banner */}
       {scanResults && (
         <div className={`card mb-6 ${
-          scanResults.failed === 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+          scanResults.failed === 0 ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
         }`}>
           <div className="flex items-center">
             {scanResults.failed === 0 ? (
-              <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
+              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mr-3" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
+              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-3" />
             )}
             <div>
               <h3 className={`font-semibold ${
-                scanResults.failed === 0 ? 'text-green-800' : 'text-red-800'
+                scanResults.failed === 0 ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
               }`}>
                 Bulk Scan {scanResults.failed === 0 ? 'Completed' : 'Failed'}
               </h3>
               <p className={`text-sm ${
-                scanResults.failed === 0 ? 'text-green-700' : 'text-red-700'
+                scanResults.failed === 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
               }`}>
                 {scanResults.success} repositories scanned successfully
                 {scanResults.failed > 0 && `, ${scanResults.failed} failed`}
@@ -403,7 +403,7 @@ const RepositoriesView: React.FC = () => {
       />
 
       {/* Results Summary */}
-      <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+      <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-4">
         <span>
           Showing {filteredRepositories.length} of {repositories.length} repositories
           {hasActiveFilters && ' (filtered)'}
@@ -411,7 +411,7 @@ const RepositoriesView: React.FC = () => {
         {hasActiveFilters && (
           <button
             onClick={clearAllFilters}
-            className="text-blue-600 hover:text-blue-800 font-medium"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
           >
             Clear all filters
           </button>
@@ -443,12 +443,12 @@ const RepositoriesView: React.FC = () => {
       {/* Loading Overlay */}
       {scanning && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
             <div className="flex items-center">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Scanning Repositories</h3>
-                <p className="text-sm text-gray-600">Please wait while repositories are being scanned...</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Scanning Repositories</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Please wait while repositories are being scanned...</p>
               </div>
             </div>
           </div>

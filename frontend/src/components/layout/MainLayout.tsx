@@ -24,40 +24,27 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen flex density-${preferences.density}`} style={{
-      backgroundColor: 'var(--color-background)',
-      color: 'var(--color-foreground)'
-    }}>
+    <div className={`min-h-screen flex density-${preferences.density} bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100`}>
       {/* Mobile menu button */}
       <button
         onClick={toggleMobileMenu}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg shadow-md"
-        style={{
-          backgroundColor: 'var(--color-background)',
-          color: 'var(--color-foreground)',
-          border: '1px solid var(--color-border)'
-        }}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg shadow-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
         aria-label="Toggle menu"
       >
         {mobileMenuOpen ? (
-          <X className="h-6 w-6" style={{ color: 'var(--color-muted-foreground)' }} />
+          <X className="h-6 w-6 text-gray-500 dark:text-gray-400" />
         ) : (
-          <Menu className="h-6 w-6" style={{ color: 'var(--color-muted-foreground)' }} />
+          <Menu className="h-6 w-6 text-gray-500 dark:text-gray-400" />
         )}
       </button>
 
       {/* Settings button */}
       <button
         onClick={toggleSettings}
-        className="fixed top-4 right-4 z-50 p-2 rounded-lg shadow-md transition-colors"
-        style={{
-          backgroundColor: 'var(--color-background)',
-          color: 'var(--color-foreground)',
-          border: '1px solid var(--color-border)'
-        }}
+        className="fixed top-4 right-4 z-50 p-2 rounded-lg shadow-md transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
         aria-label="Open settings"
       >
-        <Settings className="h-6 w-6" style={{ color: 'var(--color-muted-foreground)' }} />
+        <Settings className="h-6 w-6 text-gray-500 dark:text-gray-400" />
       </button>
 
       {/* Sidebar */}

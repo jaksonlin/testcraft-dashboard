@@ -115,22 +115,22 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
       />
       
       {/* Modal Content */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl border border-gray-200 animate-in fade-in-0 zoom-in-95 duration-300">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl border animate-in fade-in-0 zoom-in-95 duration-300" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
+        <div className="sticky top-0 border-b px-6 py-4 rounded-t-xl" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Users className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">Team Details</h3>
-                <p className="text-sm text-gray-500">{team.teamName} ({team.teamCode})</p>
+                <h3 className="text-xl font-semibold" style={{ color: 'var(--color-foreground)' }}>Team Details</h3>
+                <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{team.teamName} ({team.teamCode})</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
@@ -143,21 +143,21 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <h4 className="text-lg font-medium text-gray-900 mb-3">Team Information</h4>
+                <h4 className="text-lg font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Team Information</h4>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
                     <Users className="h-4 w-4 text-gray-400" />
                     <div>
-                      <p className="text-sm text-gray-500">Team Name</p>
-                      <p className="font-medium">{team.teamName}</p>
+                      <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>Team Name</p>
+                      <p className="font-medium" style={{ color: 'var(--color-foreground)' }}>{team.teamName}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-3">
                     <ExternalLink className="h-4 w-4 text-gray-400" />
                     <div>
-                      <p className="text-sm text-gray-500">Team Code</p>
-                      <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                      <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>Team Code</p>
+                      <p className="font-mono text-sm px-2 py-1 rounded" style={{ backgroundColor: 'var(--color-muted)' }}>
                         {team.teamCode}
                       </p>
                     </div>
@@ -167,8 +167,8 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                     <div className="flex items-center space-x-3">
                       <Users className="h-4 w-4 text-gray-400" />
                       <div>
-                        <p className="text-sm text-gray-500">Department</p>
-                        <p className="font-medium">{team.department}</p>
+                        <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>Department</p>
+                        <p className="font-medium" style={{ color: 'var(--color-foreground)' }}>{team.department}</p>
                       </div>
                     </div>
                   )}
@@ -176,12 +176,12 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                   <div className="flex items-center space-x-3">
                     <Calendar className="h-4 w-4 text-gray-400" />
                     <div>
-                      <p className="text-sm text-gray-500">Last Scan</p>
-                      <p className="font-medium">
+                      <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>Last Scan</p>
+                      <p className="font-medium" style={{ color: 'var(--color-foreground)' }}>
                         {team.lastScanDate ? formatDate(team.lastScanDate).date : 'N/A'}
                       </p>
                       {team.lastScanDate && (
-                        <p className="text-xs text-gray-400">{formatDate(team.lastScanDate).relative}</p>
+                        <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>{formatDate(team.lastScanDate).relative}</p>
                       )}
                     </div>
                   </div>
@@ -191,7 +191,7 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
             
             <div className="space-y-4">
               <div>
-                <h4 className="text-lg font-medium text-gray-900 mb-3">Team Metrics</h4>
+                <h4 className="text-lg font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Team Metrics</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <div className="flex items-center space-x-2 mb-2">
@@ -231,13 +231,13 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
           
           {/* Coverage Breakdown */}
           <div>
-            <h4 className="text-lg font-medium text-gray-900 mb-3">Coverage Analysis</h4>
-            <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-lg font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Coverage Analysis</h4>
+            <div className="rounded-lg p-4" style={{ backgroundColor: 'var(--color-muted)' }}>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Average Coverage</span>
-                <span className="text-sm font-bold text-gray-900">{team.averageCoverageRate.toFixed(1)}%</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Average Coverage</span>
+                <span className="text-sm font-bold" style={{ color: 'var(--color-foreground)' }}>{team.averageCoverageRate.toFixed(1)}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-4 relative overflow-hidden">
+              <div className="w-full rounded-full h-4 relative overflow-hidden" style={{ backgroundColor: 'var(--color-border)' }}>
                 <div 
                   style={{ 
                     width: `${Math.max(Math.min(team.averageCoverageRate, 100), 5)}%`,
@@ -252,8 +252,8 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                 />
               </div>
               <div className="flex justify-between text-xs text-gray-500 mt-2">
-                <span>{team.totalAnnotatedMethods} annotated methods</span>
-                <span>{team.totalTestMethods - team.totalAnnotatedMethods} remaining</span>
+                <span style={{ color: 'var(--color-muted-foreground)' }}>{team.totalAnnotatedMethods} annotated methods</span>
+                <span style={{ color: 'var(--color-muted-foreground)' }}>{team.totalTestMethods - team.totalAnnotatedMethods} remaining</span>
               </div>
             </div>
           </div>
@@ -261,14 +261,14 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
           {/* Repositories Section */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-medium text-gray-900">Repositories</h4>
-              <div className="text-sm text-gray-500">
+              <h4 className="text-lg font-medium" style={{ color: 'var(--color-foreground)' }}>Repositories</h4>
+              <div className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
                 {filteredRepos.length} of {team.repositories.length} repositories
               </div>
             </div>
 
             {/* Repository Filters */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="rounded-lg p-4 mb-4" style={{ backgroundColor: 'var(--color-muted)' }}>
               <div className="flex flex-col lg:flex-row gap-4">
                 <div className="flex-1">
                   <div className="relative">
@@ -281,7 +281,7 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                         setRepoSearchTerm(e.target.value);
                         setRepoCurrentPage(1); // Reset to first page when searching
                       }}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-foreground)' }}
                     />
                   </div>
                 </div>
@@ -292,7 +292,7 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                       setRepoSortBy(e.target.value as 'name' | 'coverage' | 'methods' | 'classes');
                       setRepoCurrentPage(1);
                     }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-foreground)' }}
                   >
                     <option value="name">Sort by Name</option>
                     <option value="coverage">Sort by Coverage</option>
@@ -304,7 +304,7 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                       setRepoSortOrder(repoSortOrder === 'asc' ? 'desc' : 'asc');
                       setRepoCurrentPage(1);
                     }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-foreground)' }}
                   >
                     {repoSortOrder === 'asc' ? '↑' : '↓'}
                   </button>
@@ -314,37 +314,37 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
 
             {/* Repositories Table */}
             <div className="overflow-x-auto">
-              <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-                <thead className="bg-gray-50">
+              <table className="min-w-full border rounded-lg" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+                <thead style={{ backgroundColor: 'var(--color-muted)' }}>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                       Repository
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                       Test Classes
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                       Test Methods
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                       Coverage
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                       Last Scan
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
                   {currentRepos.map((repo) => (
                     <tr key={repo.repositoryId} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{repo.repositoryName}</div>
-                          <div className="text-sm text-gray-500 truncate max-w-xs">{repo.gitUrl}</div>
+                          <div className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{repo.repositoryName}</div>
+                          <div className="text-sm truncate max-w-xs" style={{ color: 'var(--color-muted-foreground)' }}>{repo.gitUrl}</div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{repo.testClassCount}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{repo.testMethodCount}</td>
+                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--color-foreground)' }}>{repo.testClassCount}</td>
+                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--color-foreground)' }}>{repo.testMethodCount}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center">
                           <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
@@ -356,10 +356,10 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                               style={{ width: `${Math.min(repo.coverageRate, 100)}%` }}
                             />
                           </div>
-                          <span className="text-sm text-gray-900">{repo.coverageRate.toFixed(1)}%</span>
+                          <span className="text-sm" style={{ color: 'var(--color-foreground)' }}>{repo.coverageRate.toFixed(1)}%</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
+                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
                         {repo.lastScanDate ? new Date(repo.lastScanDate).toLocaleDateString() : 'N/A'}
                       </td>
                     </tr>
@@ -371,7 +371,7 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
             {/* Repository Pagination */}
             {repoTotalPages > 1 && (
               <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-gray-700">
+                <div className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
                   Showing{' '}
                   <span className="font-medium">{repoStartIndex + 1}</span>
                   {' '}to{' '}
@@ -384,7 +384,8 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                   <button
                     onClick={() => handleRepoPageChange(repoCurrentPage - 1)}
                     disabled={repoCurrentPage === 1}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)' }}
                   >
                     Previous
                   </button>
@@ -407,10 +408,13 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                         key={pageNum}
                         onClick={() => handleRepoPageChange(pageNum)}
                         className={`px-3 py-1 text-sm border rounded ${
-                          pageNum === repoCurrentPage
-                            ? 'bg-blue-50 border-blue-500 text-blue-600'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                          pageNum === repoCurrentPage ? '' : ''
                         }`}
+                        style={{
+                          backgroundColor: pageNum === repoCurrentPage ? 'var(--color-accent)' : 'var(--color-background)',
+                          borderColor: pageNum === repoCurrentPage ? 'var(--color-primary)' : 'var(--color-border)',
+                          color: pageNum === repoCurrentPage ? 'var(--color-primary)' : 'var(--color-foreground)'
+                        }}
                       >
                         {pageNum}
                       </button>
@@ -420,7 +424,8 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                   <button
                     onClick={() => handleRepoPageChange(repoCurrentPage + 1)}
                     disabled={repoCurrentPage === repoTotalPages}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)' }}
                   >
                     Next
                   </button>
@@ -431,8 +436,8 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
             {filteredRepos.length === 0 && (
               <div className="text-center py-8">
                 <GitBranch className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No repositories found</h3>
-                <p className="text-gray-600">
+                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-foreground)' }}>No repositories found</h3>
+                <p style={{ color: 'var(--color-muted-foreground)' }}>
                   {repoSearchTerm ? 'Try adjusting your search criteria.' : 'No repositories are available for this team.'}
                 </p>
               </div>
@@ -698,7 +703,7 @@ const TeamsView: React.FC = () => {
     return (
       <div className="p-8">
         <div className="text-center py-12">
-          <div className="text-red-600 mb-4">{error}</div>
+          <div className="text-red-600 dark:text-red-400 mb-4">{error}</div>
           <button
             onClick={fetchTeams}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -721,8 +726,8 @@ const TeamsView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-        <Users className="h-8 w-8 text-blue-600 mr-3" />
-        <h1 className="text-3xl font-bold text-gray-900">Teams</h1>
+        <Users className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
+        <h1 className="text-3xl font-bold" style={{ color: 'var(--color-foreground)' }}>Teams</h1>
         </div>
         <ExportManager
           data={teams}
@@ -762,17 +767,17 @@ const TeamsView: React.FC = () => {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+      <div className="rounded-lg shadow-sm border p-4 mb-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
               <input
                 type="text"
                 placeholder="Search teams by name, code, or department..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               />
             </div>
           </div>
@@ -780,7 +785,7 @@ const TeamsView: React.FC = () => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'name' | 'repositories' | 'coverage')}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               <option value="name">Sort by Name</option>
               <option value="repositories">Sort by Repositories</option>
@@ -788,13 +793,13 @@ const TeamsView: React.FC = () => {
             </select>
             <button
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               {sortOrder === 'asc' ? '↑' : '↓'}
             </button>
           </div>
         </div>
-        <div className="mt-3 text-sm text-gray-600">
+        <div className="mt-3 text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
           Showing {filteredTeams.length} of {teams.length} teams
         </div>
       </div>
@@ -811,80 +816,80 @@ const TeamsView: React.FC = () => {
       />
 
       {/* Teams Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="rounded-lg shadow-sm border overflow-hidden" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead style={{ backgroundColor: 'var(--color-muted)' }}>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                   <button
                     onClick={bulkOps.selectAll}
-                    className="flex items-center hover:text-gray-700"
+                    className="flex items-center hover:opacity-80"
                   >
                     {bulkOps.isAllSelected ? (
                       <CheckCircle className="h-4 w-4 mr-2" />
                     ) : (
-                      <div className="h-4 w-4 mr-2 border-2 border-gray-400 rounded"></div>
+                      <div className="h-4 w-4 mr-2 border-2 rounded" style={{ borderColor: 'var(--color-border)' }}></div>
                     )}
                     Select All
                   </button>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                   Team
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                   Repositories
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                   Test Classes
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                   Test Methods
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                   Coverage Rate
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
               {currentTeams.map((team) => (
-                <tr key={team.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={team.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => bulkOps.toggleItem(team.id)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
                     >
                       {bulkOps.isSelected(team.id) ? (
                         <CheckCircle className="h-4 w-4" />
                       ) : (
-                        <div className="h-4 w-4 border-2 border-gray-400 rounded"></div>
+                        <div className="h-4 w-4 border-2 border-gray-400 dark:border-gray-500 rounded"></div>
                       )}
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{team.teamName}</div>
-                      <div className="text-sm text-gray-500">{team.teamCode}</div>
+                      <div className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{team.teamName}</div>
+                      <div className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{team.teamCode}</div>
                       {team.department && (
-                        <div className="text-xs text-gray-400">{team.department}</div>
+                        <div className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>{team.department}</div>
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{team.repositoryCount}</div>
+                    <div className="text-sm" style={{ color: 'var(--color-foreground)' }}>{team.repositoryCount}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{team.totalTestClasses}</div>
+                    <div className="text-sm" style={{ color: 'var(--color-foreground)' }}>{team.totalTestClasses}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{team.totalTestMethods}</div>
+                    <div className="text-sm" style={{ color: 'var(--color-foreground)' }}>{team.totalTestMethods}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="w-20 bg-gray-200 rounded-full h-2 mr-3">
+                      <div className="w-20 rounded-full h-2 mr-3" style={{ backgroundColor: 'var(--color-border)' }}>
                         <div
                           className={`h-2 rounded-full transition-all duration-300 ${
                             team.averageCoverageRate >= 80 ? 'bg-green-500' :
@@ -893,7 +898,7 @@ const TeamsView: React.FC = () => {
                           style={{ width: `${Math.min(team.averageCoverageRate, 100)}%` }}
                         />
                       </div>
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>
                         {team.averageCoverageRate.toFixed(1)}%
                       </span>
                     </div>
@@ -901,7 +906,7 @@ const TeamsView: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       onClick={() => handleTeamClick(team)}
-                      className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 flex items-center gap-1"
                     >
                       <Eye className="h-4 w-4" />
                       View Details
@@ -915,26 +920,26 @@ const TeamsView: React.FC = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <div className="px-4 py-3 flex items-center justify-between border-t sm:px-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
             <div className="flex-1 flex justify-between sm:hidden">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-background)' }}
               >
                 Previous
               </button>
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="ml-3 relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-background)' }}
               >
                 Next
               </button>
             </div>
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-gray-700">
+                <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
                   Showing{' '}
                   <span className="font-medium">{startIndex + 1}</span>
                   {' '}to{' '}
@@ -949,7 +954,7 @@ const TeamsView: React.FC = () => {
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted-foreground)', backgroundColor: 'var(--color-background)' }}
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
@@ -972,10 +977,13 @@ const TeamsView: React.FC = () => {
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
                         className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                          pageNum === currentPage
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                          pageNum === currentPage ? 'z-10' : ''
                         }`}
+                        style={{
+                          backgroundColor: pageNum === currentPage ? 'var(--color-accent)' : 'var(--color-background)',
+                          borderColor: pageNum === currentPage ? 'var(--color-primary)' : 'var(--color-border)',
+                          color: pageNum === currentPage ? 'var(--color-primary)' : 'var(--color-muted-foreground)'
+                        }}
                       >
                         {pageNum}
                       </button>
@@ -985,7 +993,7 @@ const TeamsView: React.FC = () => {
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted-foreground)', backgroundColor: 'var(--color-background)' }}
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
@@ -998,9 +1006,9 @@ const TeamsView: React.FC = () => {
       
       {filteredTeams.length === 0 && (
         <div className="text-center py-12">
-          <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No teams found</h3>
-          <p className="text-gray-600">
+          <Users className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-foreground)' }}>No teams found</h3>
+          <p style={{ color: 'var(--color-muted-foreground)' }}>
             {searchTerm ? 'Try adjusting your search criteria.' : 'No teams are available.'}
           </p>
         </div>

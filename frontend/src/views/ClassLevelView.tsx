@@ -133,23 +133,23 @@ const ClassLevelView: React.FC = () => {
   };
 
   const getCoverageColor = (coverage: number) => {
-    if (coverage >= 80) return 'text-green-600';
-    if (coverage >= 50) return 'text-orange-600';
-    return 'text-red-600';
+    if (coverage >= 80) return 'text-green-600 dark:text-green-400';
+    if (coverage >= 50) return 'text-orange-600 dark:text-orange-400';
+    return 'text-red-600 dark:text-red-400';
   };
 
   const getCoverageBgColor = (coverage: number) => {
-    if (coverage >= 80) return 'bg-green-100';
-    if (coverage >= 50) return 'bg-orange-100';
-    return 'bg-red-100';
+    if (coverage >= 80) return 'bg-green-100 dark:bg-green-900/20';
+    if (coverage >= 50) return 'bg-orange-100 dark:bg-orange-900/20';
+    return 'bg-red-100 dark:bg-red-900/20';
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PASS': return 'bg-green-100 text-green-800';
-      case 'FAIL': return 'bg-red-100 text-red-800';
-      case 'SKIP': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'PASS': return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200';
+      case 'FAIL': return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200';
+      case 'SKIP': return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200';
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
     }
   };
 
@@ -158,7 +158,7 @@ const ClassLevelView: React.FC = () => {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading class data...</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Loading class data...</p>
         </div>
       </div>
     );
@@ -168,9 +168,9 @@ const ClassLevelView: React.FC = () => {
     return (
       <div className="p-8">
         <div className="card text-center py-12">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Class Data</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <AlertCircle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Error Loading Class Data</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <button 
             onClick={() => navigate('/repositories')}
             className="btn btn-primary"
@@ -192,7 +192,7 @@ const ClassLevelView: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => navigate('/repositories')}
-            className="flex items-center text-gray-600 hover:text-gray-900"
+            className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
             Back to Repositories
@@ -215,12 +215,12 @@ const ClassLevelView: React.FC = () => {
         </div>
         
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Class-Level Analysis</h1>
-          <div className="flex items-center text-gray-600 mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Class-Level Analysis</h1>
+          <div className="flex items-center text-gray-600 dark:text-gray-400 mb-4">
             <FileText className="h-4 w-4 mr-2" />
             <span className="font-mono text-sm">{repositoryName}</span>
           </div>
-          <div className="flex items-center text-gray-600">
+          <div className="flex items-center text-gray-600 dark:text-gray-400">
             <Target className="h-4 w-4 mr-2" />
             <span className="text-sm">{classGroups.length} test classes found</span>
           </div>
@@ -231,20 +231,20 @@ const ClassLevelView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="card">
           <div className="flex items-center">
-            <FileText className="h-8 w-8 text-blue-600 mr-3" />
+            <FileText className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Classes</p>
-              <p className="text-2xl font-bold text-gray-900">{classGroups.length}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Classes</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{classGroups.length}</p>
             </div>
           </div>
         </div>
         
         <div className="card">
           <div className="flex items-center">
-            <Target className="h-8 w-8 text-green-600 mr-3" />
+            <Target className="h-8 w-8 text-green-600 dark:text-green-400 mr-3" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Methods</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Methods</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {classGroups.reduce((sum, c) => sum + c.methodCount, 0)}
               </p>
             </div>
@@ -253,10 +253,10 @@ const ClassLevelView: React.FC = () => {
         
         <div className="card">
           <div className="flex items-center">
-            <Users className="h-8 w-8 text-purple-600 mr-3" />
+            <Users className="h-8 w-8 text-purple-600 dark:text-purple-400 mr-3" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Annotated Methods</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Annotated Methods</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {classGroups.reduce((sum, c) => sum + c.annotatedCount, 0)}
               </p>
             </div>
@@ -270,19 +270,19 @@ const ClassLevelView: React.FC = () => {
           <div key={classGroup.className} className="card">
             {/* Class Header */}
             <div 
-              className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 rounded-lg"
+              className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg"
               onClick={() => toggleClassExpansion(classGroup.className)}
             >
               <div className="flex items-center flex-1">
                 {expandedClasses.has(classGroup.className) ? (
-                  <ChevronDown className="h-5 w-5 text-gray-400 mr-3" />
+                  <ChevronDown className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-3" />
                 ) : (
-                  <ChevronRight className="h-5 w-5 text-gray-400 mr-3" />
+                  <ChevronRight className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-3" />
                 )}
                 
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{classGroup.className}</h3>
-                  <div className="flex items-center mt-1 space-x-4 text-sm text-gray-600">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{classGroup.className}</h3>
+                  <div className="flex items-center mt-1 space-x-4 text-sm text-gray-600 dark:text-gray-400">
                     <span>{classGroup.methodCount} methods</span>
                     <span>{classGroup.annotatedCount} annotated</span>
                     <span className={`font-medium ${getCoverageColor(classGroup.coverageRate)}`}>
@@ -304,7 +304,7 @@ const ClassLevelView: React.FC = () => {
                     e.stopPropagation();
                     handleExportClassData(classGroup.className);
                   }}
-                  className="p-2 text-gray-400 hover:text-gray-600"
+                  className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                   title="Export class data"
                 >
                   <Download className="h-4 w-4" />
@@ -314,35 +314,35 @@ const ClassLevelView: React.FC = () => {
 
             {/* Class Methods (Expanded) */}
             {expandedClasses.has(classGroup.className) && (
-              <div className="border-t border-gray-200 p-4">
+              <div className="border-t border-gray-200 dark:border-gray-700 p-4">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Method Name
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Author
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Target
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Line
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           Last Modified
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                       {classGroup.methods.map((method) => (
-                        <tr key={method.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <tr key={method.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                             {method.testMethod}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -350,16 +350,16 @@ const ClassLevelView: React.FC = () => {
                               {method.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                             {method.author}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {method.targetClass}.{method.targetMethod}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {method.line}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {method.lastModified ? new Date(method.lastModified).toLocaleDateString() : 'N/A'}
                           </td>
                         </tr>
@@ -375,9 +375,9 @@ const ClassLevelView: React.FC = () => {
 
       {classGroups.length === 0 && (
         <div className="card text-center py-12">
-          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Test Classes Found</h3>
-          <p className="text-gray-600">This repository doesn't have any test classes yet.</p>
+          <FileText className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Test Classes Found</h3>
+          <p className="text-gray-600 dark:text-gray-400">This repository doesn't have any test classes yet.</p>
         </div>
       )}
     </div>

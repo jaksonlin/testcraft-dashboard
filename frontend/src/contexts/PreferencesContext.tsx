@@ -104,15 +104,19 @@ export const PreferencesProvider: React.FC<PreferencesProviderProps> = ({ childr
     }
   }, [preferences, isLoaded]);
 
-  // Apply theme to document
+  // Apply theme to document using Tailwind's dark mode
   useEffect(() => {
     if (isLoaded) {
       const effectiveTheme = preferences.theme === 'system' 
         ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         : preferences.theme;
       
-      document.documentElement.setAttribute('data-theme', effectiveTheme);
-      document.documentElement.classList.toggle('dark', effectiveTheme === 'dark');
+      // Use Tailwind's dark mode class system
+      if (effectiveTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     }
   }, [preferences.theme, isLoaded]);
 

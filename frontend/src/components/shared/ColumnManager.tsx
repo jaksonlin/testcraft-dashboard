@@ -65,21 +65,18 @@ const ColumnManager: React.FC<ColumnManagerProps> = ({ tableId, columns, isOpen,
       />
       
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-80 shadow-xl z-50 flex flex-col" style={{
-        backgroundColor: 'var(--color-background)',
-        borderLeft: '1px solid var(--color-border)'
-      }}>
+      <div className="fixed right-0 top-0 h-full w-80 shadow-xl z-50 flex flex-col bg-background border-l border-border">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center">
-            <Columns className="h-6 w-6 text-blue-600 mr-3" />
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Manage Columns</h2>
+            <Columns className="h-6 w-6 text-primary mr-3" />
+            <h2 className="text-xl font-semibold text-foreground">Manage Columns</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 rounded-lg transition-colors bg-transparent text-muted-foreground hover:bg-accent"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 

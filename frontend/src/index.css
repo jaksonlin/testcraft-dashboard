@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Theme System CSS Variables */
 :root {
@@ -46,7 +48,7 @@
 }
 
 /* Dark theme colors */
-[data-theme="dark"] {
+.dark {
   --color-background: #111827;
   --color-foreground: #f9fafb;
   --color-primary: #3b82f6;

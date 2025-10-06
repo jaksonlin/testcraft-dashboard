@@ -140,7 +140,7 @@ const RepositoryDetailView: React.FC = () => {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading repository details...</p>
+          <p className="mt-2" style={{ color: 'var(--color-muted-foreground)' }}>Loading repository details...</p>
         </div>
       </div>
     );
@@ -151,8 +151,8 @@ const RepositoryDetailView: React.FC = () => {
       <div className="p-8">
         <div className="card text-center py-12">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Repository Not Found</h2>
-          <p className="text-gray-600 mb-4">{error || 'The requested repository could not be found.'}</p>
+          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--color-foreground)' }}>Repository Not Found</h2>
+          <p className="mb-4" style={{ color: 'var(--color-muted-foreground)' }}>{error || 'The requested repository could not be found.'}</p>
           <button 
             onClick={() => navigate('/repositories')}
             className="btn btn-primary"
@@ -174,7 +174,7 @@ const RepositoryDetailView: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => navigate('/repositories')}
-            className="flex items-center text-gray-600 hover:text-gray-900"
+            className="flex items-center hover:opacity-80" style={{ color: 'var(--color-muted-foreground)' }}
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
             Back to Repositories
@@ -201,12 +201,12 @@ const RepositoryDetailView: React.FC = () => {
         
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{repository.repository}</h1>
-            <div className="flex items-center text-gray-600 mb-4">
+            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-foreground)' }}>{repository.repository}</h1>
+            <div className="flex items-center mb-4" style={{ color: 'var(--color-muted-foreground)' }}>
               <GitBranch className="h-4 w-4 mr-2" />
               <span className="font-mono text-sm">{repository.gitUrl}</span>
             </div>
-            <div className="flex items-center text-gray-600">
+            <div className="flex items-center" style={{ color: 'var(--color-muted-foreground)' }}>
               <Users className="h-4 w-4 mr-2" />
               <span className="text-sm">{repository.teamName} ({repository.teamCode})</span>
             </div>
@@ -219,7 +219,7 @@ const RepositoryDetailView: React.FC = () => {
                 {repository.coverageRate.toFixed(1)}%
               </span>
             </div>
-            <div className="text-sm text-gray-600">Coverage Rate</div>
+            <div className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>Coverage Rate</div>
           </div>
         </div>
       </div>
@@ -230,8 +230,8 @@ const RepositoryDetailView: React.FC = () => {
           <div className="flex items-center">
             <FileText className="h-8 w-8 text-blue-600 mr-3" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Test Classes</p>
-              <p className="text-2xl font-bold text-gray-900">{repository.testClasses}</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Test Classes</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-foreground)' }}>{repository.testClasses}</p>
             </div>
           </div>
         </div>
@@ -240,8 +240,8 @@ const RepositoryDetailView: React.FC = () => {
           <div className="flex items-center">
             <Activity className="h-8 w-8 text-green-600 mr-3" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Test Methods</p>
-              <p className="text-2xl font-bold text-gray-900">{repository.testMethodCount}</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Test Methods</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-foreground)' }}>{repository.testMethodCount}</p>
             </div>
           </div>
         </div>
@@ -250,8 +250,8 @@ const RepositoryDetailView: React.FC = () => {
           <div className="flex items-center">
             <Target className="h-8 w-8 text-purple-600 mr-3" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Annotated Methods</p>
-              <p className="text-2xl font-bold text-gray-900">{repository.annotatedMethods}</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Annotated Methods</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--color-foreground)' }}>{repository.annotatedMethods}</p>
             </div>
           </div>
         </div>
@@ -260,8 +260,8 @@ const RepositoryDetailView: React.FC = () => {
           <div className="flex items-center">
             <Calendar className="h-8 w-8 text-orange-600 mr-3" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Last Scan</p>
-              <p className="text-sm font-bold text-gray-900">{formatDate(repository.lastScan)}</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--color-muted-foreground)' }}>Last Scan</p>
+              <p className="text-sm font-bold" style={{ color: 'var(--color-foreground)' }}>{formatDate(repository.lastScan)}</p>
             </div>
           </div>
         </div>
@@ -269,14 +269,14 @@ const RepositoryDetailView: React.FC = () => {
 
       {/* Coverage Progress */}
       <div className="card mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Coverage Analysis</h3>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-foreground)' }}>Coverage Analysis</h3>
         <div className="space-y-4">
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-600">Overall Coverage</span>
-              <span className="font-medium">{repository.coverageRate.toFixed(1)}%</span>
+              <span style={{ color: 'var(--color-muted-foreground)' }}>Overall Coverage</span>
+              <span className="font-medium" style={{ color: 'var(--color-foreground)' }}>{repository.coverageRate.toFixed(1)}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="w-full rounded-full h-3" style={{ backgroundColor: 'var(--color-border)' }}>
               <div 
                 className="bg-orange-custom h-3 rounded-full transition-all duration-300" 
                 style={{ width: `${repository.coverageRate}%` }}
@@ -287,15 +287,15 @@ const RepositoryDetailView: React.FC = () => {
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-blue-600">{repository.testClasses}</div>
-              <div className="text-sm text-gray-600">Test Classes</div>
+              <div className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>Test Classes</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600">{repository.testMethodCount}</div>
-              <div className="text-sm text-gray-600">Total Methods</div>
+              <div className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>Total Methods</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-purple-600">{repository.annotatedMethods}</div>
-              <div className="text-sm text-gray-600">Annotated</div>
+              <div className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>Annotated</div>
             </div>
           </div>
         </div>
@@ -306,13 +306,19 @@ const RepositoryDetailView: React.FC = () => {
         <nav className="-mb-px flex space-x-6" aria-label="Tabs">
           <button
             onClick={() => setActiveTab('classes')}
-            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'classes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'classes' ? 'border-blue-600 text-blue-600' : 'border-transparent hover:border-gray-300'}`}
+            style={{ color: activeTab === 'classes' ? '#3b82f6' : 'var(--color-muted-foreground)' }}
+            onMouseEnter={(e) => { if (activeTab !== 'classes') (e.target as HTMLElement).style.color = 'var(--color-foreground)'; }}
+            onMouseLeave={(e) => { if (activeTab !== 'classes') (e.target as HTMLElement).style.color = 'var(--color-muted-foreground)'; }}
           >
             Classes
           </button>
           <button
             onClick={() => selectedClassId && setActiveTab('methods')}
-            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'methods' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} ${!selectedClassId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'methods' ? 'border-blue-600 text-blue-600' : 'border-transparent hover:border-gray-300'} ${!selectedClassId ? 'opacity-50 cursor-not-allowed' : ''}`}
+            style={{ color: activeTab === 'methods' ? '#3b82f6' : 'var(--color-muted-foreground)' }}
+            onMouseEnter={(e) => { if (activeTab !== 'methods') (e.target as HTMLElement).style.color = 'var(--color-foreground)'; }}
+            onMouseLeave={(e) => { if (activeTab !== 'methods') (e.target as HTMLElement).style.color = 'var(--color-muted-foreground)'; }}
             disabled={!selectedClassId}
           >
             Methods{selectedClassName ? `: ${selectedClassName}` : ''}
@@ -323,28 +329,28 @@ const RepositoryDetailView: React.FC = () => {
       {activeTab === 'classes' && (
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Test Classes</h3>
-            <span className="text-sm text-gray-600">{classes.length} classes</span>
+            <h3 className="text-lg font-semibold" style={{ color: 'var(--color-foreground)' }}>Test Classes</h3>
+            <span className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{classes.length} classes</span>
           </div>
           {classes.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead style={{ backgroundColor: 'var(--color-muted)' }}>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Methods</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Annotated</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coverage</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Class</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Methods</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Annotated</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Coverage</th>
                     <th className="px-6 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200" style={{ backgroundColor: 'var(--color-background)' }}>
                   {classes.map((cls) => (
-                    <tr key={cls.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{cls.className}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{cls.testMethodCount}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{cls.annotatedMethodCount}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{cls.coverageRate?.toFixed(1)}%</td>
+                    <tr key={cls.id} className="hover:bg-gray-50 dark:hover:bg-gray-700" style={{ backgroundColor: 'var(--color-background)' }}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{cls.className}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--color-foreground)' }}>{cls.testMethodCount}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--color-foreground)' }}>{cls.annotatedMethodCount}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--color-foreground)' }}>{cls.coverageRate?.toFixed(1)}%</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         <button className="btn btn-secondary" onClick={() => handleSelectClass(cls)}>View Methods</button>
                       </td>
@@ -356,8 +362,8 @@ const RepositoryDetailView: React.FC = () => {
           ) : (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Test Classes Found</h3>
-              <p className="text-gray-600">This repository doesn't have any test classes yet.</p>
+              <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--color-foreground)' }}>No Test Classes Found</h3>
+              <p style={{ color: 'var(--color-muted-foreground)' }}>This repository doesn't have any test classes yet.</p>
             </div>
           )}
         </div>
@@ -366,25 +372,25 @@ const RepositoryDetailView: React.FC = () => {
       {activeTab === 'methods' && (
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Methods {selectedClassName ? `for ${selectedClassName}` : ''}</h3>
-            <span className="text-sm text-gray-600">{testMethods.length} methods</span>
+            <h3 className="text-lg font-semibold" style={{ color: 'var(--color-foreground)' }}>Methods {selectedClassName ? `for ${selectedClassName}` : ''}</h3>
+            <span className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{testMethods.length} methods</span>
           </div>
           {testMethods.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead style={{ backgroundColor: 'var(--color-muted)' }}>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Modified</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Method</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Author</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Target</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Last Modified</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200" style={{ backgroundColor: 'var(--color-background)' }}>
                   {testMethods.map((method) => (
-                    <tr key={method.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{method.testMethod}</td>
+                    <tr key={method.id} className="hover:bg-gray-50 dark:hover:bg-gray-700" style={{ backgroundColor: 'var(--color-background)' }}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{method.testMethod}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           method.status === 'PASS' ? 'bg-green-100 text-green-800' :
@@ -394,9 +400,9 @@ const RepositoryDetailView: React.FC = () => {
                           {method.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{method.author}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{method.targetClass}.{method.targetMethod}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{method.lastModified ? formatDate(method.lastModified) : 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--color-foreground)' }}>{method.author}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{method.targetClass}.{method.targetMethod}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{method.lastModified ? formatDate(method.lastModified) : 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -405,8 +411,8 @@ const RepositoryDetailView: React.FC = () => {
           ) : (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Select a class first</h3>
-              <p className="text-gray-600">Choose a class on the Classes tab to view its methods.</p>
+              <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--color-foreground)' }}>Select a class first</h3>
+              <p style={{ color: 'var(--color-muted-foreground)' }}>Choose a class on the Classes tab to view its methods.</p>
             </div>
           )}
         </div>

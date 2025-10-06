@@ -18,18 +18,18 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onManualScan
 }) => {
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">TestCraft Dashboard</h1>
-            <p className="text-gray-600">Continuous Git Repository Monitoring</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">TestCraft Dashboard</h1>
+            <p className="text-gray-600 dark:text-gray-400">Continuous Git Repository Monitoring</p>
           </div>
           <div className="flex items-center space-x-4">
             {scanStatus && (
               <div className="text-right">
-                <p className="text-sm text-gray-600">Last Scan</p>
-                <p className="text-sm font-medium">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Last Scan</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {scanStatus.lastScanTime 
                     ? new Date(scanStatus.lastScanTime).toLocaleString()
                     : 'Never'
@@ -38,8 +38,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               </div>
             )}
             <div className="text-right">
-              <p className="text-xs text-gray-500">Data refreshed</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Data refreshed</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {lastRefreshTime.toLocaleTimeString()}
               </p>
             </div>

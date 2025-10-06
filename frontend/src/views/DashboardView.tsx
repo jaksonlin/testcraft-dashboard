@@ -80,10 +80,10 @@ const DashboardView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary-600" />
-          <p className="mt-2 text-gray-600">Loading dashboard...</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -91,11 +91,11 @@ const DashboardView: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="card max-w-md text-center">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Connection Error</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Connection Error</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <button 
             onClick={() => fetchDashboardData()}
             className="btn btn-primary"
@@ -108,7 +108,7 @@ const DashboardView: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <DashboardHeader
         scanStatus={scanStatus}

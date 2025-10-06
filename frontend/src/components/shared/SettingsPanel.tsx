@@ -42,60 +42,32 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
       />
       
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-96 shadow-xl z-50 flex flex-col" style={{
-        backgroundColor: 'var(--color-background)',
-        borderLeft: '1px solid var(--color-border)'
-      }}>
+      <div className="fixed right-0 top-0 h-full w-96 shadow-xl z-50 flex flex-col bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700">
         {/* Header */}
-        <div className="flex items-center justify-between p-6" style={{
-          borderBottom: '1px solid var(--color-border)'
-        }}>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
-            <Settings className="h-6 w-6 mr-3" style={{ color: 'var(--color-primary)' }} />
-            <h2 className="text-xl font-semibold" style={{ color: 'var(--color-foreground)' }}>Settings</h2>
+            <Settings className="h-6 w-6 mr-3 text-blue-600 dark:text-blue-400" />
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Settings</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg transition-colors"
-            style={{
-              backgroundColor: 'transparent',
-              color: 'var(--color-muted-foreground)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-accent)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
+            className="p-2 rounded-lg transition-colors bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex" style={{
-          borderBottom: '1px solid var(--color-border)'
-        }}>
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className="flex-1 flex items-center justify-center px-4 py-3 text-sm font-medium transition-colors"
-              style={{
-                color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-muted-foreground)',
-                borderBottom: activeTab === tab.id ? '2px solid var(--color-primary)' : '2px solid transparent',
-                backgroundColor: activeTab === tab.id ? 'var(--color-accent)' : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.color = 'var(--color-foreground)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.color = 'var(--color-muted-foreground)';
-                }
-              }}
+              className={`flex-1 flex items-center justify-center px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                  : 'text-gray-600 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-900 dark:hover:text-gray-100'
+              }`}
             >
               {tab.icon}
               <span className="ml-2">{tab.label}</span>

@@ -100,13 +100,13 @@ const SettingsView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-        <Settings className="h-8 w-8 text-blue-600 mr-3" />
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        <Settings className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
+        <h1 className="text-3xl font-bold" style={{ color: 'var(--color-foreground)' }}>Settings</h1>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={fetchConfig}
-            className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className="flex items-center px-3 py-2 rounded-lg transition-colors" style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-foreground)' }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -128,16 +128,16 @@ const SettingsView: React.FC = () => {
 
       {/* Status Messages */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
-          <span className="text-red-800">{error}</span>
+        <div className="mb-6 p-4 border rounded-lg flex items-center" style={{ backgroundColor: 'var(--color-destructive)', borderColor: 'var(--color-destructive)', color: 'var(--color-destructive-foreground)' }}>
+          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-3" />
+          <span style={{ color: 'var(--color-destructive-foreground)' }}>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-          <span className="text-green-800">{success}</span>
+        <div className="mb-6 p-4 border rounded-lg flex items-center" style={{ backgroundColor: 'var(--color-success)', borderColor: 'var(--color-success)', color: 'var(--color-success-foreground)' }}>
+          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mr-3" />
+          <span style={{ color: 'var(--color-success-foreground)' }}>{success}</span>
         </div>
       )}
 
@@ -154,10 +154,24 @@ const SettingsView: React.FC = () => {
               key={id}
               onClick={() => setActiveTab(id as 'scan' | 'system' | 'notifications' | 'advanced')}
               className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === id
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                activeTab === id ? 'opacity-100' : 'opacity-70'
               }`}
+              style={{
+                backgroundColor: activeTab === id ? 'var(--color-accent)' : 'transparent',
+                color: activeTab === id ? 'var(--color-primary)' : 'var(--color-muted-foreground)'
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== id) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-accent)';
+                  e.currentTarget.style.color = 'var(--color-foreground)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== id) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = 'var(--color-muted-foreground)';
+                }
+              }}
             >
               <Icon className="h-4 w-4 mr-2" />
               {label}
@@ -171,47 +185,47 @@ const SettingsView: React.FC = () => {
         {activeTab === 'scan' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Repository Configuration */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <GitBranch className="h-5 w-5 mr-2 text-blue-600" />
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: 'var(--color-foreground)' }}>
+                <GitBranch className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Repository Configuration
               </h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Repository Hub Path
                   </label>
                   <input
                     type="text"
                     value={formData.repositoryHubPath}
                     onChange={(e) => handleInputChange('repositoryHubPath', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="/path/to/repositories"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Base directory where repositories are stored
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Repository List File
                   </label>
                   <input
                     type="text"
                     value={formData.repositoryListFile}
                     onChange={(e) => handleInputChange('repositoryListFile', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="repositories.txt"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     File containing list of repositories to scan
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Max Repositories Per Scan
                   </label>
                   <input
@@ -220,9 +234,9 @@ const SettingsView: React.FC = () => {
                     max="100"
                     value={formData.maxRepositoriesPerScan}
                     onChange={(e) => handleInputChange('maxRepositoriesPerScan', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Maximum number of repositories to process in a single scan
                   </p>
                 </div>
@@ -230,19 +244,19 @@ const SettingsView: React.FC = () => {
             </div>
 
             {/* Scan Behavior */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Clock className="h-5 w-5 mr-2 text-green-600" />
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: 'var(--color-foreground)' }}>
+                <Clock className="h-5 w-5 mr-2 text-green-600 dark:text-green-400" />
                 Scan Behavior
               </h3>
               
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Temporary Clone Mode
                     </label>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Clone repositories to temporary directories during scan
                     </p>
                   </div>
@@ -259,10 +273,10 @@ const SettingsView: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Scheduler Enabled
                     </label>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Enable automatic scheduled scans
                     </p>
                   </div>
@@ -278,17 +292,17 @@ const SettingsView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Daily Scan Schedule (Cron Expression)
                   </label>
                   <input
                     type="text"
                     value={formData.dailyScanCron}
                     onChange={(e) => handleInputChange('dailyScanCron', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="0 0 2 * * ?"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Cron expression for scheduled scans (default: 2 AM daily)
                   </p>
                 </div>
@@ -300,33 +314,33 @@ const SettingsView: React.FC = () => {
         {activeTab === 'system' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Database Configuration */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: 'var(--color-foreground)' }}>
                 <Database className="h-5 w-5 mr-2 text-purple-600" />
                 Database Configuration
               </h3>
               
               <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-muted)' }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Database Status</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Database Status</span>
                     <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                       Connected
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-muted-foreground)' }}>
                     H2 Database running on localhost:8090
                   </p>
                 </div>
 
-                <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-muted)' }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Connection Pool</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Connection Pool</span>
                     <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                       Active
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-muted-foreground)' }}>
                     HikariCP connection pool configured
                   </p>
                 </div>
@@ -334,31 +348,31 @@ const SettingsView: React.FC = () => {
             </div>
 
             {/* System Information */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: 'var(--color-foreground)' }}>
                 <Shield className="h-5 w-5 mr-2 text-orange-600" />
                 System Information
               </h3>
               
               <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-muted)' }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Application Version</span>
-                    <span className="text-sm text-gray-600">v1.0.0</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Application Version</span>
+                    <span className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>v1.0.0</span>
                   </div>
                 </div>
 
-                <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-muted)' }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Java Version</span>
-                    <span className="text-sm text-gray-600">17.0.x</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Java Version</span>
+                    <span className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>17.0.x</span>
                   </div>
                 </div>
 
-                <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-muted)' }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Spring Boot</span>
-                    <span className="text-sm text-gray-600">3.x</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Spring Boot</span>
+                    <span className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>3.x</span>
                   </div>
                 </div>
               </div>
@@ -367,8 +381,8 @@ const SettingsView: React.FC = () => {
         )}
 
         {activeTab === 'notifications' && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+            <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: 'var(--color-foreground)' }}>
               <Bell className="h-5 w-5 mr-2 text-yellow-600" />
               Notification Settings
             </h3>
@@ -436,31 +450,31 @@ const SettingsView: React.FC = () => {
         {activeTab === 'advanced' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Advanced Configuration */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: 'var(--color-foreground)' }}>
                 <Shield className="h-5 w-5 mr-2 text-red-600" />
                 Advanced Configuration
               </h3>
               
               <div className="space-y-4">
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="p-4 border rounded-lg" style={{ backgroundColor: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}>
                   <div className="flex items-center">
-                    <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
-                    <span className="text-sm font-medium text-yellow-800">
+                    <AlertCircle className="h-5 w-5 mr-2" style={{ color: 'var(--color-warning-foreground)' }} />
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-warning-foreground)' }}>
                       Advanced Settings
                     </span>
                   </div>
-                  <p className="text-xs text-yellow-700 mt-1">
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-warning-foreground)' }}>
                     These settings require system administrator privileges
                   </p>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>
                       Debug Mode
                     </label>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
                       Enable detailed logging and debugging
                     </p>
                   </div>
@@ -475,10 +489,10 @@ const SettingsView: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>
                       Performance Monitoring
                     </label>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
                       Enable performance metrics collection
                     </p>
                   </div>
@@ -495,8 +509,8 @@ const SettingsView: React.FC = () => {
             </div>
 
             {/* Actions */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: 'var(--color-foreground)' }}>
                 <FileText className="h-5 w-5 mr-2 text-gray-600" />
                 Actions
               </h3>
@@ -504,25 +518,25 @@ const SettingsView: React.FC = () => {
               <div className="space-y-4">
                 <button
                   onClick={resetToDefaults}
-                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="w-full px-4 py-2 rounded-lg transition-colors" style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-secondary-foreground)' }}
                 >
                   Reset to Defaults
                 </button>
 
                 <button
                   onClick={fetchConfig}
-                  className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                  className="w-full px-4 py-2 rounded-lg transition-colors" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
                 >
                   Reload Configuration
                 </button>
 
-                <div className="pt-4 border-t border-gray-200">
+                <div className="pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
                   <button
-                    className="w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                    className="w-full px-4 py-2 rounded-lg transition-colors" style={{ backgroundColor: 'var(--color-destructive)', color: 'var(--color-destructive-foreground)' }}
                   >
                     Clear All Data
                   </button>
-                  <p className="text-xs text-gray-500 mt-2 text-center">
+                  <p className="text-xs mt-2 text-center" style={{ color: 'var(--color-muted-foreground)' }}>
                     This will remove all scan history and metrics
                   </p>
                 </div>
