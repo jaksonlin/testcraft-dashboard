@@ -4,6 +4,7 @@ import com.example.annotationextractor.application.PersistenceReadFacade;
 import com.example.annotationextractor.domain.model.*;
 import com.example.annotationextractor.web.dto.*;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -16,12 +17,20 @@ import java.util.*;
 public class DashboardDataService {
 
     private final Optional<PersistenceReadFacade> persistenceReadFacade;
-    private final TeamDataService teamDataService;
-    private final RepositoryDataService repositoryDataService;
+    private TeamDataService teamDataService;
+    private RepositoryDataService repositoryDataService;
 
-    public DashboardDataService(Optional<PersistenceReadFacade> persistenceReadFacade, TeamDataService teamDataService, RepositoryDataService repositoryDataService) {
+    public DashboardDataService(Optional<PersistenceReadFacade> persistenceReadFacade) {
         this.persistenceReadFacade = persistenceReadFacade;
+    }
+
+    @Autowired(required = false)
+    public void setTeamDataService(TeamDataService teamDataService) {
         this.teamDataService = teamDataService;
+    }
+
+    @Autowired(required = false)
+    public void setRepositoryDataService(RepositoryDataService repositoryDataService) {
         this.repositoryDataService = repositoryDataService;
     }
 
@@ -64,10 +73,18 @@ public class DashboardDataService {
             }
             
             // Get top teams (by repository count)
-            overview.setTopTeams(teamDataService.getTopTeams(teams, repositories, 5));
+            if (teamDataService != null) {
+                overview.setTopTeams(teamDataService.getTopTeams(teams, repositories, 5));
+            } else {
+                overview.setTopTeams(List.of());
+            }
             
-                // Get top repositories (by coverage rate)
+            // Get top repositories (by coverage rate)
+            if (repositoryDataService != null) {
                 overview.setTopRepositories(repositoryDataService.getTopRepositories(repositories, teams, 5));
+            } else {
+                overview.setTopRepositories(List.of());
+            }
                 
             } catch (Exception e) {
                 // If database is not available, return empty data

@@ -14,6 +14,7 @@ import com.example.annotationextractor.web.dto.PagedResponse;
 import com.example.annotationextractor.web.dto.GroupedTestMethodResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -27,12 +28,20 @@ import java.util.List;
 public class DashboardController {
 
     private final DashboardDataService dashboardDataService;
-    private final TeamDataService teamDataService;
-    private final RepositoryDataService repositoryDataService;
+    private TeamDataService teamDataService;
+    private RepositoryDataService repositoryDataService;
 
-    public DashboardController(DashboardDataService dashboardDataService, TeamDataService teamDataService, RepositoryDataService repositoryDataService) {
+    public DashboardController(DashboardDataService dashboardDataService) {
         this.dashboardDataService = dashboardDataService;
+    }
+
+    @Autowired(required = false)
+    public void setTeamDataService(TeamDataService teamDataService) {
         this.teamDataService = teamDataService;
+    }
+
+    @Autowired(required = false)
+    public void setRepositoryDataService(RepositoryDataService repositoryDataService) {
         this.repositoryDataService = repositoryDataService;
     }
 
@@ -50,8 +59,12 @@ public class DashboardController {
      */
     @GetMapping("/teams")
     public ResponseEntity<List<TeamMetricsDto>> getTeamMetrics() {
-        List<TeamMetricsDto> teams = teamDataService.getTeamMetrics();
-        return ResponseEntity.ok(teams);
+        if (teamDataService != null) {
+            List<TeamMetricsDto> teams = teamDataService.getTeamMetrics();
+            return ResponseEntity.ok(teams);
+        } else {
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     /**
@@ -60,8 +73,12 @@ public class DashboardController {
     @GetMapping("/teams/{teamId}/repositories")
     public ResponseEntity<List<RepositoryMetricsDto>> getRepositoryMetrics(
             @PathVariable Long teamId) {
-        List<RepositoryMetricsDto> repositories = repositoryDataService.getRepositoryMetricsByTeamId(teamId);
-        return ResponseEntity.ok(repositories);
+        if (repositoryDataService != null) {
+            List<RepositoryMetricsDto> repositories = repositoryDataService.getRepositoryMetricsByTeamId(teamId);
+            return ResponseEntity.ok(repositories);
+        } else {
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     /**
@@ -89,8 +106,12 @@ public class DashboardController {
      */
     @GetMapping("/repositories/details")
     public ResponseEntity<List<RepositoryDetailDto>> getRepositoryDetails() {
-        List<RepositoryDetailDto> repositories = repositoryDataService.getRepositoryDetails();
-        return ResponseEntity.ok(repositories);
+        if (repositoryDataService != null) {
+            List<RepositoryDetailDto> repositories = repositoryDataService.getRepositoryDetails();
+            return ResponseEntity.ok(repositories);
+        } else {
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     /**
@@ -103,9 +124,14 @@ public class DashboardController {
             @RequestParam(required = false) String teamName,
             @RequestParam(required = false) String repositoryName,
             @RequestParam(required = false) Boolean annotated) {
-        PagedResponse<TestMethodDetailDto> result = repositoryDataService.getTestMethodDetailsPaginated(
-            page, size, teamName, repositoryName, annotated);
-        return ResponseEntity.ok(result);
+        if (repositoryDataService != null) {
+            PagedResponse<TestMethodDetailDto> result = repositoryDataService.getTestMethodDetailsPaginated(
+                page, size, teamName, repositoryName, annotated);
+            return ResponseEntity.ok(result);
+        } else {
+            PagedResponse<TestMethodDetailDto> emptyResponse = new PagedResponse<>(List.of(), page, size, 0);
+            return ResponseEntity.ok(emptyResponse);
+        }
     }
 
     /**
@@ -115,8 +141,13 @@ public class DashboardController {
     @GetMapping("/test-methods/grouped")
     public ResponseEntity<GroupedTestMethodResponse> getAllTestMethodDetailsGrouped(
             @RequestParam(defaultValue = "100") Integer limit) {
-        GroupedTestMethodResponse groupedData = repositoryDataService.getAllTestMethodDetailsGrouped(limit);
-        return ResponseEntity.ok(groupedData);
+        if (repositoryDataService != null) {
+            GroupedTestMethodResponse groupedData = repositoryDataService.getAllTestMethodDetailsGrouped(limit);
+            return ResponseEntity.ok(groupedData);
+        } else {
+            GroupedTestMethodResponse emptyResponse = new GroupedTestMethodResponse(List.of(), null);
+            return ResponseEntity.ok(emptyResponse);
+        }
     }
 
     /**
