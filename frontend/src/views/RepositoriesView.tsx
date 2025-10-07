@@ -327,21 +327,77 @@ const RepositoriesView: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex gap-2">
-          <button
-            onClick={() => setColumnManagerOpen(true)}
-            className="btn btn-secondary flex items-center"
-          >
-            <Columns className="h-4 w-4 mr-2" />
-            Columns
-          </button>
-          <ExportManager
-            data={repositories}
-            dataType="repositories"
-            selectedItems={bulkOps.selectedItems}
-            filteredData={repositories}
-            onExport={handleExport}
-          />
+        <div className="flex items-center gap-4">
+          {/* Page Size and Sorting Controls */}
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center">
+              <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Show:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(parseInt(e.target.value));
+                  setCurrentPage(0); // Reset to first page when changing page size
+                }}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value={1}>1 per page</option>
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center">
+              <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setCurrentPage(0); // Reset to first page when sorting
+                }}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="name">Name</option>
+                <option value="team">Team</option>
+                <option value="coverage">Coverage</option>
+                <option value="testmethods">Test Methods</option>
+                <option value="lastscan">Last Scan</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center">
+              <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Order:</span>
+              <select
+                value={sortOrder}
+                onChange={(e) => {
+                  setSortOrder(e.target.value);
+                  setCurrentPage(0); // Reset to first page when changing order
+                }}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setColumnManagerOpen(true)}
+              className="btn btn-secondary flex items-center"
+            >
+              <Columns className="h-4 w-4 mr-2" />
+              Columns
+            </button>
+            <ExportManager
+              data={repositories}
+              dataType="repositories"
+              selectedItems={bulkOps.selectedItems}
+              filteredData={repositories}
+              onExport={handleExport}
+            />
+          </div>
         </div>
       </div>
 
@@ -398,60 +454,6 @@ const RepositoriesView: React.FC = () => {
         )}
       </div>
 
-      {/* Page Size and Sorting Controls */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center">
-            <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Show:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(parseInt(e.target.value));
-                setCurrentPage(0); // Reset to first page when changing page size
-              }}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value={10}>10 per page</option>
-              <option value={20}>20 per page</option>
-              <option value={50}>50 per page</option>
-              <option value={100}>100 per page</option>
-            </select>
-          </div>
-          
-          <div className="flex items-center">
-            <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value);
-                setCurrentPage(0); // Reset to first page when sorting
-              }}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="name">Name</option>
-              <option value="team">Team</option>
-              <option value="coverage">Coverage</option>
-              <option value="testmethods">Test Methods</option>
-              <option value="lastscan">Last Scan</option>
-            </select>
-          </div>
-          
-          <div className="flex items-center">
-            <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Order:</span>
-            <select
-              value={sortOrder}
-              onChange={(e) => {
-                setSortOrder(e.target.value);
-                setCurrentPage(0); // Reset to first page when changing order
-              }}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="asc">Ascending</option>
-              <option value="desc">Descending</option>
-            </select>
-          </div>
-        </div>
-      </div>
 
       {/* Bulk Operations */}
       <BulkOperations
@@ -477,7 +479,7 @@ const RepositoriesView: React.FC = () => {
 
       {/* Pagination Controls */}
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex items-center justify-end mt-6">
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
@@ -514,10 +516,6 @@ const RepositoriesView: React.FC = () => {
               Next
               <ChevronRight className="h-4 w-4 ml-2" />
             </button>
-          </div>
-
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Showing {repositories.length} of {pagination.totalElements} repositories
           </div>
         </div>
       )}

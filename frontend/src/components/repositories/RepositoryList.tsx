@@ -195,17 +195,14 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
         </div>
       )}
 
-      {/* Results Summary */}
-      <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-        <span>
-          Showing {filteredAndSortedRepositories.length} of {repositories.length} repositories
-        </span>
-        {selectedRepositories.size > 0 && (
+      {/* Selected Count Summary */}
+      {selectedRepositories.size > 0 && (
+        <div className="flex items-center justify-end text-sm text-gray-600 dark:text-gray-400">
           <span className="text-blue-600 dark:text-blue-400 font-medium">
             {selectedRepositories.size} selected
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Repository Table */}
       <div className="card p-0 overflow-hidden">
