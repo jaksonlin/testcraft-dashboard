@@ -150,43 +150,8 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header with Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search repositories or teams..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-10"
-            />
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`btn ${showFilters ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
-          </button>
-          
-          {selectedRepositories.size > 0 && (
-            <button
-              onClick={handleBulkScan}
-              className="btn btn-success"
-            >
-              <Play className="h-4 w-4 mr-2" />
-              Scan Selected ({selectedRepositories.size})
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Filters Panel */}
+      {/* Server side filters panel */}
       {showFilters && (
         <div className="card">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
