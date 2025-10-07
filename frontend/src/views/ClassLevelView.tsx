@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import { api, type TestMethodDetail } from '../lib/api';
 import BreadcrumbNavigation from '../components/shared/BreadcrumbNavigation';
+import { 
+  calculateCoverageRate, 
+  countAnnotatedMethods
+} from '../utils/methodUtils';
 
 interface ClassGroup {
   className: string;
@@ -77,8 +81,8 @@ const ClassLevelView: React.FC = () => {
     });
     
     return Array.from(groups.entries()).map(([className, methods]) => {
-      const annotatedCount = methods.filter(m => m.status && m.status !== 'UNKNOWN').length;
-      const coverageRate = methods.length > 0 ? (annotatedCount / methods.length) * 100 : 0;
+      const annotatedCount = countAnnotatedMethods(methods);
+      const coverageRate = calculateCoverageRate(methods);
       
       return {
         className,

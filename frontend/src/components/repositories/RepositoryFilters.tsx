@@ -81,14 +81,14 @@ const RepositoryFilters: React.FC<RepositoryFiltersProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Team Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <Users className="h-4 w-4 inline mr-1" />
                 Team
               </label>
               <select
                 value={teamFilter}
                 onChange={(e) => setTeamFilter(e.target.value)}
-                className="input"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">All Teams</option>
                 {uniqueTeams.map(team => (
@@ -99,34 +99,34 @@ const RepositoryFilters: React.FC<RepositoryFiltersProps> = ({
             
             {/* Coverage Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <Target className="h-4 w-4 inline mr-1" />
                 Coverage Range
               </label>
               <select
                 value={coverageFilter}
                 onChange={(e) => setCoverageFilter(e.target.value)}
-                className="input"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">All Coverage</option>
                 <option value="excellent">Excellent (≥90%)</option>
                 <option value="high">High (≥80%)</option>
                 <option value="medium">Medium (50-79%)</option>
-                <option value="low">Low (<50%)</option>
+                <option value="low">Low (&lt;50%)</option>
                 <option value="none">No Coverage (0%)</option>
               </select>
             </div>
             
             {/* Date Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <Calendar className="h-4 w-4 inline mr-1" />
                 Last Scan
               </label>
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="input"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Any Time</option>
                 <option value="today">Today</option>

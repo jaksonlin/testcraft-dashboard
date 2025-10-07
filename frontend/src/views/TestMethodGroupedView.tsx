@@ -14,7 +14,12 @@ import {
   AlertCircle,
   BarChart3
 } from 'lucide-react';
-import { api, type GroupedTestMethodResponse, type TeamGroup, type ClassGroup, type TestMethodDetail } from '../lib/api';
+import { api, type GroupedTestMethodResponse } from '../lib/api';
+import { 
+  isMethodAnnotated, 
+  calculateCoverageRate, 
+  countAnnotatedMethods
+} from '../utils/methodUtils';
 
 const TestMethodGroupedView: React.FC = () => {
   const [groupedData, setGroupedData] = useState<GroupedTestMethodResponse | null>(null);
@@ -63,10 +68,9 @@ const TestMethodGroupedView: React.FC = () => {
             (method.title && method.title.toLowerCase().includes(searchTerm.toLowerCase()));
 
           // Annotation filter
-          const isAnnotated = method.title && method.title.trim() !== '';
           const matchesAnnotation = filterAnnotated === 'all' ||
-            (filterAnnotated === 'annotated' && isAnnotated) ||
-            (filterAnnotated === 'not-annotated' && !isAnnotated);
+            (filterAnnotated === 'annotated' && isMethodAnnotated(method)) ||
+            (filterAnnotated === 'not-annotated' && !isMethodAnnotated(method));
 
           return matchesSearch && matchesAnnotation;
         });
@@ -77,9 +81,8 @@ const TestMethodGroupedView: React.FC = () => {
           summary: {
             ...classGroup.summary,
             totalMethods: filteredMethods.length,
-            annotatedMethods: filteredMethods.filter(m => m.title && m.title.trim() !== '').length,
-            coverageRate: filteredMethods.length > 0 ? 
-              (filteredMethods.filter(m => m.title && m.title.trim() !== '').length / filteredMethods.length) * 100 : 0
+            annotatedMethods: countAnnotatedMethods(filteredMethods),
+            coverageRate: calculateCoverageRate(filteredMethods)
           }
         };
       }).filter(classGroup => classGroup.methods.length > 0);
@@ -336,7 +339,7 @@ const TestMethodGroupedView: React.FC = () => {
                 <select
                   value={filterAnnotated}
                   onChange={(e) => setFilterAnnotated(e.target.value as 'all' | 'annotated' | 'not-annotated')}
-                  className="select"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="all">All Methods</option>
                   <option value="annotated">Annotated Only</option>
@@ -436,7 +439,7 @@ const TestMethodGroupedView: React.FC = () => {
                           <div className="mt-3 ml-6">
                             <div className="space-y-2">
                               {classGroup.methods.map((method) => {
-                                const isAnnotated = method.title && method.title.trim() !== '';
+                                const isAnnotated = isMethodAnnotated(method);
                                 return (
                                   <div 
                                     key={method.id} 
