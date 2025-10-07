@@ -1,5 +1,7 @@
 package com.example.annotationextractor.casemodel;
 
+import java.util.Arrays;
+
 /**
  * Data model to hold information about a test method including its annotations
  */
@@ -10,6 +12,7 @@ public class TestMethodInfo {
     private String filePath;
     private UnittestCaseInfoData annotationData;
     private int lineNumber;
+    private String[] testCaseIds;  // Test case IDs extracted from ANY annotation
 
     public TestMethodInfo() {
         this.methodName = "";
@@ -18,6 +21,7 @@ public class TestMethodInfo {
         this.filePath = "";
         this.annotationData = new UnittestCaseInfoData();
         this.lineNumber = 0;
+        this.testCaseIds = new String[0];
     }
 
     public TestMethodInfo(String methodName, String className, String packageName, 
@@ -79,6 +83,23 @@ public class TestMethodInfo {
         this.lineNumber = lineNumber;
     }
 
+    public String[] getTestCaseIds() {
+        return testCaseIds;
+    }
+
+    public void setTestCaseIds(String[] testCaseIds) {
+        this.testCaseIds = testCaseIds;
+    }
+
+    /**
+     * Check if this test method is linked to any test cases
+     * 
+     * @return true if test case IDs are present
+     */
+    public boolean hasTestCaseIds() {
+        return testCaseIds != null && testCaseIds.length > 0;
+    }
+
     @Override
     public String toString() {
         return "TestMethodInfo{" +
@@ -88,6 +109,7 @@ public class TestMethodInfo {
                 ", filePath='" + filePath + '\'' +
                 ", annotationData=" + annotationData +
                 ", lineNumber=" + lineNumber +
+                ", testCaseIds=" + Arrays.toString(testCaseIds) +
                 '}';
     }
 }

@@ -5,9 +5,6 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
-import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
-import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
-import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import java.io.File;
@@ -22,6 +19,9 @@ import java.util.Optional;
  * Parser class to extract test method information from Java test classes
  */
 public class TestClassParser {
+    
+    // Registry for extracting test case IDs from any annotation
+    private static final TestCaseIdExtractorRegistry testCaseIdRegistry = new TestCaseIdExtractorRegistry();
     
     /**
      * Parse a Java test class file and extract all test method information
@@ -167,8 +167,14 @@ public class TestClassParser {
                 testMethodInfo.setFilePath(testClassInfo.getFilePath());
                 testMethodInfo.setLineNumber(methodDecl.getBegin().get().line);
                 
-                // Extract UnittestCaseInfo annotation if present
-                for (AnnotationExpr annotation : methodDecl.getAnnotations()) {
+                List<AnnotationExpr> annotations = methodDecl.getAnnotations();
+                
+                // Extract test case IDs from ALL annotations using the plugin-based registry
+                String[] testCaseIds = testCaseIdRegistry.extractTestCaseIds(annotations);
+                testMethodInfo.setTestCaseIds(testCaseIds);
+                
+                // Also extract UnittestCaseInfo annotation data for backward compatibility
+                for (AnnotationExpr annotation : annotations) {
                     if (annotation.getNameAsString().equals("UnittestCaseInfo")) {
                         UnittestCaseInfoData annotationData = UnittestCaseInfoExtractor.extractAnnotationValues(annotation);
                         testMethodInfo.setAnnotationData(annotationData);

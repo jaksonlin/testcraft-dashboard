@@ -1,6 +1,8 @@
 package com.example.annotationextractor.casemodel;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Data model to hold all the extracted values from UnittestCaseInfo annotation
@@ -13,6 +15,7 @@ public class UnittestCaseInfoData {
     private String[] testPoints;
     private String description;
     private String[] tags;
+    private String[] testCaseIds;
     private String status;
     private String[] relatedRequirements;
     private String[] relatedDefects;
@@ -31,6 +34,7 @@ public class UnittestCaseInfoData {
         this.testPoints = new String[0];
         this.description = "";
         this.tags = new String[0];
+        this.testCaseIds = new String[0];
         this.status = "TODO";
         this.relatedRequirements = new String[0];
         this.relatedDefects = new String[0];
@@ -97,6 +101,14 @@ public class UnittestCaseInfoData {
         this.tags = tags;
     }
 
+    public String[] getTestCaseIds() {
+        return testCaseIds;
+    }
+
+    public void setTestCaseIds(String[] testCaseIds) {
+        this.testCaseIds = testCaseIds;
+    }
+
     public String getStatus() {
         return status;
     }
@@ -153,6 +165,53 @@ public class UnittestCaseInfoData {
         this.methodSignature = methodSignature;
     }
 
+    /**
+     * Gets all test case IDs with backward compatibility.
+     * 
+     * Priority:
+     * 1. If testCaseIds is not empty, returns it
+     * 2. Otherwise, extracts IDs from tags that match common test case patterns
+     *    (TC-, ID-, REQ-, etc.)
+     * 
+     * @return Array of test case IDs from either testCaseIds or tags
+     */
+    public String[] getAllTestCaseIds() {
+        // If the new field is populated, use it
+        if (testCaseIds != null && testCaseIds.length > 0) {
+            return testCaseIds;
+        }
+        
+        // Backward compatibility: extract test case IDs from tags
+        if (tags != null && tags.length > 0) {
+            List<String> extractedIds = new ArrayList<>();
+            for (String tag : tags) {
+                if (tag != null && isTestCaseId(tag)) {
+                    extractedIds.add(tag);
+                }
+            }
+            return extractedIds.toArray(new String[0]);
+        }
+        
+        return new String[0];
+    }
+    
+    /**
+     * Checks if a tag looks like a test case ID.
+     * Common patterns: TC-123, ID-456, REQ-789, TS-012, etc.
+     * 
+     * @param tag The tag to check
+     * @return true if the tag matches a test case ID pattern
+     */
+    private boolean isTestCaseId(String tag) {
+        if (tag == null || tag.isEmpty()) {
+            return false;
+        }
+        
+        // Match patterns like: TC-123, ID-456, REQ-789, TS-012, CASE-111, etc.
+        // Pattern: 2-4 uppercase letters, followed by hyphen and digits
+        return tag.matches("^[A-Z]{2,4}-\\d+$");
+    }
+
     @Override
     public String toString() {
         return "UnittestCaseInfoData{" +
@@ -163,6 +222,7 @@ public class UnittestCaseInfoData {
                 ", testPoints=" + Arrays.toString(testPoints) +
                 ", description='" + description + '\'' +
                 ", tags=" + Arrays.toString(tags) +
+                ", testCaseIds=" + Arrays.toString(testCaseIds) +
                 ", status='" + status + '\'' +
                 ", relatedRequirements=" + Arrays.toString(relatedRequirements) +
                 ", relatedDefects=" + Arrays.toString(relatedDefects) +
