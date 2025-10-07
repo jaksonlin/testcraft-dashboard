@@ -37,6 +37,15 @@ const ExportManager: React.FC<ExportManagerProps> = ({
   const getExportOptions = (): ExportOption[] => {
     const baseOptions: ExportOption[] = [
       {
+        id: 'excel-all',
+        label: 'Export All (Excel)',
+        description: `Export all ${dataType} to Excel with multiple sheets`,
+        icon: <Table className="h-4 w-4" />,
+        format: 'excel',
+        scope: 'all',
+        filename: `${dataType}-comprehensive-${new Date().toISOString().split('T')[0]}.xlsx`
+      },
+      {
         id: 'csv-all',
         label: 'Export All (CSV)',
         description: `Export all ${dataType} to CSV format`,

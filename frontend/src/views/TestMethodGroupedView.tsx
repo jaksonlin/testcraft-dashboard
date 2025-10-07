@@ -4,7 +4,6 @@ import {
   ChevronRight, 
   Search, 
   Filter, 
-  Download, 
   RefreshCw,
   Users,
   FileText,
@@ -20,6 +19,11 @@ import {
   calculateCoverageRate, 
   countAnnotatedMethods
 } from '../utils/methodUtils';
+import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
+import { 
+  prepareGroupedTestMethodExportData, 
+  exportData as exportDataUtil
+} from '../utils/exportUtils';
 
 const TestMethodGroupedView: React.FC = () => {
   const [groupedData, setGroupedData] = useState<GroupedTestMethodResponse | null>(null);
@@ -148,45 +152,16 @@ const TestMethodGroupedView: React.FC = () => {
     });
   };
 
-  const exportData = () => {
+  const handleExport = async (option: ExportOption) => {
     if (!filteredData) return;
 
-    const exportData = {
-      exportDate: new Date().toISOString(),
-      summary: filteredData.summary,
-      teams: filteredData.teams.map(team => ({
-        teamName: team.teamName,
-        teamCode: team.teamCode,
-        summary: team.summary,
-        classes: team.classes.map(classGroup => ({
-          className: classGroup.className,
-          repository: classGroup.repository,
-          summary: classGroup.summary,
-          methods: classGroup.methods.map(method => ({
-            testMethod: method.testMethod,
-            testClass: method.testClass,
-            repository: method.repository,
-            title: method.title,
-            author: method.author,
-            status: method.status,
-            targetClass: method.targetClass,
-            targetMethod: method.targetMethod,
-            description: method.description,
-            isAnnotated: !!(method.title && method.title.trim())
-          }))
-        }))
-      }))
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `test-methods-grouped-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      const exportData = prepareGroupedTestMethodExportData(filteredData, option.scope);
+      await exportDataUtil(exportData, option);
+    } catch (error) {
+      console.error('Export failed:', error);
+      throw error;
+    }
   };
 
   const formatCoverageRate = (rate: number) => `${rate.toFixed(1)}%`;
@@ -257,13 +232,12 @@ const TestMethodGroupedView: React.FC = () => {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </button>
-              <button
-                onClick={exportData}
-                className="btn btn-success flex items-center"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </button>
+              <ExportManager
+                data={[]}
+                dataType="methods"
+                onExport={handleExport}
+                className="flex items-center"
+              />
             </div>
           </div>
         </div>
