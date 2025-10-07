@@ -11,6 +11,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { type RepositorySummary } from '../../lib/api';
+import GitUrlLink from '../shared/GitUrlLink';
 
 interface RepositoryListProps {
   repositories: RepositorySummary[];
@@ -338,9 +339,12 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                     <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {repository.repositoryName}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
-                      {repository.gitUrl}
-                    </div>
+                    <GitUrlLink 
+                      url={repository.gitUrl} 
+                      className="mt-1"
+                      truncate={true}
+                      maxWidth="max-w-xs"
+                    />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">

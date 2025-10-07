@@ -8,7 +8,6 @@ import {
   Users, 
   Target, 
   FileText,
-  GitBranch,
   Activity,
   AlertCircle,
   CheckCircle,
@@ -17,6 +16,7 @@ import {
 import { api, type RepositoryDetail, type TestMethodDetail, type TestClassSummary } from '../lib/api';
 import { isMethodAnnotated, getAnnotationStatusDisplayName } from '../utils/methodUtils';
 import BreadcrumbNavigation from '../components/shared/BreadcrumbNavigation';
+import GitUrlLink from '../components/shared/GitUrlLink';
 
 const RepositoryDetailView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -206,8 +206,12 @@ const RepositoryDetailView: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-foreground)' }}>{repository.repository}</h1>
             <div className="flex items-center mb-4" style={{ color: 'var(--color-muted-foreground)' }}>
-              <GitBranch className="h-4 w-4 mr-2" />
-              <span className="font-mono text-sm">{repository.gitUrl}</span>
+              <GitUrlLink 
+                url={repository.gitUrl}
+                showIcon={true}
+                copyable={true}
+                className="font-mono text-sm"
+              />
             </div>
             <div className="flex items-center" style={{ color: 'var(--color-muted-foreground)' }}>
               <Users className="h-4 w-4 mr-2" />

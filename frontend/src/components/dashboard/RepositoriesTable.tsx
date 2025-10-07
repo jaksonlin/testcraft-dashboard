@@ -1,9 +1,10 @@
 import React from 'react';
-import { type DashboardOverview } from '../../lib/api';
+import { type DashboardOverview, type RepositorySummary } from '../../lib/api';
+import GitUrlLink from '../shared/GitUrlLink';
 
 interface RepositoriesTableProps {
   repositories: DashboardOverview['topRepositories'];
-  onRepositoryClick?: (repository: any) => void;
+  onRepositoryClick?: (repository: RepositorySummary) => void;
 }
 
 const RepositoriesTable: React.FC<RepositoriesTableProps> = ({ repositories, onRepositoryClick }) => {
@@ -40,14 +41,19 @@ const RepositoriesTable: React.FC<RepositoriesTableProps> = ({ repositories, onR
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
             {repositories.map((repo) => (
               <tr 
-                key={repo.id}
+                key={repo.repositoryId}
                 onClick={() => onRepositoryClick?.(repo)}
                 className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
                     <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{repo.repositoryName}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{repo.gitUrl}</div>
+                    <GitUrlLink 
+                      url={repo.gitUrl} 
+                      className="mt-1"
+                      truncate={true}
+                      maxWidth="max-w-xs"
+                    />
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">

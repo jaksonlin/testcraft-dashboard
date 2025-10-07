@@ -7,6 +7,7 @@ import ExportManager, { type ExportOption } from '../components/shared/ExportMan
 import { useBulkOperations } from '../hooks/useBulkOperations';
 import { exportData as exportDataUtil, prepareTeamExportData, type ExportScope } from '../utils/exportUtils';
 import { useModal } from '../hooks/useModal';
+import GitUrlLink from '../components/shared/GitUrlLink';
 
 interface TeamDetailModalProps {
   team: TeamMetrics | null;
@@ -340,7 +341,12 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                       <td className="px-4 py-3">
                         <div>
                           <div className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{repo.repositoryName}</div>
-                          <div className="text-sm truncate max-w-xs" style={{ color: 'var(--color-muted-foreground)' }}>{repo.gitUrl}</div>
+                          <GitUrlLink 
+                            url={repo.gitUrl}
+                            className="mt-1"
+                            truncate={true}
+                            maxWidth="max-w-xs"
+                          />
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm" style={{ color: 'var(--color-foreground)' }}>{repo.testClassCount}</td>
