@@ -1,0 +1,365 @@
+import React, { useState, useMemo } from 'react';
+import { RefreshCw, CheckCircle, XCircle, ExternalLink, FileText, Target } from 'lucide-react';
+import { api, type TestMethodDetail } from '../lib/api';
+import PaginatedTable, { type ColumnDef } from '../components/shared/PaginatedTable';
+import { usePaginatedData } from '../hooks/usePaginatedData';
+import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
+import { prepareTestMethodExportData, exportData as exportDataUtil } from '../utils/exportUtils';
+import { isMethodAnnotated, getAnnotationStatusDisplayName } from '../utils/methodUtils';
+
+const TestMethodsView: React.FC = () => {
+  const [filters, setFilters] = useState({
+    teamName: '',
+    repositoryName: '',
+    annotated: undefined as boolean | undefined
+  });
+
+  const {
+    data: testMethods,
+    loading,
+    error,
+    currentPage,
+    pageSize,
+    totalElements,
+    setPage,
+    setPageSize,
+    setFilters: setDataFilters,
+    refresh
+  } = usePaginatedData({
+    fetchFunction: async (page, size, currentFilters) => {
+      const response = await api.dashboard.getTestMethodDetailsPaginated(
+        page,
+        size,
+        currentFilters.teamName || undefined,
+        currentFilters.repositoryName || undefined,
+        currentFilters.annotated
+      );
+      return {
+        content: response.content,
+        totalElements: response.totalElements,
+        page: response.page,
+        size: response.size,
+        totalPages: response.totalPages
+      };
+    },
+    initialPageSize: 50,
+    initialFilters: filters
+  });
+
+  const handleFilterChange = (newFilters: Partial<typeof filters>) => {
+    const updatedFilters = { ...filters, ...newFilters };
+    setFilters(updatedFilters);
+    setDataFilters(updatedFilters);
+  };
+
+  const handleExport = async (option: ExportOption) => {
+    try {
+      // For large exports, we might need to fetch all data
+      const exportData = prepareTestMethodExportData(testMethods, option.scope);
+      await exportDataUtil(exportData, option);
+    } catch (error) {
+      console.error('Export failed:', error);
+      throw error;
+    }
+  };
+
+  const columns: ColumnDef<TestMethodDetail>[] = useMemo(() => [
+    {
+      key: 'repository',
+      header: 'Repository',
+      render: (method) => (
+        <div className="flex items-center space-x-2">
+          <span className="font-medium text-gray-900 dark:text-gray-100">
+            {method.repository}
+          </span>
+          <a
+            href={method.gitUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      ),
+      sortable: true,
+      width: '200px'
+    },
+    {
+      key: 'testClass',
+      header: 'Test Class',
+      render: (method) => (
+        <span className="text-gray-900 dark:text-gray-100 font-mono text-sm">
+          {method.testClass}
+        </span>
+      ),
+      sortable: true,
+      width: '250px'
+    },
+    {
+      key: 'testMethod',
+      header: 'Test Method',
+      render: (method) => (
+        <span className="text-gray-900 dark:text-gray-100 font-mono text-sm">
+          {method.testMethod}
+        </span>
+      ),
+      sortable: true,
+      width: '200px'
+    },
+    {
+      key: 'annotation',
+      header: 'Annotation Status',
+      render: (method) => {
+        const isAnnotated = isMethodAnnotated(method);
+        return (
+          <div className="flex items-center space-x-2">
+            {isAnnotated ? (
+              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+            ) : (
+              <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+            )}
+            <span className={`text-sm ${
+              isAnnotated 
+                ? 'text-green-600 dark:text-green-400' 
+                : 'text-red-600 dark:text-red-400'
+            }`}>
+              {getAnnotationStatusDisplayName(method)}
+            </span>
+          </div>
+        );
+      },
+      sortable: true,
+      width: '150px'
+    },
+    {
+      key: 'title',
+      header: 'Title',
+      render: (method) => (
+        <span className="text-gray-900 dark:text-gray-100 truncate max-w-xs">
+          {method.title || 'No title'}
+        </span>
+      ),
+      sortable: true,
+      width: '300px'
+    },
+    {
+      key: 'author',
+      header: 'Author',
+      render: (method) => (
+        <span className="text-gray-700 dark:text-gray-300">
+          {method.author || 'Unknown'}
+        </span>
+      ),
+      sortable: true,
+      width: '120px'
+    },
+    {
+      key: 'status',
+      header: 'Test Status',
+      render: (method) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          method.status === 'PASS' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+          method.status === 'FAIL' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+          'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+        }`}>
+          {method.status || 'UNKNOWN'}
+        </span>
+      ),
+      sortable: true,
+      width: '120px'
+    },
+    {
+      key: 'teamName',
+      header: 'Team',
+      render: (method) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+          {method.teamName}
+        </span>
+      ),
+      sortable: true,
+      width: '100px'
+    }
+  ], []);
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            Error Loading Test Methods
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <button
+            onClick={refresh}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                Test Methods
+              </h1>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">
+                Comprehensive view of all test methods with advanced filtering and pagination
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={refresh}
+                disabled={loading}
+                className="flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              <ExportManager
+                data={testMethods}
+                dataType="methods"
+                onExport={handleExport}
+                className="flex items-center"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Team Filter
+              </label>
+              <input
+                type="text"
+                placeholder="Filter by team name..."
+                value={filters.teamName}
+                onChange={(e) => handleFilterChange({ teamName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Repository Filter
+              </label>
+              <input
+                type="text"
+                placeholder="Filter by repository name..."
+                value={filters.repositoryName}
+                onChange={(e) => handleFilterChange({ repositoryName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Annotation Status
+              </label>
+              <select
+                value={filters.annotated === undefined ? 'all' : filters.annotated ? 'annotated' : 'not-annotated'}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  handleFilterChange({
+                    annotated: value === 'all' ? undefined : value === 'annotated'
+                  });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Methods</option>
+                <option value="annotated">Annotated Only</option>
+                <option value="not-annotated">Not Annotated</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Methods</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                  {totalElements.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Annotated</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                  {testMethods.filter(isMethodAnnotated).length.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <XCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Not Annotated</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                  {testMethods.filter(m => !isMethodAnnotated(m)).length.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <Target className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Coverage Rate</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                  {testMethods.length > 0 
+                    ? ((testMethods.filter(isMethodAnnotated).length / testMethods.length) * 100).toFixed(1)
+                    : '0.0'
+                  }%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        <PaginatedTable
+          data={testMethods}
+          totalItems={totalElements}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          columns={columns}
+          loading={loading}
+          searchable={false}
+          className="shadow-lg"
+        />
+      </div>
+    </div>
+  );
+};
+
+export default TestMethodsView;

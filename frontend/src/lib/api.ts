@@ -226,6 +226,18 @@ export interface ClassSummary {
   coverageRate: number;
 }
 
+export interface PagedResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
 export interface ScanSession {
   id: number;
   startTime: string;
@@ -267,8 +279,9 @@ export const api = {
     getAllTestMethodDetails: (limit?: number): Promise<TestMethodDetail[]> =>
       apiClient.get(`/dashboard/test-methods/all${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
     
-    getAllTestMethodDetailsGrouped: (limit?: number): Promise<GroupedTestMethodResponse> =>
-      apiClient.get(`/dashboard/test-methods/grouped${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
+    // Paginated test method details for better performance
+    getTestMethodDetailsPaginated: (page: number, size: number, teamName?: string, repositoryName?: string, annotated?: boolean): Promise<PagedResponse<TestMethodDetail>> =>
+      apiClient.get(`/dashboard/test-methods/paginated?page=${page}&size=${size}${teamName ? `&teamName=${teamName}` : ''}${repositoryName ? `&repositoryName=${repositoryName}` : ''}${annotated !== undefined ? `&annotated=${annotated}` : ''}`).then(res => res.data),
   },
 
   // Repository endpoints

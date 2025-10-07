@@ -9,6 +9,7 @@ import TeamsView from '../views/TeamsView';
 import AnalyticsView from '../views/AnalyticsView';
 import SettingsView from '../views/SettingsView';
 import TestMethodGroupedView from '../views/TestMethodGroupedView';
+import TestMethodsView from '../views/TestMethodsView';
 
 const router = createBrowserRouter([
   {
@@ -46,6 +47,10 @@ const router = createBrowserRouter([
               {
                 path: 'test-methods',
                 element: <TestMethodGroupedView />
+              },
+              {
+                path: 'test-methods-paginated',
+                element: <TestMethodsView />
               }
     ]
   }

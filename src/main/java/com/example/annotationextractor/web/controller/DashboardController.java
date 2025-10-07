@@ -10,6 +10,7 @@ import com.example.annotationextractor.web.dto.TeamMetricsDto;
 import com.example.annotationextractor.web.dto.RepositoryMetricsDto;
 import com.example.annotationextractor.web.dto.RepositoryDetailDto;
 import com.example.annotationextractor.web.dto.TestMethodDetailDto;
+import com.example.annotationextractor.web.dto.PagedResponse;
 import com.example.annotationextractor.web.dto.GroupedTestMethodResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -93,13 +94,18 @@ public class DashboardController {
     }
 
     /**
-     * Get all test method details for dashboard overview
+     * Get all test method details with pagination for better performance
      */
-    @GetMapping("/test-methods/all")
-    public ResponseEntity<List<TestMethodDetailDto>> getAllTestMethodDetails(
-            @RequestParam(defaultValue = "100") Integer limit) {
-        List<TestMethodDetailDto> testMethods = repositoryDataService.getAllTestMethodDetails(limit);
-        return ResponseEntity.ok(testMethods);
+    @GetMapping("/test-methods/paginated")
+    public ResponseEntity<PagedResponse<TestMethodDetailDto>> getTestMethodDetailsPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String teamName,
+            @RequestParam(required = false) String repositoryName,
+            @RequestParam(required = false) Boolean annotated) {
+        PagedResponse<TestMethodDetailDto> result = repositoryDataService.getTestMethodDetailsPaginated(
+            page, size, teamName, repositoryName, annotated);
+        return ResponseEntity.ok(result);
     }
 
     /**

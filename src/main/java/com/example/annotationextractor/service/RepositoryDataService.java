@@ -21,6 +21,7 @@ import com.example.annotationextractor.web.dto.RepositoryMetricsDto;
 import com.example.annotationextractor.web.dto.RepositorySummaryDto;
 import com.example.annotationextractor.web.dto.TestMethodDetailDto;
 import com.example.annotationextractor.web.dto.TestClassSummaryDto;
+import com.example.annotationextractor.web.dto.PagedResponse;
 import com.example.annotationextractor.web.dto.GroupedTestMethodResponse;
 
 @Service
@@ -519,5 +520,79 @@ public class RepositoryDataService {
             new GroupedTestMethodResponse.SummaryDto(totalTeams, totalClasses, totalMethods, totalAnnotatedMethods, overallCoverageRate);
         
         return new GroupedTestMethodResponse(teamDtos, summary);
+    }
+
+    /**
+     * Get test method details with pagination and filtering for better performance
+     * Note: This implementation uses client-side pagination due to current PersistenceReadFacade limitations
+     */
+    public PagedResponse<TestMethodDetailDto> getTestMethodDetailsPaginated(
+            int page, int size, String teamName, String repositoryName, Boolean annotated) {
+        
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
+                if (latestScan.isEmpty()) {
+                    System.err.println("No completed scan session found");
+                    return new PagedResponse<>(List.of(), page, size, 0);
+                }
+                
+                Long scanSessionId = latestScan.get().getId();
+                System.err.println("Using scan session ID: " + scanSessionId + " for paginated test methods");
+                
+                // Get all records first (this is a limitation of current implementation)
+                // TODO: Implement proper database-level pagination in PersistenceReadFacade
+                List<TestMethodDetailRecord> allRecords = persistenceReadFacade.get()
+                    .listTestMethodDetailsByScanSessionId(scanSessionId, 10000); // Large limit for now
+                
+                // Apply filters
+                List<TestMethodDetailRecord> filteredRecords = allRecords.stream()
+                    .filter(record -> {
+                        if (teamName != null && !teamName.trim().isEmpty()) {
+                            if (record.getTeamName() == null || 
+                                !record.getTeamName().toLowerCase().contains(teamName.toLowerCase())) {
+                                return false;
+                            }
+                        }
+                        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
+                            if (record.getRepositoryName() == null || 
+                                !record.getRepositoryName().toLowerCase().contains(repositoryName.toLowerCase())) {
+                                return false;
+                            }
+                        }
+                        if (annotated != null) {
+                            boolean isAnnotated = record.getAnnotationTitle() != null && 
+                                                 !record.getAnnotationTitle().trim().isEmpty();
+                            if (annotated != isAnnotated) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    })
+                    .collect(Collectors.toList());
+                
+                // Apply pagination
+                int totalCount = filteredRecords.size();
+                int startIndex = page * size;
+                int endIndex = Math.min(startIndex + size, totalCount);
+                
+                List<TestMethodDetailRecord> paginatedRecords = filteredRecords.subList(startIndex, endIndex);
+                
+                // Convert to DTOs
+                List<TestMethodDetailDto> methodDtos = paginatedRecords.stream()
+                    .map(this::convertToTestMethodDetailDto)
+                    .collect(Collectors.toList());
+                
+                return new PagedResponse<>(methodDtos, page, size, totalCount);
+                
+            } catch (Exception e) {
+                System.err.println("Error fetching paginated test method details: " + e.getMessage());
+                e.printStackTrace();
+                return new PagedResponse<>(List.of(), page, size, 0);
+            }
+        } else {
+            System.err.println("PersistenceReadFacade is not available - database may not be configured");
+            return new PagedResponse<>(List.of(), page, size, 0);
+        }
     }
 }
