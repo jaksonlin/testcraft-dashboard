@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle, XCircle, TrendingUp, AlertTriangle } from 'lucide-react';
-import { CoverageStats } from '../../lib/testCaseApi';
+import type { CoverageStats } from '../../lib/testCaseApi';
 
 interface TestCaseCoverageCardProps {
   stats: CoverageStats;

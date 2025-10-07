@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8090';
+const API_BASE_URL = 'http://localhost:8090/api';
 
 export interface ExcelPreviewResponse {
   columns: string[];
@@ -64,7 +64,7 @@ export const previewExcelFile = async (file: File): Promise<ExcelPreviewResponse
   formData.append('file', file);
 
   const response = await axios.post(
-    `${API_BASE_URL}/api/testcases/upload/preview`,
+    `${API_BASE_URL}/testcases/upload/preview`,
     formData,
     {
       headers: {
@@ -84,7 +84,7 @@ export const validateMappings = async (
   columns: string[]
 ): Promise<ValidationResponse> => {
   const response = await axios.post(
-    `${API_BASE_URL}/api/testcases/upload/validate`,
+    `${API_BASE_URL}/testcases/upload/validate`,
     { mappings, columns }
   );
 
@@ -111,7 +111,7 @@ export const importTestCases = async (
   formData.append('organization', organization);
 
   const response = await axios.post(
-    `${API_BASE_URL}/api/testcases/upload/import`,
+    `${API_BASE_URL}/testcases/upload/import`,
     formData,
     {
       headers: {
@@ -127,7 +127,7 @@ export const importTestCases = async (
  * Get all test cases
  */
 export const getAllTestCases = async (): Promise<{ testCases: TestCase[]; total: number }> => {
-  const response = await axios.get(`${API_BASE_URL}/api/testcases`);
+  const response = await axios.get(`${API_BASE_URL}/testcases`);
   return response.data;
 };
 
@@ -135,7 +135,7 @@ export const getAllTestCases = async (): Promise<{ testCases: TestCase[]; total:
  * Get single test case by ID
  */
 export const getTestCaseById = async (id: string): Promise<TestCase> => {
-  const response = await axios.get(`${API_BASE_URL}/api/testcases/${id}`);
+  const response = await axios.get(`${API_BASE_URL}/testcases/${id}`);
   return response.data;
 };
 
@@ -143,7 +143,7 @@ export const getTestCaseById = async (id: string): Promise<TestCase> => {
  * Get coverage statistics
  */
 export const getCoverageStats = async (): Promise<CoverageStats> => {
-  const response = await axios.get(`${API_BASE_URL}/api/testcases/stats/coverage`);
+  const response = await axios.get(`${API_BASE_URL}/testcases/stats/coverage`);
   return response.data;
 };
 
@@ -151,7 +151,7 @@ export const getCoverageStats = async (): Promise<CoverageStats> => {
  * Get untested test cases (gaps)
  */
 export const getUntestedCases = async (): Promise<{ untestedCases: TestCase[]; count: number }> => {
-  const response = await axios.get(`${API_BASE_URL}/api/testcases/gaps`);
+  const response = await axios.get(`${API_BASE_URL}/testcases/gaps`);
   return response.data;
 };
 
@@ -159,6 +159,6 @@ export const getUntestedCases = async (): Promise<{ untestedCases: TestCase[]; c
  * Delete test case
  */
 export const deleteTestCase = async (id: string): Promise<void> => {
-  await axios.delete(`${API_BASE_URL}/api/testcases/${id}`);
+  await axios.delete(`${API_BASE_URL}/testcases/${id}`);
 };
 

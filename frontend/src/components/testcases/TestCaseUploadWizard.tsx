@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Upload, CheckCircle, XCircle, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
-import { previewExcelFile, validateMappings, importTestCases, ExcelPreviewResponse } from '../../lib/testCaseApi';
+import { previewExcelFile, validateMappings, importTestCases } from '../../lib/testCaseApi';
+import type { ExcelPreviewResponse, ImportResponse } from '../../lib/testCaseApi';
 
 type WizardStep = 'upload' | 'mapping' | 'preview' | 'complete';
 
 interface TestCaseUploadWizardProps {
   onComplete?: () => void;
-  onCancel?: () => void;
 }
 
 /**
@@ -18,7 +18,7 @@ interface TestCaseUploadWizardProps {
  * 3. Preview data and confirm
  * 4. Import complete
  */
-export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onComplete, onCancel }) => {
+export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState<WizardStep>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ExcelPreviewResponse | null>(null);
@@ -28,7 +28,7 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [importing, setImporting] = useState<boolean>(false);
-  const [importResult, setImportResult] = useState<any>(null);
+  const [importResult, setImportResult] = useState<ImportResponse | null>(null);
 
   // Step 1: Handle file upload
   const handleFileSelect = async (selectedFile: File) => {
@@ -60,7 +60,8 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
     
     // Remove mapping if "ignore" is selected
     if (systemField === 'ignore') {
-      const { [excelColumn]: _, ...rest } = newMappings;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [excelColumn]: _removed, ...rest } = newMappings;
       setMappings(rest);
     } else {
       setMappings(newMappings);
@@ -103,9 +104,10 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
       if (onComplete) {
         onComplete();
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Import failed:', error);
-      alert('Import failed: ' + (error.response?.data?.error || error.message));
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Import failed: ' + errorMessage);
     } finally {
       setImporting(false);
     }
@@ -535,14 +537,9 @@ interface PreviewStepProps {
   onBack: () => void;
 }
 
-const PreviewStep: React.FC<PreviewStepProps> = ({
-  preview,
-  mappings,
-  dataStartRow,
-  importing,
-  onImport,
-  onBack
-}) => {
+const PreviewStep: React.FC<PreviewStepProps> = (props) => {
+  const { preview, mappings, importing, onImport, onBack } = props;
+  // Note: dataStartRow reserved for future use (showing row range in preview)
   // Map preview data using user's mappings
   const mappedPreview = preview.previewData.map(row => {
     const mapped: Record<string, string> = {};
@@ -642,7 +639,7 @@ const PreviewStep: React.FC<PreviewStepProps> = ({
 // ============================================================================
 
 interface CompleteStepProps {
-  result: any;
+  result: ImportResponse;
   onClose: () => void;
 }
 

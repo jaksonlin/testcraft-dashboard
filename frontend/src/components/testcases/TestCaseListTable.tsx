@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle, XCircle, Eye, Trash2, Filter } from 'lucide-react';
-import { TestCase } from '../../lib/testCaseApi';
+import type { TestCase } from '../../lib/testCaseApi';
 
 interface TestCaseListTableProps {
   testCases: TestCase[];

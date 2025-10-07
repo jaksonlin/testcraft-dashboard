@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, List, BarChart3, AlertTriangle } from 'lucide-react';
+import { Upload, List, BarChart3, AlertTriangle, CheckCircle } from 'lucide-react';
 import { TestCaseUploadWizard } from '../components/testcases/TestCaseUploadWizard';
 import { TestCaseListTable } from '../components/testcases/TestCaseListTable';
 import { TestCaseCoverageCard } from '../components/testcases/TestCaseCoverageCard';
@@ -8,10 +8,9 @@ import {
   getAllTestCases,
   getCoverageStats,
   getUntestedCases,
-  deleteTestCase,
-  TestCase,
-  CoverageStats
+  deleteTestCase
 } from '../lib/testCaseApi';
+import type { TestCase, CoverageStats } from '../lib/testCaseApi';
 
 type TabType = 'upload' | 'list' | 'coverage' | 'gaps';
 
@@ -181,7 +180,6 @@ export const TestCasesView: React.FC = () => {
         {activeTab === 'upload' && (
           <TestCaseUploadWizard
             onComplete={handleUploadComplete}
-            onCancel={() => setActiveTab('list')}
           />
         )}
 

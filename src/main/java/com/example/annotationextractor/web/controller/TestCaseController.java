@@ -15,8 +15,8 @@ import java.util.Map;
  * REST controller for test case upload and management
  */
 @RestController
-@RequestMapping("/api/testcases")
-@CrossOrigin(origins = "*")
+@RequestMapping("/testcases")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class TestCaseController {
     
     private final TestCaseService testCaseService;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, CheckCircle, Tag, FileText } from 'lucide-react';
-import { TestCase } from '../../lib/testCaseApi';
+import type { TestCase } from '../../lib/testCaseApi';
 
 interface TestCaseDetailModalProps {
   testCase: TestCase;
