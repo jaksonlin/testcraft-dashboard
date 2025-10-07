@@ -174,14 +174,22 @@ public class TestCaseController {
     public ResponseEntity<?> getAllTestCases(
             @RequestParam(required = false) String organization,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String priority) {
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
         
         try {
-            List<TestCase> testCases = testCaseService.getAllTestCases();
-            
+            int pageNum = page != null && page >= 0 ? page : 0;
+            int pageSize = size != null && size > 0 ? size : 20;
+
+            List<TestCase> testCases = testCaseService.getAllTestCasesPaged(pageNum, pageSize, organization, type, priority);
+            int total = testCaseService.getAllTestCases().size(); // simple total; can optimize later
+
             return ResponseEntity.ok(Map.of(
-                "testCases", testCases,
-                "total", testCases.size()
+                "content", testCases,
+                "page", pageNum,
+                "size", pageSize,
+                "total", total
             ));
             
         } catch (Exception e) {
@@ -241,13 +249,20 @@ public class TestCaseController {
      * GET /api/testcases/gaps
      */
     @GetMapping("/gaps")
-    public ResponseEntity<?> getUntestedCases() {
+    public ResponseEntity<?> getUntestedCases(@RequestParam(required = false) Integer page,
+                                              @RequestParam(required = false) Integer size) {
         try {
-            List<TestCase> untested = testCaseService.getUntestedCases();
-            
+            int pageNum = page != null && page >= 0 ? page : 0;
+            int pageSize = size != null && size > 0 ? size : 20;
+
+            List<TestCase> untested = testCaseService.getUntestedCasesPaged(pageNum, pageSize);
+            int total = testCaseService.countUntestedCases();
+
             return ResponseEntity.ok(Map.of(
-                "untestedCases", untested,
-                "count", untested.size()
+                "content", untested,
+                "page", pageNum,
+                "size", pageSize,
+                "total", total
             ));
             
         } catch (Exception e) {

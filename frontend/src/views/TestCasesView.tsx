@@ -11,6 +11,7 @@ import {
   deleteTestCase
 } from '../lib/testCaseApi';
 import type { TestCase, CoverageStats } from '../lib/testCaseApi';
+import type { PageResponse } from '../lib/testCaseApi';
 
 type TabType = 'upload' | 'list' | 'coverage' | 'gaps';
 
@@ -22,8 +23,14 @@ export const TestCasesView: React.FC = () => {
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
   const [untestedCases, setUntestedCases] = useState<TestCase[]>([]);
+  const [totalCases, setTotalCases] = useState(0);
+  const [totalGaps, setTotalGaps] = useState(0);
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
+  const [gapsPage, setGapsPage] = useState(0);
+  const [gapsSize, setGapsSize] = useState(20);
 
   // Load data on mount
   useEffect(() => {
@@ -34,14 +41,16 @@ export const TestCasesView: React.FC = () => {
     setLoading(true);
     try {
       const [testCasesData, stats, gaps] = await Promise.all([
-        getAllTestCases(),
+        getAllTestCases({ page, size }),
         getCoverageStats(),
-        getUntestedCases()
+        getUntestedCases({ page: gapsPage, size: gapsSize })
       ]);
 
-      setTestCases(testCasesData.testCases);
+      setTestCases(testCasesData.content);
+      setTotalCases(testCasesData.total);
       setCoverageStats(stats);
-      setUntestedCases(gaps.untestedCases);
+      setUntestedCases(gaps.content);
+      setTotalGaps(gaps.total);
     } catch (error) {
       console.error('Failed to load test cases:', error);
     } finally {
@@ -146,7 +155,7 @@ export const TestCasesView: React.FC = () => {
             }`}
           >
             <List className="w-4 h-4" />
-            All Test Cases ({testCases.length})
+            All Test Cases ({totalCases})
           </button>
 
           <button
@@ -170,7 +179,7 @@ export const TestCasesView: React.FC = () => {
             }`}
           >
             <AlertTriangle className="w-4 h-4" />
-            Automation Gaps ({untestedCases.length})
+            Automation Gaps ({totalGaps})
           </button>
         </nav>
       </div>
@@ -194,6 +203,13 @@ export const TestCasesView: React.FC = () => {
               onViewDetails={setSelectedTestCase}
               onDelete={handleDelete}
             />
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-600">Page {page + 1}</div>
+              <div className="flex gap-2">
+                <button className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50" disabled={page === 0} onClick={() => { setPage(Math.max(0, page - 1)); loadData(); }}>Prev</button>
+                <button className="px-3 py-1 bg-gray-100 rounded" onClick={() => { setPage(page + 1); loadData(); }}>Next</button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -269,6 +285,15 @@ export const TestCasesView: React.FC = () => {
                 testCases={untestedCases}
                 onViewDetails={setSelectedTestCase}
               />
+            )}
+            {untestedCases.length > 0 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-600">Page {gapsPage + 1}</div>
+                <div className="flex gap-2">
+                  <button className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50" disabled={gapsPage === 0} onClick={() => { setGapsPage(Math.max(0, gapsPage - 1)); loadData(); }}>Prev</button>
+                  <button className="px-3 py-1 bg-gray-100 rounded" onClick={() => { setGapsPage(gapsPage + 1); loadData(); }}>Next</button>
+                </div>
+              </div>
             )}
           </div>
         )}

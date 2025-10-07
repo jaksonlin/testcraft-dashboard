@@ -160,6 +160,49 @@ public class TestCaseRepository {
         
         return testCases;
     }
+
+    /**
+     * Find test cases with pagination
+     */
+    public List<TestCase> findAllPaged(String organization, String type, String priority, int offset, int limit) throws SQLException {
+        StringBuilder sql = new StringBuilder("SELECT * FROM test_cases WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
+        if (organization != null) {
+            sql.append(" AND organization = ?");
+            params.add(organization);
+        }
+        if (type != null) {
+            sql.append(" AND type = ?");
+            params.add(type);
+        }
+        if (priority != null) {
+            sql.append(" AND priority = ?");
+            params.add(priority);
+        }
+
+        sql.append(" ORDER BY id OFFSET ? LIMIT ?");
+        params.add(offset);
+        params.add(limit);
+
+        List<TestCase> testCases = new ArrayList<>();
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    testCases.add(mapResultSetToTestCase(rs));
+                }
+            }
+        }
+
+        return testCases;
+    }
     
     /**
      * Count total test cases
@@ -196,6 +239,26 @@ public class TestCaseRepository {
         
         return 0;
     }
+
+    /**
+     * Count test cases without coverage
+     */
+    public int countWithoutCoverage() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM test_cases tc " +
+                     "LEFT JOIN test_case_coverage tcc ON tc.id = tcc.test_case_id " +
+                     "WHERE tcc.test_case_id IS NULL";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+
+        return 0;
+    }
     
     /**
      * Find test cases without coverage (not linked to any test methods)
@@ -217,6 +280,32 @@ public class TestCaseRepository {
             }
         }
         
+        return testCases;
+    }
+
+    /**
+     * Find untested cases with pagination
+     */
+    public List<TestCase> findWithoutCoveragePaged(int offset, int limit) throws SQLException {
+        String sql = "SELECT tc.* FROM test_cases tc " +
+                     "LEFT JOIN test_case_coverage tcc ON tc.id = tcc.test_case_id " +
+                     "WHERE tcc.test_case_id IS NULL " +
+                     "ORDER BY tc.priority DESC, tc.id OFFSET ? LIMIT ?";
+
+        List<TestCase> testCases = new ArrayList<>();
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, offset);
+            stmt.setInt(2, limit);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    testCases.add(mapResultSetToTestCase(rs));
+                }
+            }
+        }
+
         return testCases;
     }
     

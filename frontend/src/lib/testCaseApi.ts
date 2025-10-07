@@ -126,9 +126,16 @@ export const importTestCases = async (
 /**
  * Get all test cases
  */
-export const getAllTestCases = async (): Promise<{ testCases: TestCase[]; total: number }> => {
-  const response = await axios.get(`${API_BASE_URL}/testcases`);
-  return response.data;
+export interface PageResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  total: number;
+}
+
+export const getAllTestCases = async (params?: { page?: number; size?: number; organization?: string; type?: string; priority?: string }): Promise<PageResponse<TestCase>> => {
+  const response = await axios.get(`${API_BASE_URL}/testcases`, { params });
+  return response.data as PageResponse<TestCase>;
 };
 
 /**
@@ -150,9 +157,9 @@ export const getCoverageStats = async (): Promise<CoverageStats> => {
 /**
  * Get untested test cases (gaps)
  */
-export const getUntestedCases = async (): Promise<{ untestedCases: TestCase[]; count: number }> => {
-  const response = await axios.get(`${API_BASE_URL}/testcases/gaps`);
-  return response.data;
+export const getUntestedCases = async (params?: { page?: number; size?: number }): Promise<PageResponse<TestCase>> => {
+  const response = await axios.get(`${API_BASE_URL}/testcases/gaps`, { params });
+  return response.data as PageResponse<TestCase>;
 };
 
 /**

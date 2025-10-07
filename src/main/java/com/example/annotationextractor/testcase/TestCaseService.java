@@ -156,6 +156,13 @@ public class TestCaseService {
     public List<TestCase> getAllTestCases() throws SQLException {
         return testCaseRepository.findAll();
     }
+
+    public List<TestCase> getAllTestCasesPaged(Integer page, Integer size, String organization, String type, String priority) throws SQLException {
+        int pageNum = page != null && page >= 0 ? page : 0;
+        int pageSize = size != null && size > 0 ? size : 20;
+        int offset = pageNum * pageSize;
+        return testCaseRepository.findAllPaged(organization, type, priority, offset, pageSize);
+    }
     
     /**
      * Get test case by ID
@@ -175,12 +182,23 @@ public class TestCaseService {
         
         return new CoverageStats(total, automated, manual, percentage);
     }
+
+    public int countUntestedCases() throws SQLException {
+        return testCaseRepository.countWithoutCoverage();
+    }
     
     /**
      * Get test cases without coverage (gaps)
      */
     public List<TestCase> getUntestedCases() throws SQLException {
         return testCaseRepository.findWithoutCoverage();
+    }
+
+    public List<TestCase> getUntestedCasesPaged(Integer page, Integer size) throws SQLException {
+        int pageNum = page != null && page >= 0 ? page : 0;
+        int pageSize = size != null && size > 0 ? size : 20;
+        int offset = pageNum * pageSize;
+        return testCaseRepository.findWithoutCoveragePaged(offset, pageSize);
     }
     
     /**
