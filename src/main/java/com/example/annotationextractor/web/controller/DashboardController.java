@@ -10,6 +10,7 @@ import com.example.annotationextractor.web.dto.TeamMetricsDto;
 import com.example.annotationextractor.web.dto.RepositoryMetricsDto;
 import com.example.annotationextractor.web.dto.RepositoryDetailDto;
 import com.example.annotationextractor.web.dto.TestMethodDetailDto;
+import com.example.annotationextractor.web.dto.GroupedTestMethodResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -99,6 +100,17 @@ public class DashboardController {
             @RequestParam(defaultValue = "100") Integer limit) {
         List<TestMethodDetailDto> testMethods = repositoryDataService.getAllTestMethodDetails(limit);
         return ResponseEntity.ok(testMethods);
+    }
+
+    /**
+     * Get all test method details grouped by team and class for hierarchical display
+     * This endpoint provides pre-grouped data to avoid performance issues on the frontend
+     */
+    @GetMapping("/test-methods/grouped")
+    public ResponseEntity<GroupedTestMethodResponse> getAllTestMethodDetailsGrouped(
+            @RequestParam(defaultValue = "100") Integer limit) {
+        GroupedTestMethodResponse groupedData = repositoryDataService.getAllTestMethodDetailsGrouped(limit);
+        return ResponseEntity.ok(groupedData);
     }
 
     /**

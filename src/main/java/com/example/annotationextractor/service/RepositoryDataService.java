@@ -3,6 +3,7 @@ package com.example.annotationextractor.service;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -20,6 +21,7 @@ import com.example.annotationextractor.web.dto.RepositoryMetricsDto;
 import com.example.annotationextractor.web.dto.RepositorySummaryDto;
 import com.example.annotationextractor.web.dto.TestMethodDetailDto;
 import com.example.annotationextractor.web.dto.TestClassSummaryDto;
+import com.example.annotationextractor.web.dto.GroupedTestMethodResponse;
 
 @Service
 public class RepositoryDataService {
@@ -393,5 +395,129 @@ public class RepositoryDataService {
             System.err.println("PersistenceReadFacade is not available - database may not be configured");
             return List.of();
         }
+    }
+
+    /**
+     * Get all test method details grouped by team and class for hierarchical display
+     * This method provides pre-grouped data to avoid performance issues on the frontend
+     */
+    public GroupedTestMethodResponse getAllTestMethodDetailsGrouped(Integer limit) {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
+                if (latestScan.isEmpty()) {
+                    System.err.println("No completed scan session found");
+                    return new GroupedTestMethodResponse(List.of(), 
+                        new GroupedTestMethodResponse.SummaryDto(0, 0, 0, 0, 0.0));
+                }
+                
+                Long scanSessionId = latestScan.get().getId();
+                System.err.println("Using scan session ID: " + scanSessionId + " for grouped test methods");
+                List<TestMethodDetailRecord> records = persistenceReadFacade.get().listTestMethodDetailsByScanSessionId(scanSessionId, limit);
+                System.err.println("Found " + records.size() + " total test method records for grouping");
+                
+                return groupTestMethodDetails(records);
+                
+            } catch (Exception e) {
+                System.err.println("Error fetching grouped test method details: " + e.getMessage());
+                e.printStackTrace();
+                return new GroupedTestMethodResponse(List.of(), 
+                    new GroupedTestMethodResponse.SummaryDto(0, 0, 0, 0, 0.0));
+            }
+        } else {
+            System.err.println("PersistenceReadFacade is not available - database may not be configured");
+            return new GroupedTestMethodResponse(List.of(), 
+                new GroupedTestMethodResponse.SummaryDto(0, 0, 0, 0, 0.0));
+        }
+    }
+
+    /**
+     * Group test method details by team and class
+     */
+    private GroupedTestMethodResponse groupTestMethodDetails(List<TestMethodDetailRecord> records) {
+        // Group by team
+        Map<String, List<TestMethodDetailRecord>> teamGroups = records.stream()
+            .collect(Collectors.groupingBy(record -> record.getTeamName() != null ? record.getTeamName() : "Unknown Team"));
+        
+        List<GroupedTestMethodResponse.TeamGroupDto> teamDtos = new ArrayList<>();
+        int totalTeams = teamGroups.size();
+        int totalClasses = 0;
+        int totalMethods = records.size();
+        int totalAnnotatedMethods = 0;
+        
+        for (Map.Entry<String, List<TestMethodDetailRecord>> teamEntry : teamGroups.entrySet()) {
+            String teamName = teamEntry.getKey();
+            List<TestMethodDetailRecord> teamMethods = teamEntry.getValue();
+            
+            // Get team code from first record
+            String teamCode = teamMethods.isEmpty() ? "" : 
+                (teamMethods.get(0).getTeamCode() != null ? teamMethods.get(0).getTeamCode() : "");
+            
+            // Group by class within team
+            Map<String, List<TestMethodDetailRecord>> classGroups = teamMethods.stream()
+                .collect(Collectors.groupingBy(record -> 
+                    (record.getRepositoryName() != null ? record.getRepositoryName() : "Unknown") + "." + 
+                    (record.getTestClassName() != null ? record.getTestClassName() : "Unknown")));
+            
+            List<GroupedTestMethodResponse.ClassGroupDto> classDtos = new ArrayList<>();
+            int teamTotalClasses = classGroups.size();
+            int teamTotalMethods = teamMethods.size();
+            int teamAnnotatedMethods = 0;
+            
+            for (Map.Entry<String, List<TestMethodDetailRecord>> classEntry : classGroups.entrySet()) {
+                String classKey = classEntry.getKey();
+                List<TestMethodDetailRecord> classMethods = classEntry.getValue();
+                
+                // Parse class key to get repository and class name
+                String[] parts = classKey.split("\\.", 2);
+                String repository = parts.length > 0 ? parts[0] : "Unknown";
+                String className = parts.length > 1 ? parts[1] : "Unknown";
+                
+                // Convert to DTOs
+                List<TestMethodDetailDto> methodDtos = classMethods.stream()
+                    .map(this::convertToTestMethodDetailDto)
+                    .collect(Collectors.toList());
+                
+                // Calculate class summary
+                int classTotalMethods = classMethods.size();
+                int classAnnotatedMethods = (int) classMethods.stream()
+                    .filter(record -> record.getAnnotationTitle() != null && !record.getAnnotationTitle().trim().isEmpty())
+                    .count();
+                double classCoverageRate = classTotalMethods > 0 ? 
+                    (double) classAnnotatedMethods / classTotalMethods * 100 : 0.0;
+                
+                GroupedTestMethodResponse.ClassSummaryDto classSummary = 
+                    new GroupedTestMethodResponse.ClassSummaryDto(classTotalMethods, classAnnotatedMethods, classCoverageRate);
+                
+                GroupedTestMethodResponse.ClassGroupDto classDto = 
+                    new GroupedTestMethodResponse.ClassGroupDto(className, "", repository, methodDtos, classSummary);
+                
+                classDtos.add(classDto);
+                teamAnnotatedMethods += classAnnotatedMethods;
+            }
+            
+            // Calculate team summary
+            double teamCoverageRate = teamTotalMethods > 0 ? 
+                (double) teamAnnotatedMethods / teamTotalMethods * 100 : 0.0;
+            
+            GroupedTestMethodResponse.TeamSummaryDto teamSummary = 
+                new GroupedTestMethodResponse.TeamSummaryDto(teamTotalClasses, teamTotalMethods, teamAnnotatedMethods, teamCoverageRate);
+            
+            GroupedTestMethodResponse.TeamGroupDto teamDto = 
+                new GroupedTestMethodResponse.TeamGroupDto(teamName, teamCode, classDtos, teamSummary);
+            
+            teamDtos.add(teamDto);
+            totalClasses += teamTotalClasses;
+            totalAnnotatedMethods += teamAnnotatedMethods;
+        }
+        
+        // Calculate overall summary
+        double overallCoverageRate = totalMethods > 0 ? 
+            (double) totalAnnotatedMethods / totalMethods * 100 : 0.0;
+        
+        GroupedTestMethodResponse.SummaryDto summary = 
+            new GroupedTestMethodResponse.SummaryDto(totalTeams, totalClasses, totalMethods, totalAnnotatedMethods, overallCoverageRate);
+        
+        return new GroupedTestMethodResponse(teamDtos, summary);
     }
 }

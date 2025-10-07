@@ -6,6 +6,7 @@ import {
   Users, 
   TrendingUp, 
   Settings,
+  Target,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -43,6 +44,12 @@ const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
       href: '/analytics',
       icon: TrendingUp,
       description: 'Advanced reporting and trends'
+    },
+    {
+      name: 'Test Methods',
+      href: '/test-methods',
+      icon: Target,
+      description: 'Hierarchical test method analysis'
     },
     {
       name: 'Settings',

@@ -8,6 +8,7 @@ import ClassLevelView from '../views/ClassLevelView';
 import TeamsView from '../views/TeamsView';
 import AnalyticsView from '../views/AnalyticsView';
 import SettingsView from '../views/SettingsView';
+import TestMethodGroupedView from '../views/TestMethodGroupedView';
 
 const router = createBrowserRouter([
   {
@@ -38,10 +39,14 @@ const router = createBrowserRouter([
         path: 'analytics',
         element: <AnalyticsView />
       },
-      {
-        path: 'settings',
-        element: <SettingsView />
-      }
+              {
+                path: 'settings',
+                element: <SettingsView />
+              },
+              {
+                path: 'test-methods',
+                element: <TestMethodGroupedView />
+              }
     ]
   }
 ]);

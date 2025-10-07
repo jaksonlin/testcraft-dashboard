@@ -184,6 +184,62 @@ export interface AnalyticsOverview {
   };
 }
 
+// Grouped test method data structures
+export interface GroupedTestMethodResponse {
+  teams: TeamGroup[];
+  summary: Summary;
+}
+
+export interface TeamGroup {
+  teamName: string;
+  teamCode: string;
+  classes: ClassGroup[];
+  summary: TeamSummary;
+}
+
+export interface ClassGroup {
+  className: string;
+  packageName: string;
+  repository: string;
+  methods: TestMethodDetail[];
+  summary: ClassSummary;
+}
+
+export interface Summary {
+  totalTeams: number;
+  totalClasses: number;
+  totalMethods: number;
+  totalAnnotatedMethods: number;
+  overallCoverageRate: number;
+}
+
+export interface TeamSummary {
+  totalClasses: number;
+  totalMethods: number;
+  annotatedMethods: number;
+  coverageRate: number;
+}
+
+export interface ClassSummary {
+  totalMethods: number;
+  annotatedMethods: number;
+  coverageRate: number;
+}
+
+export interface ScanSession {
+  id: number;
+  startTime: string;
+  endTime: string;
+  status: string;
+  totalRepositories: number;
+  successfulRepositories: number;
+  failedRepositories: number;
+  totalTestClasses: number;
+  totalTestMethods: number;
+  totalAnnotatedMethods: number;
+  overallCoverageRate: number;
+}
+
 // API Methods
 export const api = {
   // Dashboard endpoints
@@ -207,6 +263,12 @@ export const api = {
       const queryString = params.toString();
       return apiClient.get(`/dashboard/test-methods/details${queryString ? `?${queryString}` : ''}`).then(res => res.data);
     },
+    
+    getAllTestMethodDetails: (limit?: number): Promise<TestMethodDetail[]> =>
+      apiClient.get(`/dashboard/test-methods/all${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
+    
+    getAllTestMethodDetailsGrouped: (limit?: number): Promise<GroupedTestMethodResponse> =>
+      apiClient.get(`/dashboard/test-methods/grouped${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
   },
 
   // Repository endpoints
