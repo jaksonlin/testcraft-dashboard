@@ -33,7 +33,7 @@ public class TestCaseController {
     @PostMapping("/upload/preview")
     public ResponseEntity<?> previewExcel(@RequestParam("file") MultipartFile file) {
         try {
-            if (file.isEmpty()) {
+            if (file.isEmpty() || file.getSize() == 0) {
                 return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
             }
             
@@ -42,8 +42,17 @@ public class TestCaseController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Only Excel files (.xls, .xlsx) are supported"));
             }
             
+            // Debug diagnostics
+            try {
+                String contentType = String.valueOf(file.getContentType());
+                long size = file.getSize();
+                System.out.println("[TestCases] Upload preview: name=" + filename + ", size=" + size + ", contentType=" + contentType);
+            } catch (Exception ignore) { }
+
+            // Read fully to avoid stream issues with some servlet containers
+            java.io.ByteArrayInputStream bin = new java.io.ByteArrayInputStream(file.getBytes());
             ExcelParserService.ExcelPreview preview = testCaseService.previewExcel(
-                file.getInputStream(),
+                bin,
                 filename
             );
             
@@ -124,8 +133,9 @@ public class TestCaseController {
             Map<String, String> columnMappings = mapper.readValue(mappingsJson, Map.class);
             
             // Import
+            java.io.ByteArrayInputStream importIn = new java.io.ByteArrayInputStream(file.getBytes());
             TestCaseService.ImportResult result = testCaseService.importTestCases(
-                file.getInputStream(),
+                importIn,
                 file.getOriginalFilename(),
                 columnMappings,
                 dataStartRow,

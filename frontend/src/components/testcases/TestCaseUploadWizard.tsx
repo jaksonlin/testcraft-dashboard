@@ -104,10 +104,21 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
       if (onComplete) {
         onComplete();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Import failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert('Import failed: ' + errorMessage);
+      // Try to extract structured server response (400) with errors list
+      const respData = error?.response?.data;
+      const failureResult = {
+        success: false,
+        imported: 0,
+        skipped: 0,
+        message: respData?.message || (error instanceof Error ? error.message : 'Unknown error'),
+        errors: respData?.errors || (respData ? [JSON.stringify(respData)] : [String(error?.message || 'Unknown error')]),
+        suggestions: respData?.suggestions || []
+      } as ImportResponse;
+
+      setImportResult(failureResult);
+      setCurrentStep('complete');
     } finally {
       setImporting(false);
     }
@@ -443,17 +454,20 @@ const MappingStep: React.FC<MappingStepProps> = ({
             const isRequired = ['id', 'title', 'steps'].includes(mappedField);
 
             return (
-              <div key={idx} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                <div className="flex-1">
+              <div
+                key={idx}
+                className="grid items-center grid-cols-[1fr_auto_2fr_6rem_7rem] gap-4 p-3 bg-gray-50 rounded-lg"
+              >
+                <div className="truncate">
                   <span className="font-medium text-gray-900">{excelCol}</span>
                 </div>
-                
-                <span className="text-gray-400">→</span>
-                
+
+                <span className="w-6 text-center text-gray-400">→</span>
+
                 <select
                   value={mappedField}
                   onChange={(e) => onMappingChange(excelCol, e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {systemFields.map(field => (
                     <option key={field.value} value={field.value}>
@@ -462,17 +476,21 @@ const MappingStep: React.FC<MappingStepProps> = ({
                   ))}
                 </select>
 
-                {confidence > 0 && (
+                {confidence > 0 ? (
                   <div className="flex items-center gap-2 w-24">
                     {getConfidenceIcon(confidence)}
                     <span className={`text-sm font-medium ${getConfidenceColor(confidence)}`}>
                       {confidence}%
                     </span>
                   </div>
+                ) : (
+                  <div className="w-24 invisible">0%</div>
                 )}
 
-                {isRequired && (
+                {isRequired ? (
                   <span className="text-green-600 font-semibold text-sm">Required ✓</span>
+                ) : (
+                  <span className="text-sm invisible">placeholder</span>
                 )}
               </div>
             );
@@ -644,54 +662,102 @@ interface CompleteStepProps {
 }
 
 const CompleteStep: React.FC<CompleteStepProps> = ({ result, onClose }) => {
+  const isSuccess = result.success !== false; // default to success if undefined
   return (
     <div className="space-y-6 text-center">
       <div className="flex justify-center">
-        <CheckCircle className="w-24 h-24 text-green-600" />
-      </div>
-
-      <div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Import Complete!</h2>
-        <p className="text-gray-600 text-lg">
-          Successfully imported {result.imported} test cases
-        </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="text-3xl font-bold text-green-600">{result.imported}</div>
-          <div className="text-sm text-gray-600">Imported</div>
-        </div>
-        
-        {result.skipped > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="text-3xl font-bold text-yellow-600">{result.skipped}</div>
-            <div className="text-sm text-gray-600">Skipped</div>
-          </div>
+        {isSuccess ? (
+          <CheckCircle className="w-24 h-24 text-green-600" />
+        ) : (
+          <svg className="w-24 h-24 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
         )}
       </div>
 
-      {/* Next Steps */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left max-w-md mx-auto">
-        <p className="font-semibold text-blue-900 mb-2">What's next?</p>
-        <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
-          <li>View test cases in the Test Cases section</li>
-          <li>Check coverage statistics</li>
-          <li>Link test methods using @TestCaseId annotation</li>
-          <li>Analyze gaps (which test cases need automation)</li>
-        </ul>
-      </div>
+      {isSuccess ? (
+        <>
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Import Complete!</h2>
+            <p className="text-gray-600 text-lg">Successfully imported {result.imported} test cases</p>
+          </div>
 
-      {/* Actions */}
-      <div className="pt-4">
-        <button
-          onClick={onClose}
-          className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-        >
-          Done
-        </button>
-      </div>
+          <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="text-3xl font-bold text-green-600">{result.imported}</div>
+              <div className="text-sm text-gray-600">Imported</div>
+            </div>
+            {result.skipped > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="text-3xl font-bold text-yellow-600">{result.skipped}</div>
+                <div className="text-sm text-gray-600">Skipped</div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left max-w-md mx-auto">
+            <p className="font-semibold text-blue-900 mb-2">What's next?</p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
+              <li>View test cases in the Test Cases section</li>
+              <li>Check coverage statistics</li>
+              <li>Link test methods using @TestCaseId annotation</li>
+              <li>Analyze gaps (which test cases need automation)</li>
+            </ul>
+          </div>
+
+          <div className="pt-4">
+            <button
+              onClick={onClose}
+              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+            >
+              Done
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Import Failed</h2>
+            <p className="text-gray-600 text-lg">Please fix the issues below and try again.</p>
+          </div>
+
+          {result.message && (
+            <div className="max-w-2xl mx-auto text-left bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="font-semibold text-red-900 mb-1">Error</p>
+              <p className="text-sm text-red-800 break-words">{result.message}</p>
+            </div>
+          )}
+
+          {Array.isArray(result.errors) && result.errors.length > 0 && (
+            <div className="max-w-2xl mx-auto text-left bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="font-semibold text-red-900 mb-2">Row errors</p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-red-800">
+                {result.errors.map((e, i) => (
+                  <li key={i}>{String(e)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {Array.isArray(result.suggestions) && result.suggestions.length > 0 && (
+            <div className="max-w-2xl mx-auto text-left bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="font-semibold text-yellow-900 mb-2">Suggestions</p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-yellow-800">
+                {result.suggestions.map((s, i) => (
+                  <li key={i}>{String(s)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="pt-2">
+            <button
+              onClick={onClose}
+              className="px-8 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-semibold"
+            >
+              Close
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };

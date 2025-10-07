@@ -1,6 +1,7 @@
 package com.example.annotationextractor.testcase;
 
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 
@@ -63,30 +64,53 @@ public class ExcelParserService {
             String filename,
             Map<String, String> columnMappings,
             int dataStartRow) throws Exception {
-        
-        List<TestCase> testCases = new ArrayList<>();
-        
+        return parseWithMappingsDetailed(inputStream, filename, columnMappings, dataStartRow).getValidTestCases();
+    }
+
+    /**
+     * Parse Excel with user-defined mappings and return detailed row errors.
+     */
+    public ParseResult parseWithMappingsDetailed(
+            InputStream inputStream,
+            String filename,
+            Map<String, String> columnMappings,
+            int dataStartRow) throws Exception {
+        List<TestCase> valid = new ArrayList<>();
+        List<String> rowErrors = new ArrayList<>();
+
         try (Workbook workbook = createWorkbook(inputStream, filename)) {
             Sheet sheet = workbook.getSheetAt(0);
-            
+
             // Get column indexes
             Map<String, Integer> columnIndexes = buildColumnIndexes(sheet, dataStartRow - 1, columnMappings);
-            
+
             // Parse data rows
             for (int i = dataStartRow; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null || isEmptyRow(row)) {
                     continue;
                 }
-                
+
                 TestCase testCase = parseRow(row, columnIndexes, columnMappings);
                 if (testCase != null && testCase.isValid()) {
-                    testCases.add(testCase);
+                    valid.add(testCase);
+                } else {
+                    // Build specific error message with missing required fields
+                    List<String> missing = new ArrayList<>();
+                    if (isNullOrEmpty(testCase != null ? testCase.getId() : null)) missing.add("ID");
+                    if (isNullOrEmpty(testCase != null ? testCase.getTitle() : null)) missing.add("Title");
+                    if (isNullOrEmpty(testCase != null ? testCase.getSteps() : null)) missing.add("Steps");
+                    int excelRowNumber = i + 1; // Excel-like numbering (1-based)
+                    if (missing.isEmpty()) {
+                        rowErrors.add("Row " + excelRowNumber + ": invalid or empty row");
+                    } else {
+                        rowErrors.add("Row " + excelRowNumber + ": missing required fields - " + String.join(", ", missing));
+                    }
                 }
             }
         }
-        
-        return testCases;
+
+        return new ParseResult(valid, rowErrors);
     }
     
     /**
@@ -302,10 +326,32 @@ public class ExcelParserService {
      * Helper: Create workbook from input stream
      */
     private Workbook createWorkbook(InputStream inputStream, String filename) throws Exception {
-        if (filename.toLowerCase().endsWith(".xlsx")) {
-            return new XSSFWorkbook(inputStream);
-        } else {
-            return new HSSFWorkbook(inputStream);
+        try {
+            // Copy to a temp file to make debugging easier and allow POI to re-read as needed
+            java.nio.file.Path tmp = java.nio.file.Files.createTempFile("testcases-", "-" + (filename != null ? filename : "upload"));
+            try (java.io.OutputStream out = java.nio.file.Files.newOutputStream(tmp, java.nio.file.StandardOpenOption.TRUNCATE_EXISTING)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = inputStream.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
+                }
+            }
+
+            // Let POI auto-detect the format from the file contents
+            try (java.io.InputStream fis = java.nio.file.Files.newInputStream(tmp)) {
+                return WorkbookFactory.create(fis);
+            } catch (Exception inner) {
+                String msg = "Unable to read Excel workbook. Filename=" + filename +
+                        ", tempPath=" + tmp.toAbsolutePath() +
+                        ", exception=" + inner.getClass().getSimpleName() +
+                        (inner.getMessage() != null ? ", message=" + inner.getMessage() : "");
+                throw new Exception(msg, inner);
+            } finally {
+                // Best effort cleanup
+                try { java.nio.file.Files.deleteIfExists(tmp); } catch (Exception ignore) { }
+            }
+        } catch (Exception e) {
+            throw e;
         }
     }
     
@@ -343,6 +389,10 @@ public class ExcelParserService {
         }
         Cell cell = row.getCell(columnIndex);
         return getCellValueAsString(cell);
+    }
+
+    private boolean isNullOrEmpty(String s) {
+        return s == null || s.trim().isEmpty();
     }
     
     /**
@@ -541,6 +591,22 @@ public class ExcelParserService {
                        ", suggestions=" + suggestions + "}";
             }
         }
+    }
+
+    /**
+     * Detailed parse result containing valid cases and per-row errors.
+     */
+    public static class ParseResult {
+        private final List<TestCase> validTestCases;
+        private final List<String> rowErrors;
+
+        public ParseResult(List<TestCase> validTestCases, List<String> rowErrors) {
+            this.validTestCases = validTestCases;
+            this.rowErrors = rowErrors;
+        }
+
+        public List<TestCase> getValidTestCases() { return validTestCases; }
+        public List<String> getRowErrors() { return rowErrors; }
     }
 }
 

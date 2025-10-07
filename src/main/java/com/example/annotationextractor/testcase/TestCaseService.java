@@ -4,6 +4,7 @@ import com.example.annotationextractor.casemodel.TestMethodInfo;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -50,8 +51,17 @@ public class TestCaseService {
             String createdBy,
             String organization) throws Exception {
         
-        // Validate mappings first
-        List<String> columns = excelParserService.previewExcel(inputStream, filename).getColumns();
+        // Read upload into memory once so we can create fresh streams for each pass
+        byte[] bytes;
+        if (inputStream instanceof ByteArrayInputStream) {
+            // If already a ByteArrayInputStream, read remaining bytes then reconstruct
+            bytes = inputStream.readAllBytes();
+        } else {
+            bytes = inputStream.readAllBytes();
+        }
+
+        // Validate mappings first using a fresh stream
+        List<String> columns = excelParserService.previewExcel(new ByteArrayInputStream(bytes), filename).getColumns();
         ExcelParserService.ValidationResult validation = validateMappings(columnMappings, columns);
         
         if (!validation.isValid()) {
@@ -64,13 +74,14 @@ public class TestCaseService {
             );
         }
         
-        // Parse Excel with mappings
-        List<TestCase> testCases = excelParserService.parseWithMappings(
-            inputStream,
+        // Parse Excel with mappings with another fresh stream and collect row errors
+        ExcelParserService.ParseResult parseResult = excelParserService.parseWithMappingsDetailed(
+            new ByteArrayInputStream(bytes),
             filename,
             columnMappings,
             dataStartRow
         );
+        List<TestCase> testCases = parseResult.getValidTestCases();
         
         // Filter valid test cases
         List<TestCase> validTestCases = testCases.stream()
@@ -88,6 +99,10 @@ public class TestCaseService {
         int skipped = testCases.size() - validTestCases.size();
         
         try {
+            if (!parseResult.getRowErrors().isEmpty()) {
+                // If any row errors exist, fail the import and report them
+                return new ImportResult(false, 0, testCases.size(), parseResult.getRowErrors(), List.of());
+            }
             imported = testCaseRepository.saveAll(validTestCases);
         } catch (SQLException e) {
             return new ImportResult(
