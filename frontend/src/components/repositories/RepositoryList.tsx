@@ -1,9 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { 
-  Search, 
-  Filter, 
-  ChevronUp, 
-  ChevronDown, 
   Play, 
   Eye,
   CheckSquare,
@@ -23,9 +19,6 @@ interface RepositoryListProps {
   onSelectAll?: () => void;
 }
 
-type SortField = 'repositoryName' | 'teamName' | 'testClassCount' | 'testMethodCount' | 'coverageRate' | 'lastScanDate';
-type SortDirection = 'asc' | 'desc';
-
 const RepositoryList: React.FC<RepositoryListProps> = ({ 
   repositories,
   onRepositoryClick, 
@@ -35,72 +28,10 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
   onSelectRepository: externalOnSelectRepository,
   onSelectAll: externalOnSelectAll
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [teamFilter, setTeamFilter] = useState<string>('');
-  const [coverageFilter, setCoverageFilter] = useState<string>('');
-  const [sortField, setSortField] = useState<SortField>('repositoryName');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [showFilters, setShowFilters] = useState(false);
-
   // Use external bulk operations if provided, otherwise use internal state
   const selectedRepositories = externalSelectedRepositories || new Set<number>();
   const onSelectRepository = externalOnSelectRepository || (() => {});
   const onSelectAll = externalOnSelectAll || (() => {});
-
-  // Get unique teams for filter
-  const uniqueTeams = useMemo(() => {
-    const teams = new Set(repositories.map(repo => repo.teamName));
-    return Array.from(teams).sort();
-  }, [repositories]);
-
-  // Filter and sort repositories
-  const filteredAndSortedRepositories = useMemo(() => {
-    const filtered = repositories.filter(repo => {
-      const matchesSearch = repo.repositoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           repo.teamName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTeam = !teamFilter || repo.teamName === teamFilter;
-      const matchesCoverage = !coverageFilter || (
-        coverageFilter === 'high' && repo.coverageRate >= 80 ||
-        coverageFilter === 'medium' && repo.coverageRate >= 50 && repo.coverageRate < 80 ||
-        coverageFilter === 'low' && repo.coverageRate < 50
-      );
-      
-      return matchesSearch && matchesTeam && matchesCoverage;
-    });
-
-    // Sort repositories
-    filtered.sort((a, b) => {
-      let aValue: string | number = a[sortField];
-      let bValue: string | number = b[sortField];
-
-      if (sortField === 'lastScanDate') {
-        aValue = new Date(aValue).getTime();
-        bValue = new Date(bValue).getTime();
-      }
-
-      if (typeof aValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = (bValue as string).toLowerCase();
-      }
-
-      if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    return filtered;
-  }, [repositories, searchTerm, teamFilter, coverageFilter, sortField, sortDirection]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
 
   const handleSelectRepository = (repositoryId: number) => {
     onSelectRepository(repositoryId);
@@ -108,23 +39,6 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
 
   const handleSelectAll = () => {
     onSelectAll();
-  };
-
-  const handleBulkScan = () => {
-    onBulkScan(Array.from(selectedRepositories));
-  };
-
-  const clearFilters = () => {
-    setSearchTerm('');
-    setTeamFilter('');
-    setCoverageFilter('');
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) return null;
-    return sortDirection === 'asc' ? 
-      <ChevronUp className="h-4 w-4" /> : 
-      <ChevronDown className="h-4 w-4" />;
   };
 
   const formatDate = (dateString: string) => {
@@ -150,51 +64,6 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
 
   return (
     <div className="space-y-6">
-
-      {/* Server side filters panel */}
-      {showFilters && (
-        <div className="card">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Team</label>
-              <select
-                value={teamFilter}
-                onChange={(e) => setTeamFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Teams</option>
-                {uniqueTeams.map(team => (
-                  <option key={team} value={team}>{team}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Coverage</label>
-              <select
-                value={coverageFilter}
-                onChange={(e) => setCoverageFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Coverage</option>
-                <option value="high">High (≥80%)</option>
-                <option value="medium">Medium (50-79%)</option>
-                <option value="low">Low (&lt;50%)</option>
-              </select>
-            </div>
-            
-            <div className="flex items-end">
-              <button
-                onClick={clearFilters}
-                className="btn btn-secondary w-full"
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Selected Count Summary */}
       {selectedRepositories.size > 0 && (
         <div className="flex items-center justify-end text-sm text-gray-600 dark:text-gray-400">
@@ -215,7 +84,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                     onClick={handleSelectAll}
                     className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
                   >
-                    {selectedRepositories.size === filteredAndSortedRepositories.length && filteredAndSortedRepositories.length > 0 ? (
+                    {selectedRepositories.size === repositories.length && repositories.length > 0 ? (
                       <CheckSquare className="h-4 w-4 mr-2" />
                     ) : (
                       <Square className="h-4 w-4 mr-2" />
@@ -223,59 +92,23 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                     Select All
                   </button>
                 </th>
-                <th className="px-6 py-3 text-left">
-                  <button
-                    onClick={() => handleSort('repositoryName')}
-                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    Repository Name
-                    {getSortIcon('repositoryName')}
-                  </button>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Repository Name
                 </th>
-                <th className="px-6 py-3 text-left">
-                  <button
-                    onClick={() => handleSort('teamName')}
-                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    Team
-                    {getSortIcon('teamName')}
-                  </button>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Team
                 </th>
-                <th className="px-6 py-3 text-left">
-                  <button
-                    onClick={() => handleSort('testClassCount')}
-                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    Test Classes
-                    {getSortIcon('testClassCount')}
-                  </button>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Test Classes
                 </th>
-                <th className="px-6 py-3 text-left">
-                  <button
-                    onClick={() => handleSort('testMethodCount')}
-                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    Test Methods
-                    {getSortIcon('testMethodCount')}
-                  </button>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Test Methods
                 </th>
-                <th className="px-6 py-3 text-left">
-                  <button
-                    onClick={() => handleSort('coverageRate')}
-                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    Coverage
-                    {getSortIcon('coverageRate')}
-                  </button>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Coverage
                 </th>
-                <th className="px-6 py-3 text-left">
-                  <button
-                    onClick={() => handleSort('lastScanDate')}
-                    className="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    Last Scan
-                    {getSortIcon('lastScanDate')}
-                  </button>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Last Scan
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Actions
@@ -283,7 +116,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredAndSortedRepositories.map((repository) => (
+              {repositories.map((repository) => (
                 <tr key={repository.repositoryId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
@@ -359,15 +192,12 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
           </table>
         </div>
         
-        {filteredAndSortedRepositories.length === 0 && (
+        {repositories.length === 0 && (
           <div className="text-center py-12">
             <FolderOpen className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No repositories found</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              {searchTerm || teamFilter || coverageFilter 
-                ? 'Try adjusting your search or filters'
-                : 'No repositories are available'
-              }
+              No repositories are available
             </p>
           </div>
         )}
