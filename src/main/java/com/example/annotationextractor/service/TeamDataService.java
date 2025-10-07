@@ -4,7 +4,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
+import java.util.Comparator;
 
 import org.springframework.stereotype.Service;
 
@@ -14,6 +14,7 @@ import com.example.annotationextractor.domain.model.Team;
 import com.example.annotationextractor.web.dto.RepositorySummaryDto;
 import com.example.annotationextractor.web.dto.TeamMetricsDto;
 import com.example.annotationextractor.web.dto.TeamSummaryDto;
+import com.example.annotationextractor.web.dto.PagedResponse;
 
 @Service
 public class TeamDataService {
@@ -42,6 +43,72 @@ public class TeamDataService {
         } 
         
         return List.of();
+    }
+
+    /**
+     * Get teams with pagination and filtering
+     */
+    public PagedResponse<TeamMetricsDto> getTeamsPaginated(
+            int page, int size, String search, String sortBy, String sortOrder) {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                List<Team> teams = persistenceReadFacade.get().listTeams();
+                List<RepositoryRecord> repositories = persistenceReadFacade.get().listAllRepositories();
+                
+                // Convert to DTOs
+                List<TeamMetricsDto> teamMetrics = teams.stream()
+                    .map(team -> convertToTeamMetricsDto(team, repositories))
+                    .collect(Collectors.toList());
+                
+                // Apply search filter
+                if (search != null && !search.trim().isEmpty()) {
+                    String searchLower = search.toLowerCase();
+                    teamMetrics = teamMetrics.stream()
+                        .filter(team -> 
+                            team.getTeamName().toLowerCase().contains(searchLower) ||
+                            team.getTeamCode().toLowerCase().contains(searchLower) ||
+                            (team.getDepartment() != null && team.getDepartment().toLowerCase().contains(searchLower))
+                        )
+                        .collect(Collectors.toList());
+                }
+                
+                // Apply sorting
+                if (sortBy != null && !sortBy.trim().isEmpty()) {
+                    Comparator<TeamMetricsDto> comparator = getComparator(sortBy);
+                    if ("desc".equalsIgnoreCase(sortOrder)) {
+                        comparator = comparator.reversed();
+                    }
+                    teamMetrics.sort(comparator);
+                }
+                
+                // Apply pagination
+                int totalElements = teamMetrics.size();
+                int totalPages = (int) Math.ceil((double) totalElements / size);
+                int startIndex = page * size;
+                int endIndex = Math.min(startIndex + size, totalElements);
+                
+                List<TeamMetricsDto> pagedContent = startIndex < totalElements 
+                    ? teamMetrics.subList(startIndex, endIndex)
+                    : List.of();
+                
+                return new PagedResponse<>(pagedContent, page, size, totalElements);
+                
+            } catch (Exception e) {
+                System.err.println("Error fetching paginated teams: " + e.getMessage());
+                return new PagedResponse<>(List.of(), page, size, 0);
+            }
+        }
+        
+        return new PagedResponse<>(List.of(), page, size, 0);
+    }
+
+    private Comparator<TeamMetricsDto> getComparator(String sortBy) {
+        return switch (sortBy.toLowerCase()) {
+            case "name" -> Comparator.comparing(TeamMetricsDto::getTeamName);
+            case "repositories" -> Comparator.comparing(TeamMetricsDto::getRepositoryCount);
+            case "coverage" -> Comparator.comparing(TeamMetricsDto::getAverageCoverageRate);
+            default -> Comparator.comparing(TeamMetricsDto::getTeamName);
+        };
     }
 
 

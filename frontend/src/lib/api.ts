@@ -358,7 +358,17 @@ export const api = {
   // Team endpoints
   teams: {
     getAll: (): Promise<TeamMetrics[]> =>
-      apiClient.get('/teams').then(res => res.data),
+      apiClient.get('/dashboard/teams').then(res => res.data),
+    
+    getPaginated: (page: number, size: number, search?: string, sortBy?: string, sortOrder?: string): Promise<PagedResponse<TeamMetrics>> => {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('size', size.toString());
+      if (search) params.append('search', search);
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+      return apiClient.get(`/teams/paginated?${params.toString()}`).then(res => res.data);
+    },
     
     getById: (id: number): Promise<TeamMetrics> =>
       apiClient.get(`/teams/${id}`).then(res => res.data),

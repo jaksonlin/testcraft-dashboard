@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, TrendingUp, BarChart3, GitBranch, Search, Download, ChevronLeft, ChevronRight, Eye, X, Calendar, ExternalLink, TestTube, CheckCircle, Play, RefreshCw } from 'lucide-react';
-import { api, type TeamMetrics } from '../lib/api';
+import { api, type TeamMetrics, type PagedResponse } from '../lib/api';
 import StatCard from '../components/shared/StatCard';
 import BulkOperations, { type BulkAction } from '../components/shared/BulkOperations';
 import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
+import DataControls, { type SortOption } from '../components/shared/DataControls';
 import { useBulkOperations } from '../hooks/useBulkOperations';
 import { exportData as exportDataUtil, prepareTeamExportData, type ExportScope } from '../utils/exportUtils';
 import { useModal } from '../hooks/useModal';
@@ -336,8 +337,8 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
-                  {currentRepos.map((repo) => (
-                    <tr key={repo.repositoryId} className="hover:bg-gray-50">
+                  {currentRepos.map((repo, index) => (
+                    <tr key={`repo-${repo.repositoryId}-${index}`} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div>
                           <div className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{repo.repositoryName}</div>
@@ -411,7 +412,7 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
                     
                     return (
                       <button
-                        key={pageNum}
+                        key={`page-${pageNum}-${i}`}
                         onClick={() => handleRepoPageChange(pageNum)}
                         className={`px-3 py-1 text-sm border rounded ${
                           pageNum === repoCurrentPage ? '' : ''
@@ -473,77 +474,67 @@ const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ team, isOpen, onClose
 
 const TeamsView: React.FC = () => {
   const [teams, setTeams] = useState<TeamMetrics[]>([]);
-  const [filteredTeams, setFilteredTeams] = useState<TeamMetrics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'repositories' | 'coverage'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [pagination, setPagination] = useState<PagedResponse<TeamMetrics> | null>(null);
   const { isOpen: isDetailOpen, open: openDetailModal, close: closeDetailModal } = useModal();
   const [selectedTeam, setSelectedTeam] = useState<TeamMetrics | null>(null);
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
+  // Sort options configuration
+  const sortOptions: SortOption[] = [
+    { value: 'name', label: 'Name' },
+    { value: 'repositories', label: 'Repositories' },
+    { value: 'coverage', label: 'Coverage' }
+  ];
 
-  const fetchTeams = async () => {
+  const fetchTeams = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await api.teams.getAll();
-      setTeams(data);
+      const response = await api.teams.getPaginated(
+        currentPage, 
+        pageSize, 
+        searchTerm || undefined, 
+        sortBy, 
+        sortOrder
+      );
+      setTeams(response.content);
+      setPagination(response);
     } catch (err) {
       setError('Failed to fetch teams data');
       console.error('Error fetching teams:', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterAndSortTeams = useCallback(() => {
-    const filtered = teams.filter(team =>
-      team.teamName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      team.teamCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (team.department && team.department.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-
-    filtered.sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
-
-      switch (sortBy) {
-        case 'name':
-          aValue = a.teamName.toLowerCase();
-          bValue = b.teamName.toLowerCase();
-          break;
-        case 'repositories':
-          aValue = a.repositoryCount;
-          bValue = b.repositoryCount;
-          break;
-        case 'coverage':
-          aValue = a.averageCoverageRate;
-          bValue = b.averageCoverageRate;
-          break;
-        default:
-          aValue = a.teamName.toLowerCase();
-          bValue = b.teamName.toLowerCase();
-      }
-
-      if (sortOrder === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    setFilteredTeams(filtered);
-  }, [teams, searchTerm, sortBy, sortOrder]);
+  }, [currentPage, pageSize, searchTerm, sortBy, sortOrder]);
 
   useEffect(() => {
-    filterAndSortTeams();
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [filterAndSortTeams]);
+    fetchTeams();
+  }, [fetchTeams]);
+
+  const handleSearchChange = (newSearchTerm: string) => {
+    setSearchTerm(newSearchTerm);
+    setCurrentPage(0); // Reset to first page when search changes
+  };
+
+  const handleSortByChange = (field: string) => {
+    setSortBy(field as 'name' | 'repositories' | 'coverage');
+    setCurrentPage(0); // Reset to first page when sorting changes
+  };
+
+  const handleSortOrderChange = (order: 'asc' | 'desc') => {
+    setSortOrder(order);
+    setCurrentPage(0); // Reset to first page when sort order changes
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(0); // Reset to first page when page size changes
+  };
 
   const handleTeamClick = (team: TeamMetrics) => {
     setSelectedTeam(team);
@@ -552,7 +543,7 @@ const TeamsView: React.FC = () => {
 
   // Bulk operations
   const bulkOps = useBulkOperations({
-    items: filteredTeams,
+    items: teams,
     getId: (team) => team.id
   });
 
@@ -660,11 +651,6 @@ const TeamsView: React.FC = () => {
   };
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredTeams.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentTeams = filteredTeams.slice(startIndex, endIndex);
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -732,16 +718,30 @@ const TeamsView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-        <Users className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
-        <h1 className="text-3xl font-bold" style={{ color: 'var(--color-foreground)' }}>Teams</h1>
+          <Users className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
+          <h1 className="text-3xl font-bold" style={{ color: 'var(--color-foreground)' }}>Teams</h1>
         </div>
-        <ExportManager
-          data={teams}
-          dataType="teams"
-          selectedItems={bulkOps.selectedItems}
-          filteredData={filteredTeams}
-          onExport={handleExport}
-        />
+        
+        <div className="flex items-center gap-4">
+          {/* Data Controls */}
+          <DataControls
+            pageSize={pageSize}
+            onPageSizeChange={handlePageSizeChange}
+            sortBy={sortBy}
+            onSortByChange={handleSortByChange}
+            sortOptions={sortOptions}
+            sortOrder={sortOrder}
+            onSortOrderChange={handleSortOrderChange}
+          />
+
+          <ExportManager
+            data={teams}
+            dataType="teams"
+            selectedItems={bulkOps.selectedItems}
+            filteredData={teams}
+            onExport={handleExport}
+          />
+        </div>
       </div>
 
       {/* Summary Stats */}
@@ -772,48 +772,30 @@ const TeamsView: React.FC = () => {
         />
       </div>
 
-      {/* Filters and Search */}
+      {/* Search */}
       <div className="rounded-lg shadow-sm border p-4 mb-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Search teams by name, code, or department..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'name' | 'repositories' | 'coverage')}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            >
-              <option value="name">Sort by Name</option>
-              <option value="repositories">Sort by Repositories</option>
-              <option value="coverage">Sort by Coverage</option>
-            </select>
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            >
-              {sortOrder === 'asc' ? '↑' : '↓'}
-            </button>
-          </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
+          <input
+            type="text"
+            placeholder="Search teams by name, code, or department..."
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          />
         </div>
-        <div className="mt-3 text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-          Showing {filteredTeams.length} of {teams.length} teams
-        </div>
+        {pagination && (
+          <div className="mt-3 text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
+            Showing {teams.length} of {pagination.totalElements} teams
+            {searchTerm && ' (filtered)'}
+          </div>
+        )}
       </div>
 
       {/* Bulk Operations */}
       <BulkOperations
         selectedItems={bulkOps.selectedItems}
-        totalItems={filteredTeams.length}
+        totalItems={teams.length}
         onSelectAll={bulkOps.selectAll}
         onClearSelection={bulkOps.clearSelection}
         actions={bulkActions}
@@ -861,7 +843,7 @@ const TeamsView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
-              {currentTeams.map((team) => (
+              {teams.map((team) => (
                 <tr key={team.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
@@ -924,93 +906,52 @@ const TeamsView: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 flex items-center justify-between border-t sm:px-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-background)' }}
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-background)' }}
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-                  Showing{' '}
-                  <span className="font-medium">{startIndex + 1}</span>
-                  {' '}to{' '}
-                  <span className="font-medium">{Math.min(endIndex, filteredTeams.length)}</span>
-                  {' '}of{' '}
-                  <span className="font-medium">{filteredTeams.length}</span>
-                  {' '}results
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted-foreground)', backgroundColor: 'var(--color-background)' }}
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  
-                  {/* Page numbers */}
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => handlePageChange(pageNum)}
-                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                          pageNum === currentPage ? 'z-10' : ''
-                        }`}
-                        style={{
-                          backgroundColor: pageNum === currentPage ? 'var(--color-accent)' : 'var(--color-background)',
-                          borderColor: pageNum === currentPage ? 'var(--color-primary)' : 'var(--color-border)',
-                          color: pageNum === currentPage ? 'var(--color-primary)' : 'var(--color-muted-foreground)'
-                        }}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                  
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted-foreground)', backgroundColor: 'var(--color-background)' }}
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Pagination Controls */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-end mt-6">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 0}
+              className={`
+                inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                ${currentPage === 0
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+                }
+              `}
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Previous
+            </button>
+
+            <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Page {currentPage + 1} of {pagination.totalPages}
+              </span>
+            </div>
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= pagination.totalPages - 1}
+              className={`
+                inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                ${currentPage >= pagination.totalPages - 1
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+                }
+              `}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-2" />
+            </button>
+          </div>
+        </div>
+      )}
       
-      {filteredTeams.length === 0 && (
+      {teams.length === 0 && !loading && (
         <div className="text-center py-12">
           <Users className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-foreground)' }}>No teams found</h3>

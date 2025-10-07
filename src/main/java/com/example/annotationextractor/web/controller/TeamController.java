@@ -3,7 +3,10 @@ package com.example.annotationextractor.web.controller;
 import com.example.annotationextractor.service.RepositoryDataService;
 import com.example.annotationextractor.service.TeamDataService;
 import com.example.annotationextractor.web.dto.TeamMetricsDto;
+import com.example.annotationextractor.web.dto.PagedResponse;
 import com.example.annotationextractor.web.dto.RepositoryMetricsDto;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -70,5 +73,25 @@ public class TeamController {
         // Sort by average coverage rate for comparison
         teams.sort((t1, t2) -> Double.compare(t2.getAverageCoverageRate(), t1.getAverageCoverageRate()));
         return ResponseEntity.ok(teams);
+    }
+
+        /**
+     * Get teams with pagination and filtering
+     */
+    @GetMapping("/paginated")
+    public ResponseEntity<PagedResponse<TeamMetricsDto>> getTeamsPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortOrder) {
+        try {
+            PagedResponse<TeamMetricsDto> response = teamDataService.getTeamsPaginated(
+                page, size, search, sortBy, sortOrder);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new PagedResponse<>(List.of(), page, size, 0));
+        }
     }
 }
