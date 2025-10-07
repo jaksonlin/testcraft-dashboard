@@ -238,6 +238,32 @@ export interface PagedResponse<T> {
   hasPrevious: boolean;
 }
 
+export interface ExportRequest {
+  dataType: 'test-methods' | 'repositories' | 'teams';
+  format: 'csv' | 'excel' | 'json';
+  scope: 'all' | 'filtered';
+  filters?: {
+    teamName?: string;
+    repositoryName?: string;
+    annotated?: boolean;
+  };
+  filename?: string;
+}
+
+export interface ExportStatus {
+  jobId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  message: string;
+  createdAt: string;
+  completedAt?: string;
+  downloadUrl?: string;
+  filename?: string;
+  totalRecords: number;
+  processedRecords: number;
+  errorMessage?: string;
+}
+
 export interface ScanSession {
   id: number;
   startTime: string;
@@ -282,6 +308,10 @@ export const api = {
     // Paginated test method details for better performance
     getTestMethodDetailsPaginated: (page: number, size: number, teamName?: string, repositoryName?: string, annotated?: boolean): Promise<PagedResponse<TestMethodDetail>> =>
       apiClient.get(`/dashboard/test-methods/paginated?page=${page}&size=${size}${teamName ? `&teamName=${teamName}` : ''}${repositoryName ? `&repositoryName=${repositoryName}` : ''}${annotated !== undefined ? `&annotated=${annotated}` : ''}`).then(res => res.data),
+    
+    // Grouped test method details for hierarchical display
+    getAllTestMethodDetailsGrouped: (limit?: number): Promise<GroupedTestMethodResponse> =>
+      apiClient.get(`/dashboard/test-methods/grouped${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
   },
 
   // Repository endpoints
@@ -383,6 +413,24 @@ export const api = {
     
     getTableCounts: (): Promise<{ repositories: number; teams: number; recentScanSessions: number; status: string }> =>
       apiClient.get('/debug/table-counts').then(res => res.data),
+  },
+
+  // Export endpoints
+  export: {
+    initiate: (request: ExportRequest): Promise<ExportStatus> =>
+      apiClient.post('/export/initiate', request).then(res => res.data),
+    
+    getStatus: (jobId: string): Promise<ExportStatus> =>
+      apiClient.get(`/export/status/${jobId}`).then(res => res.data),
+    
+    download: (jobId: string): Promise<Blob> =>
+      apiClient.get(`/export/download/${jobId}`, { responseType: 'blob' }).then(res => res.data),
+    
+    cancel: (jobId: string): Promise<void> =>
+      apiClient.delete(`/export/cancel/${jobId}`).then(res => res.data),
+    
+    cleanup: (): Promise<void> =>
+      apiClient.delete('/export/cleanup').then(res => res.data),
   },
 };
 

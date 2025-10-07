@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -13,7 +13,7 @@ import {
   AlertCircle,
   BarChart3
 } from 'lucide-react';
-import { api, type GroupedTestMethodResponse } from '../lib/api';
+import { api, type GroupedTestMethodResponse, type TestMethodDetail } from '../lib/api';
 import { 
   isMethodAnnotated, 
   calculateCoverageRate, 
@@ -25,14 +25,93 @@ import {
   exportData as exportDataUtil
 } from '../utils/exportUtils';
 
+// Simple virtual scrolling component for method lists
+const VirtualMethodList: React.FC<{
+  methods: TestMethodDetail[];
+  maxVisible?: number;
+}> = ({ methods, maxVisible = 10 }) => {
+  const [showAll, setShowAll] = useState(false);
+  const visibleMethods = showAll ? methods : methods.slice(0, maxVisible);
+  const hasMore = methods.length > maxVisible;
+
+  return (
+    <div className="space-y-2">
+      {visibleMethods.map((method) => {
+        const isAnnotated = isMethodAnnotated(method);
+        return (
+          <div 
+            key={method.id} 
+            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+          >
+            <div className="flex items-center">
+              {isAnnotated ? (
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mr-2" />
+              ) : (
+                <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 mr-2" />
+              )}
+              <div>
+                <p className="font-medium text-gray-900 dark:text-gray-100">
+                  {method.testMethod}
+                </p>
+                {method.title && method.title !== 'No title' && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {method.title}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {method.author || 'Unknown'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-500">
+                {method.status || 'UNKNOWN'}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+      {hasMore && !showAll && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="w-full p-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          Show {methods.length - maxVisible} more methods...
+        </button>
+      )}
+      {showAll && hasMore && (
+        <button
+          onClick={() => setShowAll(false)}
+          className="w-full p-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          Show less
+        </button>
+      )}
+    </div>
+  );
+};
+
 const TestMethodGroupedView: React.FC = () => {
   const [groupedData, setGroupedData] = useState<GroupedTestMethodResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [filterAnnotated, setFilterAnnotated] = useState<'all' | 'annotated' | 'not-annotated'>('all');
+
+  // Debounce search term to prevent excessive filtering
+  useEffect(() => {
+    setIsSearching(true);
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setIsSearching(false);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const fetchGroupedData = async () => {
     try {
@@ -57,19 +136,19 @@ const TestMethodGroupedView: React.FC = () => {
     fetchGroupedData();
   }, []);
 
-  // Filter and search logic
+  // Filter and search logic with debounced search
   const filteredData = useMemo(() => {
     if (!groupedData) return null;
 
     const filteredTeams = groupedData.teams.map(team => {
       const filteredClasses = team.classes.map(classGroup => {
         const filteredMethods = classGroup.methods.filter(method => {
-          // Search filter
-          const matchesSearch = !searchTerm || 
-            method.testMethod.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            method.testClass.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            method.repository.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (method.title && method.title.toLowerCase().includes(searchTerm.toLowerCase()));
+          // Search filter (using debounced term)
+          const matchesSearch = !debouncedSearchTerm || 
+            method.testMethod.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+            method.testClass.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+            method.repository.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+            (method.title && method.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
 
           // Annotation filter
           const matchesAnnotation = filterAnnotated === 'all' ||
@@ -126,9 +205,9 @@ const TestMethodGroupedView: React.FC = () => {
         overallCoverageRate: totalMethods > 0 ? (totalAnnotatedMethods / totalMethods) * 100 : 0
       }
     };
-  }, [groupedData, searchTerm, filterAnnotated]);
+  }, [groupedData, debouncedSearchTerm, filterAnnotated]);
 
-  const toggleTeamExpansion = (teamName: string) => {
+  const toggleTeamExpansion = useCallback((teamName: string) => {
     setExpandedTeams(prev => {
       const newSet = new Set(prev);
       if (newSet.has(teamName)) {
@@ -138,9 +217,9 @@ const TestMethodGroupedView: React.FC = () => {
       }
       return newSet;
     });
-  };
+  }, []);
 
-  const toggleClassExpansion = (classKey: string) => {
+  const toggleClassExpansion = useCallback((classKey: string) => {
     setExpandedClasses(prev => {
       const newSet = new Set(prev);
       if (newSet.has(classKey)) {
@@ -150,7 +229,7 @@ const TestMethodGroupedView: React.FC = () => {
       }
       return newSet;
     });
-  };
+  }, []);
 
   const handleExport = async (option: ExportOption) => {
     if (!filteredData) return;
@@ -297,7 +376,7 @@ const TestMethodGroupedView: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${isSearching ? 'text-blue-500 animate-pulse' : 'text-gray-400'}`} />
                 <input
                   type="text"
                   placeholder="Search test methods, classes, or repositories..."
@@ -305,6 +384,11 @@ const TestMethodGroupedView: React.FC = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="input pl-10 w-full"
                 />
+                {isSearching && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -328,7 +412,7 @@ const TestMethodGroupedView: React.FC = () => {
         <div className="mb-6">
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Showing {filteredData.summary.totalMethods} test methods across {filteredData.summary.totalTeams} teams and {filteredData.summary.totalClasses} classes
-            {searchTerm && ` (filtered by "${searchTerm}")`}
+            {debouncedSearchTerm && ` (filtered by "${debouncedSearchTerm}")`}
             {filterAnnotated !== 'all' && ` (${filterAnnotated === 'annotated' ? 'annotated' : 'not annotated'} only)`}
           </p>
         </div>
@@ -411,45 +495,10 @@ const TestMethodGroupedView: React.FC = () => {
                         {/* Class Methods */}
                         {expandedClasses.has(classKey) && (
                           <div className="mt-3 ml-6">
-                            <div className="space-y-2">
-                              {classGroup.methods.map((method) => {
-                                const isAnnotated = isMethodAnnotated(method);
-                                return (
-                                  <div 
-                                    key={method.id} 
-                                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                                  >
-                                    <div className="flex items-center">
-                                      {isAnnotated ? (
-                                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mr-2" />
-                                      ) : (
-                                        <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 mr-2" />
-                                      )}
-                                      <div>
-                                        <p className="font-medium text-gray-900 dark:text-gray-100">
-                                          {method.testMethod}
-                                        </p>
-                                        {method.title && (
-                                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            {method.title}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        Line {method.line}
-                                      </p>
-                                      {method.author && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                                          by {method.author}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                            <VirtualMethodList 
+                              methods={classGroup.methods} 
+                              maxVisible={8}
+                            />
                           </div>
                         )}
                       </div>

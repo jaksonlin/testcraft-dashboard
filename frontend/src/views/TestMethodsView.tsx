@@ -3,8 +3,7 @@ import { RefreshCw, CheckCircle, XCircle, ExternalLink, FileText, Target } from 
 import { api, type TestMethodDetail } from '../lib/api';
 import PaginatedTable, { type ColumnDef } from '../components/shared/PaginatedTable';
 import { usePaginatedData } from '../hooks/usePaginatedData';
-import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
-import { prepareTestMethodExportData, exportData as exportDataUtil } from '../utils/exportUtils';
+import ServerSideExportManager from '../components/shared/ServerSideExportManager';
 import { isMethodAnnotated, getAnnotationStatusDisplayName } from '../utils/methodUtils';
 
 const TestMethodsView: React.FC = () => {
@@ -52,16 +51,6 @@ const TestMethodsView: React.FC = () => {
     setDataFilters(updatedFilters);
   };
 
-  const handleExport = async (option: ExportOption) => {
-    try {
-      // For large exports, we might need to fetch all data
-      const exportData = prepareTestMethodExportData(testMethods, option.scope);
-      await exportDataUtil(exportData, option);
-    } catch (error) {
-      console.error('Export failed:', error);
-      throw error;
-    }
-  };
 
   const columns: ColumnDef<TestMethodDetail>[] = useMemo(() => [
     {
@@ -226,11 +215,10 @@ const TestMethodsView: React.FC = () => {
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
-              <ExportManager
-                data={testMethods}
+              <ServerSideExportManager
                 dataType="methods"
-                onExport={handleExport}
-                className="flex items-center"
+                filters={filters}
+                className="ml-2"
               />
             </div>
           </div>
