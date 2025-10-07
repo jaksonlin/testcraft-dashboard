@@ -9,10 +9,10 @@ import java.util.Optional;
  */
 public interface TestClassPort {
     Optional<TestClass> findById(Long id);
-    List<TestClass> findByRepositoryId(Long repositoryId);
-    Optional<TestClass> findByRepositoryIdAndFilePath(Long repositoryId, String filePath);
-    List<TestClass> findAll();
-    long count();
+    List<TestClass> findByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId);
+    Optional<TestClass> findByRepositoryIdAndScanSessionIdAndFilePath(Long repositoryId, Long scanSessionId, String filePath);
+    List<TestClass> findAllByScanSessionId(Long scanSessionId);
+    long countAllByScanSessionId(Long scanSessionId);
 }
 
 

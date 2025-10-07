@@ -31,6 +31,7 @@ public class PersistenceReadFacade {
     public Optional<RepositoryRecord> getRepositoryByGitUrl(String gitUrl) {
         return repositoryQueryService.getByGitUrl(gitUrl);
     }
+
     public List<RepositoryRecord> listRepositoriesByTeam(Long teamId) { return repositoryQueryService.listByTeamId(teamId); }
     public List<RepositoryRecord> listAllRepositories() { return repositoryQueryService.listAll(); }
 
@@ -39,10 +40,36 @@ public class PersistenceReadFacade {
 
     // Scan sessions
     public List<ScanSession> recentScanSessions(int limit) { return scanSessionQueryService.recent(limit); }
+    public Optional<ScanSession> getLatestCompletedScanSession() { return scanSessionQueryService.getLatestCompleted(); }
 
     // Test artifacts
-    public List<TestClass> listClassesByRepository(Long repositoryId) { return testArtifactQueryService.listClassesByRepository(repositoryId); }
-    public List<TestMethod> listAnnotatedMethodsByRepository(Long repositoryId) { return testArtifactQueryService.listAnnotatedMethodsByRepository(repositoryId); }
+    public List<TestClass> listClassesByScanSessionId(Long scanSessionId) { return testArtifactQueryService.listClassesByScanSessionId(scanSessionId); }
+    public List<TestClass> listClassesByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId) { return testArtifactQueryService.listClassesByRepositoryIdAndScanSessionId(repositoryId, scanSessionId); }
+    public Optional<TestClass> listClassByRepositoryIdAndScanSessionIdAndFilePath(Long repositoryId, Long scanSessionId, String filePath) { return testArtifactQueryService.listClassByRepositoryIdAndScanSessionIdAndFilePath(repositoryId, scanSessionId, filePath); }
+    public long countClassesByScanSessionId(Long scanSessionId) { return testArtifactQueryService.countClassesByScanSessionId(scanSessionId); }
+    public List<TestMethod> listMethodsByTestClassId(Long testClassId) { return testArtifactQueryService.listMethodsByTestClassId(testClassId); } 
+    public List<TestMethod> listMethodsByScanSessionId(Long scanSessionId) { return testArtifactQueryService.listMethodsByScanSessionId(scanSessionId); }
+    public List<TestMethod> listAnnotatedMethodsByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId) { return testArtifactQueryService.listAnnotatedMethodsByRepositoryIdAndScanSessionId(repositoryId, scanSessionId); }
+    
+    // list by scan session
+    public List<TestMethodDetailRecord> listTestMethodDetailsByScanSessionId(Long scanSessionId, Integer limit) { return testArtifactQueryService.listTestMethodDetailsByScanSessionId(scanSessionId, limit); }
+    public long countTestMethodDetailsByScanSessionId(Long scanSessionId) { return testArtifactQueryService.countTestMethodDetailsByScanSessionId(scanSessionId); }
+
+    // list by team and scan session
+    public List<TestMethodDetailRecord> listTestMethodDetailsByTeamIdAndScanSessionId(Long teamId, Long scanSessionId, Integer limit) { 
+        return testArtifactQueryService.listTestMethodDetailsByTeamIdAndScanSessionId(teamId, scanSessionId, limit); 
+    }
+    public long countTestMethodDetailsByTeamIdAndScanSessionId(Long teamId, Long scanSessionId) { return testArtifactQueryService.countTestMethodDetailsByTeamIdAndScanSessionId(teamId, scanSessionId); }
+
+    // list by repository and scan session
+    public List<TestMethodDetailRecord> listTestMethodDetailsByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId, Integer limit) { 
+        return testArtifactQueryService.listTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, scanSessionId, limit); 
+    }
+    public long countTestMethodDetailsByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId) { return testArtifactQueryService.countTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, scanSessionId); }
+    
+    // list by class id
+    public List<TestMethodDetailRecord> listTestMethodDetailsByClassId(Long classId, Integer limit) { return testArtifactQueryService.listTestMethodDetailsByClassId(classId, limit); }
+    public long countTestMethodDetailsByClassId(Long classId) { return testArtifactQueryService.countTestMethodDetailsByClassId(classId); }
 
     // Daily metrics
     public List<DailyMetric> recentDailyMetrics(int limit) { return dailyMetricQueryService.recent(limit); }
@@ -50,11 +77,9 @@ public class PersistenceReadFacade {
     
     // Dashboard-specific detailed queries
     public List<RepositoryDetailRecord> listRepositoryDetails() { 
-        return repositoryQueryService.listRepositoryDetails(); 
+        return repositoryQueryService.listRepositoryDetails();  
     }
-    public List<TestMethodDetailRecord> listTestMethodDetails(Long teamId, Integer limit) { 
-        return testArtifactQueryService.listTestMethodDetails(teamId, limit); 
-    }
+    
 }
 
 

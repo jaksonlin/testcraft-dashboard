@@ -58,6 +58,20 @@ export interface TeamSummary {
   coverageRate: number;
 }
 
+export interface TeamMetrics {
+  id: number;
+  teamName: string;
+  teamCode: string;
+  department?: string;
+  repositoryCount: number;
+  totalTestClasses: number;
+  totalTestMethods: number;
+  totalAnnotatedMethods: number;
+  averageCoverageRate: number;
+  lastScanDate?: string;
+  repositories: RepositorySummary[];
+}
+
 export interface RepositorySummary {
   repositoryId: number;
   repositoryName: string;
@@ -108,6 +122,17 @@ export interface TestMethodDetail {
   gitUrl: string;
 }
 
+export interface TestClassSummary {
+  id: number;
+  className: string;
+  packageName: string;
+  filePath: string;
+  testMethodCount: number;
+  annotatedMethodCount: number;
+  coverageRate: number;
+  lastModifiedDate: string;
+}
+
 export interface ScanStatus {
   isScanning: boolean;
   lastScanTime: string | null;
@@ -132,18 +157,125 @@ export interface ScanConfig {
   timestamp: number;
 }
 
-export interface ScanSession {
+export interface DailyMetric {
   id: number;
-  scanDate: string;
-  scanDirectory: string;
+  date: string;
   totalRepositories: number;
   totalTestClasses: number;
   totalTestMethods: number;
   totalAnnotatedMethods: number;
-  scanDurationMs: number;
-  scanStatus: string;
-  errorLog?: string;
-  metadata?: string;
+  overallCoverageRate: number;
+  newTestMethods: number;
+  newAnnotatedMethods: number;
+}
+
+export interface AnalyticsOverview {
+  totalDaysTracked: number;
+  averageCoverageRate: number;
+  coverageTrend: 'up' | 'down' | 'stable';
+  totalGrowth: {
+    repositories: number;
+    testMethods: number;
+    annotatedMethods: number;
+  };
+  recentActivity: {
+    lastWeek: number;
+    lastMonth: number;
+  };
+}
+
+// Grouped test method data structures
+export interface GroupedTestMethodResponse {
+  teams: TeamGroup[];
+  summary: Summary;
+}
+
+export interface TeamGroup {
+  teamName: string;
+  teamCode: string;
+  classes: ClassGroup[];
+  summary: TeamSummary;
+}
+
+export interface ClassGroup {
+  className: string;
+  packageName: string;
+  repository: string;
+  methods: TestMethodDetail[];
+  summary: ClassSummary;
+}
+
+export interface Summary {
+  totalTeams: number;
+  totalClasses: number;
+  totalMethods: number;
+  totalAnnotatedMethods: number;
+  overallCoverageRate: number;
+}
+
+export interface TeamSummary {
+  totalClasses: number;
+  totalMethods: number;
+  annotatedMethods: number;
+  coverageRate: number;
+}
+
+export interface ClassSummary {
+  totalMethods: number;
+  annotatedMethods: number;
+  coverageRate: number;
+}
+
+export interface PagedResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+export interface ExportRequest {
+  dataType: 'test-methods' | 'repositories' | 'teams';
+  format: 'csv' | 'excel' | 'json';
+  scope: 'all' | 'filtered';
+  filters?: {
+    teamName?: string;
+    repositoryName?: string;
+    annotated?: boolean;
+  };
+  filename?: string;
+}
+
+export interface ExportStatus {
+  jobId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  message: string;
+  createdAt: string;
+  completedAt?: string;
+  downloadUrl?: string;
+  filename?: string;
+  totalRecords: number;
+  processedRecords: number;
+  errorMessage?: string;
+}
+
+export interface ScanSession {
+  id: number;
+  startTime: string;
+  endTime: string;
+  status: string;
+  totalRepositories: number;
+  successfulRepositories: number;
+  failedRepositories: number;
+  totalTestClasses: number;
+  totalTestMethods: number;
+  totalAnnotatedMethods: number;
+  overallCoverageRate: number;
 }
 
 // API Methods
@@ -169,6 +301,83 @@ export const api = {
       const queryString = params.toString();
       return apiClient.get(`/dashboard/test-methods/details${queryString ? `?${queryString}` : ''}`).then(res => res.data);
     },
+    
+    getAllTestMethodDetails: (limit?: number): Promise<TestMethodDetail[]> =>
+      apiClient.get(`/dashboard/test-methods/all${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
+    
+    // Paginated test method details for better performance
+    getTestMethodDetailsPaginated: (page: number, size: number, teamName?: string, repositoryName?: string, annotated?: boolean): Promise<PagedResponse<TestMethodDetail>> =>
+      apiClient.get(`/dashboard/test-methods/paginated?page=${page}&size=${size}${teamName ? `&teamName=${teamName}` : ''}${repositoryName ? `&repositoryName=${repositoryName}` : ''}${annotated !== undefined ? `&annotated=${annotated}` : ''}`).then(res => res.data),
+    
+    // Grouped test method details for hierarchical display
+    getAllTestMethodDetailsGrouped: (limit?: number): Promise<GroupedTestMethodResponse> =>
+      apiClient.get(`/dashboard/test-methods/grouped${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
+  },
+
+  // Repository endpoints
+  repositories: {
+    getAll: (): Promise<RepositorySummary[]> =>
+      apiClient.get('/repositories').then(res => res.data),
+
+    getPaginated: (page: number, size: number, search?: string, team?: string, coverage?: string, testMethods?: string, lastScan?: string, sortBy?: string, sortOrder?: string): Promise<PagedResponse<RepositorySummary>> =>
+      apiClient.get(`/repositories/paginated?page=${page}&size=${size}${search ? `&search=${encodeURIComponent(search)}` : ''}${team ? `&team=${encodeURIComponent(team)}` : ''}${coverage ? `&coverage=${coverage}` : ''}${testMethods ? `&testMethods=${testMethods}` : ''}${lastScan ? `&lastScan=${lastScan}` : ''}${sortBy ? `&sortBy=${sortBy}` : ''}${sortOrder ? `&sortOrder=${sortOrder}` : ''}`).then(res => res.data),
+    
+    getById: (id: number): Promise<RepositoryDetail> =>
+      apiClient.get(`/repositories/${id}`).then(res => res.data),
+    
+    getTestMethods: (repositoryId: number, limit?: number): Promise<TestMethodDetail[]> => {
+      const params = new URLSearchParams();
+      if (limit) params.append('limit', limit.toString());
+      const queryString = params.toString();
+      return apiClient.get(`/repositories/${repositoryId}/test-methods${queryString ? `?${queryString}` : ''}`).then(res => res.data);
+    },
+
+    // New: repository classes and class methods
+    getClasses: (repositoryId: number): Promise<TestClassSummary[]> =>
+      apiClient.get(`/repositories/${repositoryId}/classes`).then(res => res.data),
+
+    getClassesPaginated: (repositoryId: number, page: number, size: number, className?: string, annotated?: boolean): Promise<PagedResponse<TestClassSummary>> =>
+      apiClient.get(`/repositories/${repositoryId}/classes/paginated?page=${page}&size=${size}${className ? `&className=${className}` : ''}${annotated !== undefined ? `&annotated=${annotated}` : ''}`).then(res => res.data),
+
+    getClassMethods: (repositoryId: number, classId: number, limit: number = 200): Promise<TestMethodDetail[]> =>
+      apiClient.get(`/repositories/${repositoryId}/classes/${classId}/methods?limit=${limit}`).then(res => res.data),
+    
+    getByTeam: (teamId: number): Promise<RepositorySummary[]> =>
+      apiClient.get(`/repositories/team/${teamId}`).then(res => res.data),
+    
+    search: (name?: string, team?: string, coverage?: string): Promise<RepositorySummary[]> => {
+      const params = new URLSearchParams();
+      if (name) params.append('name', name);
+      if (team) params.append('team', team);
+      if (coverage) params.append('coverage', coverage);
+      const queryString = params.toString();
+      return apiClient.get(`/repositories/search${queryString ? `?${queryString}` : ''}`).then(res => res.data);
+    },
+  },
+
+  // Team endpoints
+  teams: {
+    getAll: (): Promise<TeamMetrics[]> =>
+      apiClient.get('/dashboard/teams').then(res => res.data),
+    
+    getPaginated: (page: number, size: number, search?: string, sortBy?: string, sortOrder?: string): Promise<PagedResponse<TeamMetrics>> => {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('size', size.toString());
+      if (search) params.append('search', search);
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+      return apiClient.get(`/teams/paginated?${params.toString()}`).then(res => res.data);
+    },
+    
+    getById: (id: number): Promise<TeamMetrics> =>
+      apiClient.get(`/teams/${id}`).then(res => res.data),
+    
+    getRepositories: (teamId: number): Promise<RepositorySummary[]> =>
+      apiClient.get(`/teams/${teamId}/repositories`).then(res => res.data),
+    
+    getComparison: (): Promise<TeamMetrics[]> =>
+      apiClient.get('/teams/comparison').then(res => res.data),
   },
 
   // Scan endpoints
@@ -195,6 +404,24 @@ export const api = {
       apiClient.get('/scan/health').then(res => res.data),
   },
 
+  // Analytics endpoints
+  analytics: {
+    getDailyMetrics: (days: number = 30): Promise<DailyMetric[]> =>
+      apiClient.get(`/analytics/daily-metrics?days=${days}`).then(res => res.data),
+    
+    getCoverageTrend: (days: number = 30): Promise<{ date: string; coverage: number }[]> =>
+      apiClient.get(`/analytics/coverage-trend?days=${days}`).then(res => res.data),
+    
+    getTeamComparison: (): Promise<TeamMetrics[]> =>
+      apiClient.get('/analytics/team-comparison').then(res => res.data),
+    
+    getGrowthMetrics: (days: number = 30): Promise<{ date: string; repositories: number; testMethods: number; annotatedMethods: number }[]> =>
+      apiClient.get(`/analytics/growth-metrics?days=${days}`).then(res => res.data),
+    
+    getOverview: (): Promise<AnalyticsOverview> =>
+      apiClient.get('/analytics/overview').then(res => res.data),
+  },
+
   // Debug endpoints
   debug: {
     getDatabaseInfo: (): Promise<{ persistenceFacadeAvailable: boolean; status: string }> =>
@@ -202,6 +429,24 @@ export const api = {
     
     getTableCounts: (): Promise<{ repositories: number; teams: number; recentScanSessions: number; status: string }> =>
       apiClient.get('/debug/table-counts').then(res => res.data),
+  },
+
+  // Export endpoints
+  export: {
+    initiate: (request: ExportRequest): Promise<ExportStatus> =>
+      apiClient.post('/export/initiate', request).then(res => res.data),
+    
+    getStatus: (jobId: string): Promise<ExportStatus> =>
+      apiClient.get(`/export/status/${jobId}`).then(res => res.data),
+    
+    download: (jobId: string): Promise<Blob> =>
+      apiClient.get(`/export/download/${jobId}`, { responseType: 'blob' }).then(res => res.data),
+    
+    cancel: (jobId: string): Promise<void> =>
+      apiClient.delete(`/export/cancel/${jobId}`).then(res => res.data),
+    
+    cleanup: (): Promise<void> =>
+      apiClient.delete('/export/cleanup').then(res => res.data),
   },
 };
 

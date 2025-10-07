@@ -8,6 +8,7 @@ import java.util.List;
  */
 public class RepositoryMetricsDto {
     private Long id;
+    private Long repositoryId; // Frontend expects this field name
     private String repositoryName;
     private String repositoryPath;
     private String gitUrl;
@@ -27,6 +28,7 @@ public class RepositoryMetricsDto {
 
     public RepositoryMetricsDto(Long id, String repositoryName, String gitUrl) {
         this.id = id;
+        this.repositoryId = id; // Set repositoryId to same value as id
         this.repositoryName = repositoryName;
         this.gitUrl = gitUrl;
     }
@@ -38,6 +40,14 @@ public class RepositoryMetricsDto {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getRepositoryId() {
+        return repositoryId;
+    }
+
+    public void setRepositoryId(Long repositoryId) {
+        this.repositoryId = repositoryId;
     }
 
     public String getRepositoryName() {

@@ -59,7 +59,6 @@ CREATE TABLE IF NOT EXISTS test_classes (
     first_seen_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     scan_session_id BIGINT,
-    UNIQUE (repository_id, file_path),
     CONSTRAINT fk_test_classes_repo FOREIGN KEY (repository_id) REFERENCES repositories(id) ON DELETE CASCADE,
     CONSTRAINT fk_test_classes_scan FOREIGN KEY (scan_session_id) REFERENCES scan_sessions(id)
 );
@@ -89,7 +88,6 @@ CREATE TABLE IF NOT EXISTS test_methods (
     first_seen_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     scan_session_id BIGINT,
-    UNIQUE (test_class_id, method_name, method_signature),
     CONSTRAINT fk_test_methods_class FOREIGN KEY (test_class_id) REFERENCES test_classes(id) ON DELETE CASCADE,
     CONSTRAINT fk_test_methods_scan FOREIGN KEY (scan_session_id) REFERENCES scan_sessions(id)
 );
@@ -112,6 +110,7 @@ CREATE TABLE IF NOT EXISTS daily_metrics (
 CREATE INDEX IF NOT EXISTS idx_repositories_name ON repositories(repository_name);
 CREATE INDEX IF NOT EXISTS idx_repositories_team_id ON repositories(team_id);
 CREATE INDEX IF NOT EXISTS idx_test_classes_repo ON test_classes(repository_id);
+CREATE INDEX IF NOT EXISTS idx_test_classes_repo_session ON test_classes (repository_id, scan_session_id);
 CREATE INDEX IF NOT EXISTS idx_test_methods_class ON test_methods(test_class_id);
 CREATE INDEX IF NOT EXISTS idx_scan_sessions_date ON scan_sessions(scan_date);
 CREATE INDEX IF NOT EXISTS idx_daily_metrics_date ON daily_metrics(metric_date);
@@ -123,5 +122,14 @@ CREATE INDEX IF NOT EXISTS idx_test_methods_annotation ON test_methods (has_anno
 CREATE INDEX IF NOT EXISTS idx_repositories_last_scan ON repositories (last_scan_date);
 CREATE INDEX IF NOT EXISTS idx_repositories_coverage ON repositories (annotation_coverage_rate DESC);
 CREATE INDEX IF NOT EXISTS idx_test_methods_composite ON test_methods (test_class_id, has_annotation, scan_session_id);
+
+-- Per-session uniqueness constraints (as unique indexes)
+-- test_methods unique per session/class/name/signature (signature NULL treated as '')
+CREATE UNIQUE INDEX IF NOT EXISTS ux_test_methods_session_class_name_sig
+    ON test_methods (scan_session_id, test_class_id, method_name, COALESCE(method_signature, ''));
+
+-- test_classes unique per session/repository/class/package
+CREATE UNIQUE INDEX IF NOT EXISTS ux_test_classes_session_repo_class_package
+    ON test_classes (scan_session_id, repository_id, class_name, package_name);
 
 

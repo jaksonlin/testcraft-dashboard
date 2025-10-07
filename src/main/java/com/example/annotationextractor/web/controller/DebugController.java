@@ -84,4 +84,57 @@ public class DebugController {
         }
         return ResponseEntity.ok(List.of());
     }
+
+    /**
+     * Debug endpoint to check test methods for a repository without scan session filtering
+     */
+    @GetMapping("/repository/{repositoryId}/test-methods-raw")
+    public Map<String, Object> getRawTestMethods(@PathVariable Long repositoryId) {
+        Map<String, Object> result = new HashMap<>();
+        
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                PersistenceReadFacade facade = persistenceReadFacade.get();
+                
+                // Get latest scan session
+                Optional<?> latestScan = facade.getLatestCompletedScanSession();
+                if (latestScan.isPresent()) {
+                    result.put("latestScanSessionId", latestScan.get().toString());
+                } else {
+                    result.put("latestScanSessionId", "NOT_FOUND");
+                }
+                
+                // Get test classes for repository
+                List<?> classes = facade.listClassesByRepositoryIdAndScanSessionId(repositoryId, 11L); // Use scan session 11
+                result.put("testClasses", classes.size());
+                
+                // Get test methods for repository (without scan session filter)
+                List<?> allMethods = facade.listTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, 11L, 1000);
+                result.put("testMethods", allMethods.size());
+                
+                // Check different scan session IDs
+                Map<String, Integer> scanSessionCounts = new HashMap<>();
+                for (long sessionId = 1; sessionId <= 11; sessionId++) {
+                    try {
+                        List<?> methods = facade.listTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, sessionId, 1000);
+                        scanSessionCounts.put("session_" + sessionId, methods.size());
+                    } catch (Exception e) {
+                        scanSessionCounts.put("session_" + sessionId, -1);
+                    }
+                }
+                result.put("scanSessionCounts", scanSessionCounts);
+                
+                result.put("status", "success");
+                
+            } catch (Exception e) {
+                result.put("status", "error");
+                result.put("error", e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            result.put("status", "no_connection");
+        }
+        
+        return result;
+    }
 }

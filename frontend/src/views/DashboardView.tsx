@@ -3,21 +3,21 @@ import { RefreshCw, AlertCircle } from 'lucide-react';
 import { api, type RepositorySummary } from '../lib/api';
 
 // Import refactored components
-import DashboardHeader from './dashboard/DashboardHeader';
-import StatsOverview from './dashboard/StatsOverview';
-import TeamPerformanceChart from './dashboard/TeamPerformanceChart';
-import CoverageChart from './dashboard/CoverageChart';
-import RepositoriesTable from './dashboard/RepositoriesTable';
-import ReportsSection from './reports/ReportsSection';
-import RepositoryDetailModal from './reports/RepositoryDetailModal';
-import ScanConfigModal from './config/ScanConfigModal';
+import DashboardHeader from '../components/dashboard/DashboardHeader';
+import StatsOverview from '../components/dashboard/StatsOverview';
+import TeamPerformanceChart from '../components/dashboard/TeamPerformanceChart';
+import CoverageChart from '../components/dashboard/CoverageChart';
+import RepositoriesTable from '../components/dashboard/RepositoriesTable';
+import ReportsSection from '../components/reports/ReportsSection';
+import RepositoryDetailModal from '../components/reports/RepositoryDetailModal';
+import ScanConfigModal from '../components/config/ScanConfigModal';
 
 // Import custom hooks
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useScanConfig } from '../hooks/useScanConfig';
 import { useModal } from '../hooks/useModal';
 
-const DashboardRefactored: React.FC = () => {
+const DashboardView: React.FC = () => {
   const configModal = useModal();
   const repositoryDetailModal = useModal();
   const [scanning, setScanning] = useState(false);
@@ -80,10 +80,10 @@ const DashboardRefactored: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary-600" />
-          <p className="mt-2 text-gray-600">Loading dashboard...</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -91,11 +91,11 @@ const DashboardRefactored: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="card max-w-md text-center">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Connection Error</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Connection Error</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <button 
             onClick={() => fetchDashboardData()}
             className="btn btn-primary"
@@ -108,7 +108,7 @@ const DashboardRefactored: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <DashboardHeader
         scanStatus={scanStatus}
@@ -164,4 +164,4 @@ const DashboardRefactored: React.FC = () => {
   );
 };
 
-export default DashboardRefactored;
+export default DashboardView;

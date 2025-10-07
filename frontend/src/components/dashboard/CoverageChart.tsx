@@ -29,7 +29,7 @@ const CoverageChart: React.FC<CoverageChartProps> = ({ overview }) => {
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="text-lg font-semibold text-gray-900">Test Method Coverage</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Test Method Coverage</h3>
       </div>
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -58,7 +58,7 @@ const CoverageChart: React.FC<CoverageChartProps> = ({ overview }) => {
               className="w-3 h-3 rounded-full mr-2" 
               style={{ backgroundColor: item.color }}
             />
-            <span className="text-sm text-gray-600">{item.name}</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">{item.name}</span>
           </div>
         ))}
       </div>

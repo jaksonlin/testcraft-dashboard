@@ -62,6 +62,21 @@ The dashboard is becoming heavy with too much information. Need to implement sid
 - `NAVIGATION_STRUCTURE.md` - Technical implementation details
 - `PROJECT_STATUS.md` - This file (current status and handoff)
 
+## ✅ Implemented Since Last Update
+- Repository drill-down updated with tabbed UI (Classes → Methods)
+- API client extended: `getClasses`, `getClassMethods`
+
+## 📝 Remaining TODOs (this week)
+- Teams: Implement `TeamsView` and team detail with team-specific repository management
+- Analytics: Implement `AnalyticsView` with advanced analytics and comparisons
+- Settings: Enhance `SettingsView` with real configuration options
+- Filtering/Search: Add advanced filtering and search across repositories and methods
+- Bulk Ops: Add bulk operations for teams and repositories
+- Export: Add export capability across all views (repositories, classes, methods, teams)
+- Preferences: Add user preferences and customization (columns, density, theme)
+- Frontend grouping: Update UI to group results by team when using `/dashboard/test-methods/all`
+- Method handling: Ensure UI handles both annotated and non-annotated methods consistently
+
 ## 🔄 **Implementation Phases**
 
 ### **Phase 1: Core Navigation** ⏳ **NEXT**

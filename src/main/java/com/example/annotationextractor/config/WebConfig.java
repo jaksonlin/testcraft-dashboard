@@ -24,6 +24,20 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
+        
+        registry.addMapping("/repositories/**")
+                .allowedOrigins("http://localhost:3000", "http://127.0.0.1:3000", 
+                               "http://localhost:5173", "http://127.0.0.1:5173")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true);
+        
+        registry.addMapping("/teams/**")
+                .allowedOrigins("http://localhost:3000", "http://127.0.0.1:3000", 
+                               "http://localhost:5173", "http://127.0.0.1:5173")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true);
     }
 
     @Bean
