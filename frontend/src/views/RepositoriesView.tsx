@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Download, AlertCircle, CheckCircle, Play, Trash2, RefreshCw, Columns } from 'lucide-react';
+import { FolderOpen, Download, AlertCircle, CheckCircle, Play, Trash2, RefreshCw, Columns, ChevronLeft, ChevronRight } from 'lucide-react';
 import RepositoryList from '../components/repositories/RepositoryList';
 import AdvancedFilter, { type FilterOption } from '../components/shared/AdvancedFilter';
 import BulkOperations, { type BulkAction } from '../components/shared/BulkOperations';
@@ -8,7 +8,7 @@ import ExportManager, { type ExportOption } from '../components/shared/ExportMan
 import ColumnManager from '../components/shared/ColumnManager';
 import { useBulkOperations } from '../hooks/useBulkOperations';
 import { exportData as exportDataUtil, prepareRepositoryExportData, type ExportScope } from '../utils/exportUtils';
-import { api, type RepositorySummary } from '../lib/api';
+import { api, type RepositorySummary, type PagedResponse } from '../lib/api';
 
 const RepositoriesView: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +18,17 @@ const RepositoriesView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [teamOptions, setTeamOptions] = useState<{ value: string; label: string }[]>([]);
   const [columnManagerOpen, setColumnManagerOpen] = useState(false);
+
+  // Pagination state
+  const [pagination, setPagination] = useState<PagedResponse<RepositorySummary> | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [sortBy, setSortBy] = useState<string>('name');
+  const [sortOrder, setSortOrder] = useState<string>('asc');
+
+  // Advanced filtering
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<Record<string, string | number | boolean | null>>({});
 
   // Column definitions for the repositories table
   const repositoryColumns = [
@@ -42,18 +53,22 @@ const RepositoriesView: React.FC = () => {
     {
       id: 'coverage',
       label: 'Coverage Range',
-      type: 'range',
-      min: 0,
-      max: 100,
-      step: 1
+      type: 'select',
+      options: [
+        { value: 'high', label: 'High (≥80%)' },
+        { value: 'medium', label: 'Medium (50-79%)' },
+        { value: 'low', label: 'Low (<50%)' }
+      ]
     },
     {
       id: 'testMethods',
       label: 'Test Methods Range',
-      type: 'range',
-      min: 0,
-      max: 1000,
-      step: 1
+      type: 'select',
+      options: [
+        { value: 'high', label: 'High (≥100)' },
+        { value: 'medium', label: 'Medium (20-99)' },
+        { value: 'low', label: 'Low (<20)' }
+      ]
     },
     {
       id: 'lastScan',
@@ -68,82 +83,54 @@ const RepositoriesView: React.FC = () => {
     }
   ], [teamOptions]);
 
-  // Initialize repositories data
-  React.useEffect(() => {
-    const fetchRepositories = async () => {
-      try {
-        setLoading(true);
-        const data = await api.repositories.getAll();
-        setRepositories(data);
-        
-        // Update team filter options
-        const uniqueTeams = Array.from(new Set(data.map(repo => repo.teamName)))
-          .sort()
-          .map(team => ({ value: team, label: team }));
-        
-        setTeamOptions(uniqueTeams);
-      } catch (err) {
-        console.error('Error fetching repositories:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRepositories();
-  }, []);
-
-  // Advanced filtering
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<Record<string, string | number | boolean | null>>({});
-
-  const filteredRepositories = React.useMemo(() => {
-    let filtered = [...repositories];
-
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(repo =>
-        repo.repositoryName.toLowerCase().includes(searchLower) ||
-        repo.teamName.toLowerCase().includes(searchLower) ||
-        repo.gitUrl.toLowerCase().includes(searchLower)
+  // Fetch paginated repositories
+  const fetchRepositories = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await api.repositories.getPaginated(
+        currentPage, 
+        pageSize, 
+        searchTerm || undefined, 
+        filters.team as string || undefined, 
+        filters.coverage as string || undefined,
+        filters.testMethods as string || undefined,
+        filters.lastScan as string || undefined,
+        sortBy, 
+        sortOrder
       );
+      
+      setPagination(response);
+      setRepositories(response.content);
+      
+      // Update team filter options from all available teams
+      // For now, we'll get teams from the current page, but ideally we'd have a separate teams endpoint
+      const uniqueTeams = Array.from(new Set(response.content.map(repo => repo.teamName)))
+        .sort()
+        .map(team => ({ value: team, label: team }));
+      
+      setTeamOptions(uniqueTeams);
+    } catch (err) {
+      console.error('Error fetching repositories:', err);
+    } finally {
+      setLoading(false);
     }
+  }, [currentPage, pageSize, searchTerm, filters, sortBy, sortOrder]);
 
-    // Apply advanced filters
-    Object.entries(filters).forEach(([key, filterValue]) => {
-      if (filterValue === null || filterValue === '' || (Array.isArray(filterValue) && filterValue.length === 0)) {
-        return;
-      }
+  // Initialize repositories data
+  useEffect(() => {
+    fetchRepositories();
+  }, [fetchRepositories]);
 
-      filtered = filtered.filter(repo => {
-        switch (key) {
-          case 'team':
-            return repo.teamName === filterValue;
-          case 'coverage':
-            return repo.coverageRate >= (filterValue as number);
-          case 'testMethods':
-            return repo.testMethodCount >= (filterValue as number);
-          case 'lastScan': {
-            const date = new Date(repo.lastScanDate);
-            const now = new Date();
-            const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-            
-            switch (filterValue) {
-              case 'today': return diffDays === 0;
-              case 'week': return diffDays <= 7;
-              case 'month': return diffDays <= 30;
-              case 'older': return diffDays > 30;
-              default: return true;
-            }
-          }
-          default:
-            return true;
-        }
-      });
-    });
+  // Handle filter changes - reset to page 0 when filters change
+  const handleFilterChange = (newFilters: Record<string, string | string[] | number | boolean | null>) => {
+    setFilters(newFilters as Record<string, string | number | boolean | null>);
+    setCurrentPage(0); // Reset to first page when filters change
+  };
 
-    return filtered;
-  }, [repositories, searchTerm, filters]);
+  const handleSearchChange = (newSearchTerm: string) => {
+    setSearchTerm(newSearchTerm);
+    setCurrentPage(0); // Reset to first page when search changes
+  };
 
   const hasActiveFilters = searchTerm.trim() !== '' || Object.values(filters).some(value =>
     value !== null && value !== '' && (Array.isArray(value) ? value.length > 0 : true)
@@ -152,11 +139,12 @@ const RepositoriesView: React.FC = () => {
   const clearAllFilters = () => {
     setSearchTerm('');
     setFilters({});
+    setCurrentPage(0);
   };
 
   // Bulk operations
   const bulkOps = useBulkOperations({
-    items: filteredRepositories,
+    items: repositories,
     getId: (repo) => repo.repositoryId
   });
 
@@ -285,16 +273,8 @@ const RepositoriesView: React.FC = () => {
       const result = await api.scan.trigger();
       
       if (result.success) {
-        // Refresh the repositories data
-        const data = await api.repositories.getAll();
-        setRepositories(data);
-        
-        // Update team filter options
-        const uniqueTeams = Array.from(new Set(data.map(repo => repo.teamName)))
-          .sort()
-          .map(team => ({ value: team, label: team }));
-        
-        setTeamOptions(uniqueTeams);
+        // Refresh the repositories data using paginated API
+        await fetchRepositories();
       }
     } catch (err) {
       console.error('Error refreshing repositories:', err);
@@ -359,7 +339,7 @@ const RepositoriesView: React.FC = () => {
             data={repositories}
             dataType="repositories"
             selectedItems={bulkOps.selectedItems}
-            filteredData={filteredRepositories}
+            filteredData={repositories}
             onExport={handleExport}
           />
         </div>
@@ -396,8 +376,8 @@ const RepositoriesView: React.FC = () => {
       {/* Advanced Filter */}
       <AdvancedFilter
         filters={filterOptions}
-        onFilterChange={(filters) => setFilters(filters as Record<string, string | number | boolean | null>)}
-        onSearchChange={setSearchTerm}
+        onFilterChange={handleFilterChange}
+        onSearchChange={handleSearchChange}
         searchPlaceholder="Search repositories, teams, or URLs..."
         className="mb-6"
       />
@@ -405,7 +385,7 @@ const RepositoriesView: React.FC = () => {
       {/* Results Summary */}
       <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-4">
         <span>
-          Showing {filteredRepositories.length} of {repositories.length} repositories
+          Showing {repositories.length} of {pagination?.totalElements || 0} repositories
           {hasActiveFilters && ' (filtered)'}
         </span>
         {hasActiveFilters && (
@@ -418,10 +398,65 @@ const RepositoriesView: React.FC = () => {
         )}
       </div>
 
+      {/* Page Size and Sorting Controls */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center">
+            <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Show:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(parseInt(e.target.value));
+                setCurrentPage(0); // Reset to first page when changing page size
+              }}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+              <option value={100}>100 per page</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center">
+            <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setCurrentPage(0); // Reset to first page when sorting
+              }}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="name">Name</option>
+              <option value="team">Team</option>
+              <option value="coverage">Coverage</option>
+              <option value="testmethods">Test Methods</option>
+              <option value="lastscan">Last Scan</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center">
+            <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Order:</span>
+            <select
+              value={sortOrder}
+              onChange={(e) => {
+                setSortOrder(e.target.value);
+                setCurrentPage(0); // Reset to first page when changing order
+              }}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Bulk Operations */}
       <BulkOperations
         selectedItems={bulkOps.selectedItems}
-        totalItems={filteredRepositories.length}
+        totalItems={repositories.length}
         onSelectAll={bulkOps.selectAll}
         onClearSelection={bulkOps.clearSelection}
         actions={bulkActions}
@@ -431,7 +466,7 @@ const RepositoriesView: React.FC = () => {
 
       {/* Repository List */}
       <RepositoryList 
-        repositories={filteredRepositories}
+        repositories={repositories}
         onRepositoryClick={handleRepositoryClick}
         onBulkScan={handleBulkScan}
         loading={loading}
@@ -439,6 +474,53 @@ const RepositoriesView: React.FC = () => {
         onSelectRepository={bulkOps.toggleItem}
         onSelectAll={bulkOps.selectAll}
       />
+
+      {/* Pagination Controls */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+              disabled={currentPage === 0}
+              className={`
+                inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                ${currentPage === 0
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+                }
+              `}
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Previous
+            </button>
+
+            <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Page {currentPage + 1} of {pagination.totalPages}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(Math.min(pagination.totalPages - 1, currentPage + 1))}
+              disabled={currentPage >= pagination.totalPages - 1}
+              className={`
+                inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                ${currentPage >= pagination.totalPages - 1
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+                }
+              `}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-2" />
+            </button>
+          </div>
+
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Showing {repositories.length} of {pagination.totalElements} repositories
+          </div>
+        </div>
+      )}
 
       {/* Loading Overlay */}
       {scanning && (

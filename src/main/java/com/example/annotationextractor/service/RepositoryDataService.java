@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.Comparator;
 
 import org.springframework.stereotype.Service;
 
@@ -51,6 +52,165 @@ public class RepositoryDataService {
             }
         }
         return List.of();
+    }
+
+    /**
+     * Get repositories with pagination and filtering
+     */
+    public PagedResponse<RepositoryMetricsDto> getRepositoriesPaginated(
+            int page, int size, String search, String team, String coverage, 
+            String testMethods, String lastScan, String sortBy, String sortOrder) {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                List<RepositoryRecord> allRepositories = persistenceReadFacade.get().listAllRepositories();
+                List<Team> teams = persistenceReadFacade.get().listTeams();
+                
+                // Convert to DTOs
+                List<RepositoryMetricsDto> repositories = allRepositories.stream()
+                    .map(repo -> convertToRepositoryMetricsDto(repo, teams))
+                    .collect(Collectors.toList());
+                
+                // Apply filters
+                List<RepositoryMetricsDto> filteredRepositories = repositories.stream()
+                    .filter(repo -> {
+                        // Search filter
+                        if (search != null && !search.trim().isEmpty()) {
+                            String searchLower = search.toLowerCase();
+                            if (!repo.getRepositoryName().toLowerCase().contains(searchLower) &&
+                                !repo.getTeamName().toLowerCase().contains(searchLower) &&
+                                !repo.getGitUrl().toLowerCase().contains(searchLower)) {
+                                return false;
+                            }
+                        }
+                        
+                        // Team filter
+                        if (team != null && !team.trim().isEmpty()) {
+                            if (!repo.getTeamName().equalsIgnoreCase(team)) {
+                                return false;
+                            }
+                        }
+                        
+                        // Coverage filter
+                        if (coverage != null && !coverage.trim().isEmpty()) {
+                            if (!matchesCoverageRange(repo.getCoverageRate(), coverage)) {
+                                return false;
+                            }
+                        }
+                        
+                        // Test Methods filter
+                        if (testMethods != null && !testMethods.trim().isEmpty()) {
+                            if (!matchesTestMethodsRange(repo.getTestMethodCount(), testMethods)) {
+                                return false;
+                            }
+                        }
+                        
+                        // Last Scan filter
+                        if (lastScan != null && !lastScan.trim().isEmpty()) {
+                            if (!matchesLastScanRange(repo.getLastScanDate() != null ? repo.getLastScanDate().toString() : null, lastScan)) {
+                                return false;
+                            }
+                        }
+                        
+                        return true;
+                    })
+                    .collect(Collectors.toList());
+                
+                // Apply sorting
+                if (sortBy != null && !sortBy.trim().isEmpty()) {
+                    Comparator<RepositoryMetricsDto> comparator = getComparator(sortBy);
+                    if ("desc".equalsIgnoreCase(sortOrder)) {
+                        comparator = comparator.reversed();
+                    }
+                    filteredRepositories.sort(comparator);
+                }
+                
+                // Apply pagination
+                int totalElements = filteredRepositories.size();
+                int totalPages = (int) Math.ceil((double) totalElements / size);
+                int startIndex = page * size;
+                int endIndex = Math.min(startIndex + size, totalElements);
+                
+                List<RepositoryMetricsDto> paginatedRepositories = filteredRepositories.subList(startIndex, endIndex);
+                
+                return new PagedResponse<>(paginatedRepositories, page, size, totalElements);
+                
+            } catch (Exception e) {
+                System.err.println("Error fetching paginated repositories: " + e.getMessage());
+                e.printStackTrace();
+                return new PagedResponse<>(List.of(), page, size, 0);
+            }
+        }
+        return new PagedResponse<>(List.of(), page, size, 0);
+    }
+
+    private boolean matchesCoverageRange(double coverage, String range) {
+        switch (range.toLowerCase()) {
+            case "high":
+                return coverage >= 80;
+            case "medium":
+                return coverage >= 50 && coverage < 80;
+            case "low":
+                return coverage < 50;
+            default:
+                return true;
+        }
+    }
+
+    private boolean matchesTestMethodsRange(int testMethodCount, String range) {
+        switch (range.toLowerCase()) {
+            case "high":
+                return testMethodCount >= 100;
+            case "medium":
+                return testMethodCount >= 20 && testMethodCount < 100;
+            case "low":
+                return testMethodCount < 20;
+            default:
+                return true;
+        }
+    }
+
+    private boolean matchesLastScanRange(String lastScanDate, String range) {
+        if (lastScanDate == null || lastScanDate.trim().isEmpty()) {
+            return false;
+        }
+        
+        try {
+            java.time.LocalDateTime scanDate = java.time.LocalDateTime.parse(lastScanDate);
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            long diffDays = java.time.Duration.between(scanDate, now).toDays();
+            
+            switch (range.toLowerCase()) {
+                case "today":
+                    return diffDays == 0;
+                case "week":
+                    return diffDays <= 7;
+                case "month":
+                    return diffDays <= 30;
+                case "older":
+                    return diffDays > 30;
+                default:
+                    return true;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private Comparator<RepositoryMetricsDto> getComparator(String sortBy) {
+        switch (sortBy.toLowerCase()) {
+            case "name":
+                return Comparator.comparing(RepositoryMetricsDto::getRepositoryName);
+            case "team":
+                return Comparator.comparing(RepositoryMetricsDto::getTeamName);
+            case "coverage":
+                return Comparator.comparing(RepositoryMetricsDto::getCoverageRate);
+            case "testmethods":
+                return Comparator.comparing(RepositoryMetricsDto::getTestMethodCount);
+            case "lastscan":
+                return Comparator.comparing(RepositoryMetricsDto::getLastScanDate);
+            default:
+                return Comparator.comparing(RepositoryMetricsDto::getRepositoryName);
+        }
     }
 
     private RepositoryMetricsDto convertToRepositoryMetricsDto(RepositoryRecord repo, List<Team> teams) {

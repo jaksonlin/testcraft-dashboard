@@ -318,6 +318,9 @@ export const api = {
   repositories: {
     getAll: (): Promise<RepositorySummary[]> =>
       apiClient.get('/repositories').then(res => res.data),
+
+    getPaginated: (page: number, size: number, search?: string, team?: string, coverage?: string, testMethods?: string, lastScan?: string, sortBy?: string, sortOrder?: string): Promise<PagedResponse<RepositorySummary>> =>
+      apiClient.get(`/repositories/paginated?page=${page}&size=${size}${search ? `&search=${encodeURIComponent(search)}` : ''}${team ? `&team=${encodeURIComponent(team)}` : ''}${coverage ? `&coverage=${coverage}` : ''}${testMethods ? `&testMethods=${testMethods}` : ''}${lastScan ? `&lastScan=${lastScan}` : ''}${sortBy ? `&sortBy=${sortBy}` : ''}${sortOrder ? `&sortOrder=${sortOrder}` : ''}`).then(res => res.data),
     
     getById: (id: number): Promise<RepositoryDetail> =>
       apiClient.get(`/repositories/${id}`).then(res => res.data),

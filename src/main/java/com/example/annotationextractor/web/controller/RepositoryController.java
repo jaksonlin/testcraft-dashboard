@@ -36,6 +36,30 @@ public class RepositoryController {
         return ResponseEntity.ok(repositories);
     }
 
+    /**
+     * Get repositories with pagination and filtering
+     */
+    @GetMapping("/paginated")
+    public ResponseEntity<PagedResponse<RepositoryMetricsDto>> getRepositoriesPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String team,
+            @RequestParam(required = false) String coverage,
+            @RequestParam(required = false) String testMethods,
+            @RequestParam(required = false) String lastScan,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortOrder) {
+        try {
+            PagedResponse<RepositoryMetricsDto> response = repositoryDataService.getRepositoriesPaginated(
+                page, size, search, team, coverage, testMethods, lastScan, sortBy, sortOrder);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("Error fetching paginated repositories: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
 
 
 
