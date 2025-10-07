@@ -333,6 +333,9 @@ export const api = {
     getClasses: (repositoryId: number): Promise<TestClassSummary[]> =>
       apiClient.get(`/repositories/${repositoryId}/classes`).then(res => res.data),
 
+    getClassesPaginated: (repositoryId: number, page: number, size: number, className?: string, annotated?: boolean): Promise<PagedResponse<TestClassSummary>> =>
+      apiClient.get(`/repositories/${repositoryId}/classes/paginated?page=${page}&size=${size}${className ? `&className=${className}` : ''}${annotated !== undefined ? `&annotated=${annotated}` : ''}`).then(res => res.data),
+
     getClassMethods: (repositoryId: number, classId: number, limit: number = 200): Promise<TestMethodDetail[]> =>
       apiClient.get(`/repositories/${repositoryId}/classes/${classId}/methods?limit=${limit}`).then(res => res.data),
     

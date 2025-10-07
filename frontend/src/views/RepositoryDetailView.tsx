@@ -11,9 +11,13 @@ import {
   Activity,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import { api, type RepositoryDetail, type TestMethodDetail, type TestClassSummary } from '../lib/api';
+import { api, type RepositoryDetail, type TestMethodDetail, type TestClassSummary, type PagedResponse } from '../lib/api';
 import { isMethodAnnotated, getAnnotationStatusDisplayName } from '../utils/methodUtils';
 import BreadcrumbNavigation from '../components/shared/BreadcrumbNavigation';
 import GitUrlLink from '../components/shared/GitUrlLink';
@@ -24,12 +28,39 @@ const RepositoryDetailView: React.FC = () => {
   const [repository, setRepository] = useState<RepositoryDetail | null>(null);
   const [testMethods, setTestMethods] = useState<TestMethodDetail[]>([]);
   const [classes, setClasses] = useState<TestClassSummary[]>([]);
+  const [classesPagination, setClassesPagination] = useState<PagedResponse<TestClassSummary> | null>(null);
   const [activeTab, setActiveTab] = useState<'classes' | 'methods'>('classes');
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [selectedClassName, setSelectedClassName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  
+  // Pagination state for classes
+  const [classesPage, setClassesPage] = useState(0);
+  const [classesPageSize, setClassesPageSize] = useState(10);
+  const [classesSearchTerm, setClassesSearchTerm] = useState('');
+  const [classesAnnotatedFilter, setClassesAnnotatedFilter] = useState<'all' | 'annotated' | 'not-annotated'>('all');
+
+  const fetchClassesPaginated = useCallback(async () => {
+    if (!id) return;
+    
+    try {
+      const annotated = classesAnnotatedFilter === 'all' ? undefined : classesAnnotatedFilter === 'annotated';
+      const paginatedClasses = await api.repositories.getClassesPaginated(
+        parseInt(id), 
+        classesPage, 
+        classesPageSize, 
+        classesSearchTerm || undefined, 
+        annotated
+      );
+      setClassesPagination(paginatedClasses);
+      setClasses(paginatedClasses.content);
+    } catch (err) {
+      console.error('Error fetching paginated classes:', err);
+      setError('Failed to load classes');
+    }
+  }, [id, classesPage, classesPageSize, classesSearchTerm, classesAnnotatedFilter]);
 
   const fetchRepositoryDetails = useCallback(async () => {
     if (!id) return;
@@ -42,9 +73,8 @@ const RepositoryDetailView: React.FC = () => {
       const repo = await api.repositories.getById(parseInt(id));
       setRepository(repo);
       
-      // Fetch classes for this repository
-      const classList = await api.repositories.getClasses(parseInt(id));
-      setClasses(classList);
+      // Fetch paginated classes for this repository
+      await fetchClassesPaginated();
       
     } catch (err) {
       console.error('Error fetching repository details:', err);
@@ -52,7 +82,7 @@ const RepositoryDetailView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, fetchClassesPaginated]);
   // When a class is selected, load its methods and switch to Methods tab
   const handleSelectClass = async (cls: TestClassSummary) => {
     if (!id) return;
@@ -74,6 +104,13 @@ const RepositoryDetailView: React.FC = () => {
       fetchRepositoryDetails();
     }
   }, [id, fetchRepositoryDetails]);
+
+  // Fetch classes when pagination parameters change
+  useEffect(() => {
+    if (id && repository) {
+      fetchClassesPaginated();
+    }
+  }, [id, repository, fetchClassesPaginated]);
 
   const handleScanRepository = async () => {
     try {
@@ -337,8 +374,63 @@ const RepositoryDetailView: React.FC = () => {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold" style={{ color: 'var(--color-foreground)' }}>Test Classes</h3>
-            <span className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{classes.length} classes</span>
+            <span className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
+              {classesPagination ? `${classesPagination.totalElements} classes` : `${classes.length} classes`}
+            </span>
           </div>
+          
+          {/* Search and Filter Controls */}
+          <div className="mb-4 flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search classes..."
+                  value={classesSearchTerm}
+                  onChange={(e) => {
+                    setClassesSearchTerm(e.target.value);
+                    setClassesPage(0); // Reset to first page when searching
+                  }}
+                  className="input pl-10 w-full"
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <Filter className="h-4 w-4 text-gray-400 mr-2" />
+                <select
+                  value={classesAnnotatedFilter}
+                  onChange={(e) => {
+                    setClassesAnnotatedFilter(e.target.value as 'all' | 'annotated' | 'not-annotated');
+                    setClassesPage(0); // Reset to first page when filtering
+                  }}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="all">All Classes</option>
+                  <option value="annotated">Annotated Only</option>
+                  <option value="not-annotated">Not Annotated</option>
+                </select>
+              </div>
+              <div className="flex items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Show:</span>
+                <select
+                  value={classesPageSize}
+                  onChange={(e) => {
+                    setClassesPageSize(parseInt(e.target.value));
+                    setClassesPage(0); // Reset to first page when changing page size
+                  }}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value={5}>5 per page</option>
+                  <option value={10}>10 per page</option>
+                  <option value={20}>20 per page</option>
+                  <option value={50}>50 per page</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           {classes.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -371,6 +463,54 @@ const RepositoryDetailView: React.FC = () => {
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--color-foreground)' }}>No Test Classes Found</h3>
               <p style={{ color: 'var(--color-muted-foreground)' }}>This repository doesn't have any test classes yet.</p>
+            </div>
+          )}
+          
+          {/* Pagination Controls */}
+          {classesPagination && classesPagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Showing {classesPage * classesPageSize + 1} to {Math.min((classesPage + 1) * classesPageSize, classesPagination.totalElements)} of {classesPagination.totalElements} classes
+                {classesSearchTerm && ` (filtered by "${classesSearchTerm}")`}
+                {classesAnnotatedFilter !== 'all' && ` (${classesAnnotatedFilter === 'annotated' ? 'annotated' : 'not annotated'} only)`}
+              </div>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setClassesPage(Math.max(0, classesPage - 1))}
+                  disabled={classesPage === 0}
+                  className={`
+                    inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                    ${classesPage === 0 
+                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+                    }
+                  `}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Previous
+                </button>
+                
+                <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Page {classesPage + 1} of {classesPagination.totalPages}
+                  </span>
+                </div>
+                
+                <button
+                  onClick={() => setClassesPage(Math.min(classesPagination.totalPages - 1, classesPage + 1))}
+                  disabled={classesPage >= classesPagination.totalPages - 1}
+                  className={`
+                    inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                    ${classesPage >= classesPagination.totalPages - 1 
+                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+                    }
+                  `}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </button>
+              </div>
             </div>
           )}
         </div>

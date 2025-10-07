@@ -16,12 +16,12 @@ import com.example.annotationextractor.domain.model.Team;
 import com.example.annotationextractor.domain.model.TestMethodDetailRecord;
 import com.example.annotationextractor.domain.model.TestClass;
 import com.example.annotationextractor.domain.model.ScanSession;
+import com.example.annotationextractor.web.dto.PagedResponse;
 import com.example.annotationextractor.web.dto.RepositoryDetailDto;
 import com.example.annotationextractor.web.dto.RepositoryMetricsDto;
 import com.example.annotationextractor.web.dto.RepositorySummaryDto;
 import com.example.annotationextractor.web.dto.TestMethodDetailDto;
 import com.example.annotationextractor.web.dto.TestClassSummaryDto;
-import com.example.annotationextractor.web.dto.PagedResponse;
 import com.example.annotationextractor.web.dto.GroupedTestMethodResponse;
 
 @Service
@@ -176,6 +176,82 @@ public class RepositoryDataService {
         } else {
             System.err.println("PersistenceReadFacade is not available - database may not be configured");
             return List.of();
+        }
+    }
+
+    /**
+     * Get test classes for a specific repository (paginated)
+     */
+    public PagedResponse<TestClassSummaryDto> getRepositoryClassesPaginated(Long repositoryId, int page, int size, String className, Boolean annotated) {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                // Get the latest completed scan session
+                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
+                if (latestScan.isEmpty()) {
+                    System.err.println("No completed scan session found");
+                    return new PagedResponse<TestClassSummaryDto>(List.of(), page, size, 0);
+                }
+                
+                Long scanSessionId = latestScan.get().getId();
+                List<TestClass> allClasses = persistenceReadFacade.get().listClassesByRepositoryIdAndScanSessionId(repositoryId, scanSessionId);
+                
+                // Filter classes by scan session ID
+                List<TestClass> filteredClasses = allClasses.stream()
+                    .filter(testClass -> testClass.getScanSessionId() != null && 
+                            testClass.getScanSessionId().equals(scanSessionId))
+                    .collect(Collectors.toList());
+                
+                // Apply additional filters
+                List<TestClass> filteredByCriteria = filteredClasses.stream()
+                    .filter(testClass -> {
+                        // Class name filter
+                        if (className != null && !className.trim().isEmpty()) {
+                            if (!testClass.getClassName().toLowerCase().contains(className.toLowerCase())) {
+                                return false;
+                            }
+                        }
+                        
+                        // Annotation filter - check if any method in the class is annotated
+                        if (annotated != null) {
+                            try {
+                                List<TestMethodDetailRecord> methods = persistenceReadFacade.get().listTestMethodDetailsByClassId(testClass.getId(), 1000);
+                                boolean hasAnnotatedMethod = methods.stream().anyMatch(method -> 
+                                    method.getAnnotationTitle() != null && !method.getAnnotationTitle().trim().isEmpty() && 
+                                    !method.getAnnotationTitle().equals("No title"));
+                                
+                                if (annotated && !hasAnnotatedMethod) return false;
+                                if (!annotated && hasAnnotatedMethod) return false;
+                            } catch (Exception e) {
+                                // If we can't check methods, include the class
+                            }
+                        }
+                        
+                        return true;
+                    })
+                    .collect(Collectors.toList());
+                
+                // Convert to DTOs
+                List<TestClassSummaryDto> classDtos = filteredByCriteria.stream()
+                    .map(this::convertToTestClassSummaryDto)
+                    .collect(Collectors.toList());
+                
+                // Apply pagination
+                int totalElements = classDtos.size();
+                int startIndex = page * size;
+                int endIndex = Math.min(startIndex + size, totalElements);
+                
+                List<TestClassSummaryDto> paginatedClasses = classDtos.subList(startIndex, endIndex);
+                
+                return new PagedResponse<TestClassSummaryDto>(paginatedClasses, page, size, totalElements);
+                
+            } catch (Exception e) {
+                System.err.println("Error fetching paginated repository classes: " + e.getMessage());
+                e.printStackTrace();
+                return new PagedResponse<TestClassSummaryDto>(List.of(), page, size, 0);
+            }
+        } else {
+            System.err.println("PersistenceReadFacade is not available - database may not be configured");
+            return new PagedResponse<TestClassSummaryDto>(List.of(), page, size, 0);
         }
     }
 

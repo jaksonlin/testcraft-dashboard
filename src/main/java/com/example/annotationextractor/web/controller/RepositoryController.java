@@ -5,7 +5,9 @@ import com.example.annotationextractor.web.dto.RepositoryMetricsDto;
 import com.example.annotationextractor.web.dto.RepositoryDetailDto;
 import com.example.annotationextractor.web.dto.TestMethodDetailDto;
 import com.example.annotationextractor.web.dto.TestClassSummaryDto;
+import com.example.annotationextractor.web.dto.PagedResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -52,6 +54,26 @@ public class RepositoryController {
             return ResponseEntity.ok(repository);
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Get test classes for a specific repository (paginated)
+     */
+    @GetMapping("/{repositoryId}/classes/paginated")
+    public ResponseEntity<PagedResponse<TestClassSummaryDto>> getRepositoryClassesPaginated(
+            @PathVariable Long repositoryId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String className,
+            @RequestParam(required = false) Boolean annotated) {
+        try {
+            PagedResponse<TestClassSummaryDto> response = repositoryDataService.getRepositoryClassesPaginated(
+                repositoryId, page, size, className, annotated);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("Error fetching paginated repository classes: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
