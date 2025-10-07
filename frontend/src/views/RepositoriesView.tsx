@@ -6,6 +6,7 @@ import AdvancedFilter, { type FilterOption } from '../components/shared/Advanced
 import BulkOperations, { type BulkAction } from '../components/shared/BulkOperations';
 import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
 import ColumnManager from '../components/shared/ColumnManager';
+import DataControls, { type SortOption } from '../components/shared/DataControls';
 import { useBulkOperations } from '../hooks/useBulkOperations';
 import { exportData as exportDataUtil, prepareRepositoryExportData, type ExportScope } from '../utils/exportUtils';
 import { api, type RepositorySummary, type PagedResponse } from '../lib/api';
@@ -40,6 +41,15 @@ const RepositoriesView: React.FC = () => {
     { id: 'coverage', label: 'Coverage', required: true },
     { id: 'lastScan', label: 'Last Scan', required: false },
     { id: 'actions', label: 'Actions', required: true },
+  ];
+
+  // Sort options configuration
+  const sortOptions: SortOption[] = [
+    { value: 'name', label: 'Name' },
+    { value: 'team', label: 'Team' },
+    { value: 'coverage', label: 'Coverage' },
+    { value: 'testmethods', label: 'Test Methods' },
+    { value: 'lastscan', label: 'Last Scan' }
   ];
 
   // Advanced filtering configuration
@@ -328,59 +338,25 @@ const RepositoriesView: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* Page Size and Sorting Controls */}
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Show:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(parseInt(e.target.value));
-                  setCurrentPage(0); // Reset to first page when changing page size
-                }}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value={1}>1 per page</option>
-                <option value={10}>10 per page</option>
-                <option value={20}>20 per page</option>
-                <option value={50}>50 per page</option>
-                <option value={100}>100 per page</option>
-              </select>
-            </div>
-            
-            <div className="flex items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Sort by:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value);
-                  setCurrentPage(0); // Reset to first page when sorting
-                }}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="name">Name</option>
-                <option value="team">Team</option>
-                <option value="coverage">Coverage</option>
-                <option value="testmethods">Test Methods</option>
-                <option value="lastscan">Last Scan</option>
-              </select>
-            </div>
-            
-            <div className="flex items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Order:</span>
-              <select
-                value={sortOrder}
-                onChange={(e) => {
-                  setSortOrder(e.target.value);
-                  setCurrentPage(0); // Reset to first page when changing order
-                }}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
-              </select>
-            </div>
-          </div>
+          {/* Data Controls */}
+          <DataControls
+            pageSize={pageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(0); // Reset to first page when changing page size
+            }}
+            sortBy={sortBy}
+            onSortByChange={(field) => {
+              setSortBy(field);
+              setCurrentPage(0); // Reset to first page when sorting
+            }}
+            sortOptions={sortOptions}
+            sortOrder={sortOrder}
+            onSortOrderChange={(order) => {
+              setSortOrder(order);
+              setCurrentPage(0); // Reset to first page when changing order
+            }}
+          />
 
           <div className="flex gap-2">
             <button
