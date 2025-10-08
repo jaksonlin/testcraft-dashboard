@@ -1,6 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { TestCaseUploadWizard } from './TestCaseUploadWizard';
+import { TestCaseUploadWizard } from './upload';
 
 interface TestCaseUploadModalProps {
   isOpen: boolean;
