@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, List, BarChart3, AlertTriangle, CheckCircle } from 'lucide-react';
 import { TestCaseUploadWizard } from '../components/testcases/TestCaseUploadWizard';
 import { TestCaseListTable } from '../components/testcases/TestCaseListTable';
 import { TestCaseCoverageCard } from '../components/testcases/TestCaseCoverageCard';
 import { TestCaseDetailModal } from '../components/testcases/TestCaseDetailModal';
+import TestCasesHeader from '../components/testcases/TestCasesHeader';
+import Pagination from '../components/shared/Pagination';
 import {
   getAllTestCases,
   getCoverageStats,
@@ -11,7 +13,6 @@ import {
   deleteTestCase
 } from '../lib/testCaseApi';
 import type { TestCase, CoverageStats } from '../lib/testCaseApi';
-import type { PageResponse } from '../lib/testCaseApi';
 
 type TabType = 'upload' | 'list' | 'coverage' | 'gaps';
 
@@ -23,40 +24,81 @@ export const TestCasesView: React.FC = () => {
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
   const [untestedCases, setUntestedCases] = useState<TestCase[]>([]);
-  const [totalCases, setTotalCases] = useState(0);
-  const [totalGaps, setTotalGaps] = useState(0);
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(20);
+  
+  // Pagination state for list tab
+  const [listPage, setListPage] = useState(0);
+  const [listPageSize, setListPageSize] = useState(20);
+  const [listTotalPages, setListTotalPages] = useState(0);
+  
+  // Pagination state for gaps tab
   const [gapsPage, setGapsPage] = useState(0);
-  const [gapsSize, setGapsSize] = useState(20);
+  const [gapsPageSize, setGapsPageSize] = useState(20);
+  const [gapsTotalPages, setGapsTotalPages] = useState(0);
 
-  // Load data on mount
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Load test cases data with pagination
+  const loadTestCases = useCallback(async () => {
+    try {
+      const testCasesData = await getAllTestCases({ page: listPage, size: listPageSize });
+      setTestCases(testCasesData.content);
+      setListTotalPages(Math.ceil(testCasesData.total / listPageSize));
+    } catch (error) {
+      console.error('Failed to load test cases:', error);
+    }
+  }, [listPage, listPageSize]);
 
-  const loadData = async () => {
+  // Load gaps data with pagination
+  const loadGaps = useCallback(async () => {
+    try {
+      const gaps = await getUntestedCases({ page: gapsPage, size: gapsPageSize });
+      setUntestedCases(gaps.content);
+      setGapsTotalPages(Math.ceil(gaps.total / gapsPageSize));
+    } catch (error) {
+      console.error('Failed to load gaps:', error);
+    }
+  }, [gapsPage, gapsPageSize]);
+
+  // Load all data on mount
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [testCasesData, stats, gaps] = await Promise.all([
-        getAllTestCases({ page, size }),
+        getAllTestCases({ page: listPage, size: listPageSize }),
         getCoverageStats(),
-        getUntestedCases({ page: gapsPage, size: gapsSize })
+        getUntestedCases({ page: gapsPage, size: gapsPageSize })
       ]);
 
       setTestCases(testCasesData.content);
-      setTotalCases(testCasesData.total);
+      setListTotalPages(Math.ceil(testCasesData.total / listPageSize));
       setCoverageStats(stats);
       setUntestedCases(gaps.content);
-      setTotalGaps(gaps.total);
+      setGapsTotalPages(Math.ceil(gaps.total / gapsPageSize));
     } catch (error) {
       console.error('Failed to load test cases:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [listPage, listPageSize, gapsPage, gapsPageSize]);
+
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Reload test cases when list page or page size changes
+  useEffect(() => {
+    if (activeTab === 'list') {
+      loadTestCases();
+    }
+  }, [activeTab, loadTestCases]);
+
+  // Reload gaps when gaps page or page size changes
+  useEffect(() => {
+    if (activeTab === 'gaps') {
+      loadGaps();
+    }
+  }, [activeTab, loadGaps]);
 
   const handleUploadComplete = () => {
     // Reload data after upload
@@ -86,13 +128,19 @@ export const TestCasesView: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Test Case Management</h1>
-        <p className="text-gray-600">
-          Upload test case designs and track automation coverage
-        </p>
-      </div>
+      {/* Header with Data Controls */}
+      <TestCasesHeader
+        pageSize={activeTab === 'gaps' ? gapsPageSize : listPageSize}
+        onPageSizeChange={(size) => {
+          if (activeTab === 'gaps') {
+            setGapsPageSize(size);
+            setGapsPage(0);
+          } else {
+            setListPageSize(size);
+            setListPage(0);
+          }
+        }}
+      />
 
       {/* Coverage Card (Always Visible) */}
       {coverageStats && (
@@ -155,7 +203,7 @@ export const TestCasesView: React.FC = () => {
             }`}
           >
             <List className="w-4 h-4" />
-            All Test Cases ({totalCases})
+            All Test Cases ({coverageStats?.total || 0})
           </button>
 
           <button
@@ -179,7 +227,7 @@ export const TestCasesView: React.FC = () => {
             }`}
           >
             <AlertTriangle className="w-4 h-4" />
-            Automation Gaps ({totalGaps})
+            Automation Gaps ({coverageStats?.manual || 0})
           </button>
         </nav>
       </div>
@@ -203,13 +251,11 @@ export const TestCasesView: React.FC = () => {
               onViewDetails={setSelectedTestCase}
               onDelete={handleDelete}
             />
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">Page {page + 1}</div>
-              <div className="flex gap-2">
-                <button className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50" disabled={page === 0} onClick={() => { setPage(Math.max(0, page - 1)); loadData(); }}>Prev</button>
-                <button className="px-3 py-1 bg-gray-100 rounded" onClick={() => { setPage(page + 1); loadData(); }}>Next</button>
-              </div>
-            </div>
+            <Pagination
+              currentPage={listPage}
+              totalPages={listTotalPages}
+              onPageChange={setListPage}
+            />
           </div>
         )}
 
@@ -266,7 +312,7 @@ export const TestCasesView: React.FC = () => {
             <div className="mb-6">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Automation Gaps</h2>
               <p className="text-sm text-gray-600">
-                Test cases that need automation ({untestedCases.length} total)
+                Test cases that need automation ({coverageStats?.manual || 0} total)
               </p>
             </div>
 
@@ -281,19 +327,17 @@ export const TestCasesView: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <TestCaseListTable
-                testCases={untestedCases}
-                onViewDetails={setSelectedTestCase}
-              />
-            )}
-            {untestedCases.length > 0 && (
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-gray-600">Page {gapsPage + 1}</div>
-                <div className="flex gap-2">
-                  <button className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50" disabled={gapsPage === 0} onClick={() => { setGapsPage(Math.max(0, gapsPage - 1)); loadData(); }}>Prev</button>
-                  <button className="px-3 py-1 bg-gray-100 rounded" onClick={() => { setGapsPage(gapsPage + 1); loadData(); }}>Next</button>
-                </div>
-              </div>
+              <>
+                <TestCaseListTable
+                  testCases={untestedCases}
+                  onViewDetails={setSelectedTestCase}
+                />
+                <Pagination
+                  currentPage={gapsPage}
+                  totalPages={gapsTotalPages}
+                  onPageChange={setGapsPage}
+                />
+              </>
             )}
           </div>
         )}
