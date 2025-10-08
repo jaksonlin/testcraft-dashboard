@@ -26,12 +26,12 @@ export const ProgressSteps: React.FC<ProgressStepsProps> = ({ currentStep }) => 
                 {isStepCompleted(step.key, currentStep) ? 
                   <CheckCircle className="w-5 h-5" /> : step.number}
               </div>
-              <span className="ml-2 font-medium">{step.label}</span>
+              <span className="ml-2 font-medium text-gray-900 dark:text-white">{step.label}</span>
             </div>
 
             {/* Progress Bar (not after last step) */}
             {index < steps.length - 1 && (
-              <div className="flex-1 h-1 mx-4 bg-gray-300">
+              <div className="flex-1 h-1 mx-4 bg-gray-300 dark:bg-gray-700">
                 <div className={`h-full ${getProgressBarClass(step.key, currentStep)}`} />
               </div>
             )}

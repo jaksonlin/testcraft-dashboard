@@ -35,8 +35,8 @@ const RepositoriesHeader: React.FC<RepositoriesHeaderProps> = ({
       <div className="flex items-center">
         <FolderOpen className="h-8 w-8 text-blue-600 mr-3" />
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Repositories</h1>
-          <p className="text-gray-600 mt-1">Manage and analyze all repositories</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Repositories</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage and analyze all repositories</p>
         </div>
       </div>
       

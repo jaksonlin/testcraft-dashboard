@@ -41,7 +41,7 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
   } = useTestCaseUpload(onComplete);
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 w-[98vw] max-w-[1800px] mx-auto">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-[98vw] max-w-[1800px] mx-auto">
       {/* Progress Steps */}
       <ProgressSteps currentStep={currentStep} />
 

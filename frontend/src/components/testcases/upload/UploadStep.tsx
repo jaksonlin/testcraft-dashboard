@@ -29,8 +29,8 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileSelect }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Test Cases</h2>
-        <p className="text-gray-600">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Upload Test Cases</h2>
+        <p className="text-gray-600 dark:text-gray-400">
           Upload your test case Excel file. The system will automatically detect column mappings.
         </p>
       </div>
@@ -39,16 +39,16 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileSelect }) => {
       <div
         className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
           dragActive
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-gray-300 hover:border-gray-400'
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
         }`}
         onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
       >
-        <Upload className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-        <h3 className="text-lg font-semibold mb-2">Drag and drop your Excel file here</h3>
-        <p className="text-gray-600 mb-4">or</p>
+        <Upload className="w-16 h-16 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
+        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Drag and drop your Excel file here</h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">or</p>
         <label className="inline-block">
           <input
             type="file"
@@ -60,14 +60,14 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onFileSelect }) => {
             Choose File
           </span>
         </label>
-        <p className="text-sm text-gray-500 mt-4">Supported formats: .xlsx, .xls</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">Supported formats: .xlsx, .xls</p>
       </div>
 
       {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <div className="flex items-start">
-          <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-          <div className="text-sm text-blue-900">
+          <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0" />
+          <div className="text-sm text-blue-900 dark:text-blue-100">
             <p className="font-semibold mb-1">What happens next?</p>
             <ul className="list-disc list-inside space-y-1">
               <li>System analyzes your Excel file structure</li>

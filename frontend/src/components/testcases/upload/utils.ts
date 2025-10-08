@@ -9,9 +9,9 @@ import type { WizardStep } from './types';
  * Get color class for confidence level
  */
 export const getConfidenceColor = (confidence: number): string => {
-  if (confidence >= CONFIDENCE_THRESHOLDS.HIGH) return 'text-green-600';
-  if (confidence >= CONFIDENCE_THRESHOLDS.MEDIUM) return 'text-yellow-600';
-  return 'text-orange-600';
+  if (confidence >= CONFIDENCE_THRESHOLDS.HIGH) return 'text-green-600 dark:text-green-400';
+  if (confidence >= CONFIDENCE_THRESHOLDS.MEDIUM) return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-orange-600 dark:text-orange-400';
 };
 
 /**
@@ -41,14 +41,14 @@ export const getStepButtonClass = (step: WizardStep, currentStep: WizardStep): s
   if (isStepCompleted(step, currentStep)) {
     return 'bg-green-600 text-white';
   }
-  return 'bg-gray-300 text-gray-600';
+  return 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
 };
 
 /**
  * Get progress bar styling
  */
 export const getProgressBarClass = (fromStep: WizardStep, currentStep: WizardStep): string => {
-  return isStepCompleted(fromStep, currentStep) ? 'bg-green-600' : 'bg-gray-300';
+  return isStepCompleted(fromStep, currentStep) ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-700';
 };
 
 /**
