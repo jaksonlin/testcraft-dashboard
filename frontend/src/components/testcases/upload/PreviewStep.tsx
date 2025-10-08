@@ -200,8 +200,8 @@ const PreviewTable: React.FC<{
                   {row.steps || '-'}
                 </div>
               </td>
-              <td className="px-4 py-2 text-gray-600 dark:text-gray-400 text-center">{row.priority || '-'}</td>
-              <td className="px-4 py-2 text-gray-600 dark:text-gray-400 text-center">{row.type || '-'}</td>
+              <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{row.priority || '-'}</td>
+              <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{row.type || '-'}</td>
             </tr>
           ))}
         </tbody>

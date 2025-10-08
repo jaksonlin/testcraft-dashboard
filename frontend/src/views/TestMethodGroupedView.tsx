@@ -27,7 +27,7 @@ const TestMethodGroupedView: React.FC = () => {
   const [filterAnnotated, setFilterAnnotated] = useState<'all' | 'annotated' | 'not-annotated'>('all');
 
   // Use custom hook for expansion state
-  const { expandedTeams, expandedClasses, toggleTeam, toggleClass, setExpandedTeams } = useGroupExpansion();
+  const { expandedTeams, expandedClasses, toggleTeam, toggleClass } = useGroupExpansion();
 
   // Debounce search term to prevent excessive filtering
   useEffect(() => {
@@ -46,18 +46,13 @@ const TestMethodGroupedView: React.FC = () => {
       setError(null);
       const data = await api.dashboard.getAllTestMethodDetailsGrouped(500); // Increased limit for better overview
       setGroupedData(data);
-      
-      // Auto-expand first team for better UX
-      if (data.teams.length > 0) {
-        setExpandedTeams(new Set([data.teams[0].teamName]));
-      }
     } catch (err) {
       console.error('Error fetching grouped test method data:', err);
       setError('Failed to load test method data');
     } finally {
       setLoading(false);
     }
-  }, [setExpandedTeams]);
+  }, []);
 
   useEffect(() => {
     fetchGroupedData();

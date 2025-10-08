@@ -1,19 +1,19 @@
 import React from 'react';
-import { BarChart3, RefreshCw } from 'lucide-react';
+import { Target, RefreshCw } from 'lucide-react';
 import ExportManager, { type ExportOption } from '../shared/ExportManager';
 
 interface GroupedViewHeaderProps {
   onRefresh: () => void;
-  onExport: (option: ExportOption) => void;
+  onExport: (option: ExportOption) => Promise<void>;
 }
 
 const GroupedViewHeader: React.FC<GroupedViewHeaderProps> = ({ onRefresh, onExport }) => {
   return (
     <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <BarChart3 className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
+            <Target className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 Test Methods Analysis

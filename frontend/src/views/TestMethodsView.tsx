@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { RefreshCw, CheckCircle, XCircle, ExternalLink, FileText, Target } from 'lucide-react';
+import { CheckCircle, XCircle, ExternalLink, FileText, Target } from 'lucide-react';
 import { api, type TestMethodDetail } from '../lib/api';
 import PaginatedTable, { type ColumnDef } from '../components/shared/PaginatedTable';
 import { usePaginatedData } from '../hooks/usePaginatedData';
-import ServerSideExportManager from '../components/shared/ServerSideExportManager';
 import { isMethodAnnotated, getAnnotationStatusDisplayName } from '../utils/methodUtils';
+import TestMethodsHeader from '../components/test-methods/TestMethodsHeader';
 
 const TestMethodsView: React.FC = () => {
   const [filters, setFilters] = useState({
@@ -194,35 +194,15 @@ const TestMethodsView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                Test Methods
-              </h1>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Comprehensive view of all test methods with advanced filtering and pagination
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={refresh}
-                disabled={loading}
-                className="flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
-              <ServerSideExportManager
-                dataType="methods"
-                filters={filters}
-                className="ml-2"
-              />
-            </div>
-          </div>
-        </div>
+      {/* Header */}
+      <TestMethodsHeader
+        loading={loading}
+        filters={filters}
+        onRefresh={refresh}
+      />
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Filters */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
@@ -345,7 +325,7 @@ const TestMethodsView: React.FC = () => {
           searchable={false}
           className="shadow-lg"
         />
-      </div>
+      </main>
     </div>
   );
 };
