@@ -1,20 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { List, BarChart3, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { List, AlertTriangle, CheckCircle } from 'lucide-react';
 import { TestCaseUploadModal } from '../components/testcases/TestCaseUploadModal';
 import { TestCaseListTable } from '../components/testcases/TestCaseListTable';
 import { TestCaseCoverageCard } from '../components/testcases/TestCaseCoverageCard';
 import { TestCaseDetailModal } from '../components/testcases/TestCaseDetailModal';
+import { StatsCard } from '../components/testcases/StatsCard';
+import { TabNavigation } from '../components/testcases/TabNavigation';
+import { CoverageBreakdown } from '../components/testcases/CoverageBreakdown';
 import TestCasesHeader from '../components/testcases/TestCasesHeader';
 import Pagination from '../components/shared/Pagination';
-import {
-  getAllTestCases,
-  getCoverageStats,
-  getUntestedCases,
-  deleteTestCase
-} from '../lib/testCaseApi';
-import type { TestCase, CoverageStats } from '../lib/testCaseApi';
-
-type TabType = 'list' | 'coverage' | 'gaps';
+import { Toast } from '../components/shared/Toast';
+import { useTestCaseData, type TabType } from '../hooks/useTestCaseData';
+import type { TestCase } from '../lib/testCaseApi';
 
 /**
  * Main Test Cases view with tabs for list, coverage, and gaps.
@@ -22,101 +19,80 @@ type TabType = 'list' | 'coverage' | 'gaps';
  */
 export const TestCasesView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('list');
-  const [testCases, setTestCases] = useState<TestCase[]>([]);
-  const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
-  const [untestedCases, setUntestedCases] = useState<TestCase[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
-  const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  
-  // Pagination state for list tab
-  const [listPage, setListPage] = useState(0);
-  const [listPageSize, setListPageSize] = useState(20);
-  const [listTotalPages, setListTotalPages] = useState(0);
-  
-  // Pagination state for gaps tab
-  const [gapsPage, setGapsPage] = useState(0);
-  const [gapsPageSize, setGapsPageSize] = useState(20);
-  const [gapsTotalPages, setGapsTotalPages] = useState(0);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
-  // Load test cases data with pagination
-  const loadTestCases = useCallback(async () => {
-    try {
-      const testCasesData = await getAllTestCases({ page: listPage, size: listPageSize });
-      setTestCases(testCasesData.content);
-      setListTotalPages(Math.ceil(testCasesData.total / listPageSize));
-    } catch (error) {
-      console.error('Failed to load test cases:', error);
-    }
-  }, [listPage, listPageSize]);
+  // Use the custom hook for data management
+  const {
+    testCases,
+    untestedCases,
+    coverageStats,
+    listPagination,
+    gapsPagination,
+    loading,
+    error,
+    loadData,
+    loadTestCases,
+    loadGaps,
+    handleDelete,
+    setListPage,
+    setListPageSize,
+    setGapsPage,
+    setGapsPageSize,
+    clearError,
+  } = useTestCaseData();
 
-  // Load gaps data with pagination
-  const loadGaps = useCallback(async () => {
-    try {
-      const gaps = await getUntestedCases({ page: gapsPage, size: gapsPageSize });
-      setUntestedCases(gaps.content);
-      setGapsTotalPages(Math.ceil(gaps.total / gapsPageSize));
-    } catch (error) {
-      console.error('Failed to load gaps:', error);
-    }
-  }, [gapsPage, gapsPageSize]);
-
-  // Load all data on mount
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [testCasesData, stats, gaps] = await Promise.all([
-        getAllTestCases({ page: listPage, size: listPageSize }),
-        getCoverageStats(),
-        getUntestedCases({ page: gapsPage, size: gapsPageSize })
-      ]);
-
-      setTestCases(testCasesData.content);
-      setListTotalPages(Math.ceil(testCasesData.total / listPageSize));
-      setCoverageStats(stats);
-      setUntestedCases(gaps.content);
-      setGapsTotalPages(Math.ceil(gaps.total / gapsPageSize));
-    } catch (error) {
-      console.error('Failed to load test cases:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [listPage, listPageSize, gapsPage, gapsPageSize]);
-
-  // Load data on mount
+  // Show error toast
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (error) {
+      setToastMessage(error);
+      setToastType('error');
+      setShowToast(true);
+      clearError();
+    }
+  }, [error, clearError]);
 
-  // Reload test cases when list page or page size changes
+  // Reload data when tab changes
   useEffect(() => {
     if (activeTab === 'list') {
       loadTestCases();
-    }
-  }, [activeTab, loadTestCases]);
-
-  // Reload gaps when gaps page or page size changes
-  useEffect(() => {
-    if (activeTab === 'gaps') {
+    } else if (activeTab === 'gaps') {
       loadGaps();
     }
-  }, [activeTab, loadGaps]);
+  }, [activeTab, loadTestCases, loadGaps]);
 
   const handleUploadComplete = () => {
-    // Reload data after upload
     loadData();
+    setToastMessage('Test cases uploaded successfully');
+    setToastType('success');
+    setShowToast(true);
   };
 
-  const handleDelete = async (internalId: number) => {
+  const handleDeleteWithToast = async (internalId: number) => {
     try {
-      await deleteTestCase(internalId);
-      // Reload data
-      loadData();
-    } catch (error) {
-      console.error('Failed to delete test case:', error);
-      alert('Failed to delete test case');
+      await handleDelete(internalId);
+      setToastMessage('Test case deleted successfully');
+      setToastType('success');
+      setShowToast(true);
+    } catch {
+      setToastMessage('Failed to delete test case');
+      setToastType('error');
+      setShowToast(true);
     }
   };
+
+  const handlePageSizeChange = (size: number) => {
+    if (activeTab === 'gaps') {
+      setGapsPageSize(size);
+    } else {
+      setListPageSize(size);
+    }
+  };
+
+  const currentPageSize = activeTab === 'gaps' ? gapsPagination.pageSize : listPagination.pageSize;
 
   if (loading) {
     return (
@@ -130,20 +106,12 @@ export const TestCasesView: React.FC = () => {
     <div className="p-6 space-y-6">
       {/* Header with Data Controls */}
       <TestCasesHeader
-        pageSize={activeTab === 'gaps' ? gapsPageSize : listPageSize}
-        onPageSizeChange={(size) => {
-          if (activeTab === 'gaps') {
-            setGapsPageSize(size);
-            setGapsPage(0);
-          } else {
-            setListPageSize(size);
-            setListPage(0);
-          }
-        }}
+        pageSize={currentPageSize}
+        onPageSizeChange={handlePageSizeChange}
         onUploadClick={() => setIsUploadModalOpen(true)}
       />
 
-      {/* Coverage Card (Always Visible) */}
+      {/* Coverage Stats Cards */}
       {coverageStats && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <TestCaseCoverageCard
@@ -151,75 +119,41 @@ export const TestCasesView: React.FC = () => {
             onViewGaps={() => setActiveTab('gaps')}
           />
 
-          {/* Quick Stats Cards */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Total Test Cases</h3>
-              <List className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="text-4xl font-bold text-gray-900">{coverageStats.total}</div>
-            <p className="text-sm text-gray-600 mt-2">Test cases in database</p>
-          </div>
+          <StatsCard
+            title="Total Test Cases"
+            value={coverageStats.total}
+            description="Test cases in database"
+            icon={List}
+            iconColor="text-blue-600"
+            valueColor="text-gray-900"
+          />
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Automation Gaps</h3>
-              <AlertTriangle className="w-5 h-5 text-orange-600" />
-            </div>
-            <div className="text-4xl font-bold text-orange-600">{coverageStats.manual}</div>
-            <p className="text-sm text-gray-600 mt-2">Test cases need automation</p>
-            {coverageStats.manual > 0 && (
-              <button
-                onClick={() => setActiveTab('gaps')}
-                className="mt-3 text-sm text-orange-700 hover:text-orange-900 underline"
-              >
-                View gaps →
-              </button>
-            )}
-          </div>
+          <StatsCard
+            title="Automation Gaps"
+            value={coverageStats.manual}
+            description="Test cases need automation"
+            icon={AlertTriangle}
+            iconColor="text-orange-600"
+            valueColor="text-orange-600"
+            action={
+              coverageStats.manual > 0
+                ? {
+                    label: 'View gaps →',
+                    onClick: () => setActiveTab('gaps'),
+                  }
+                : undefined
+            }
+          />
         </div>
       )}
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="flex space-x-8">
-          <button
-            onClick={() => setActiveTab('list')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
-              activeTab === 'list'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <List className="w-4 h-4" />
-            All Test Cases ({coverageStats?.total || 0})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('coverage')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
-              activeTab === 'coverage'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            Coverage Analytics
-          </button>
-
-          <button
-            onClick={() => setActiveTab('gaps')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
-              activeTab === 'gaps'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4" />
-            Automation Gaps ({coverageStats?.manual || 0})
-          </button>
-        </nav>
-      </div>
+      <TabNavigation
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        totalCount={coverageStats?.total || 0}
+        gapsCount={coverageStats?.manual || 0}
+      />
 
       {/* Tab Content */}
       <div>
@@ -232,11 +166,11 @@ export const TestCasesView: React.FC = () => {
             <TestCaseListTable
               testCases={testCases}
               onViewDetails={setSelectedTestCase}
-              onDelete={handleDelete}
+              onDelete={handleDeleteWithToast}
             />
             <Pagination
-              currentPage={listPage}
-              totalPages={listTotalPages}
+              currentPage={listPagination.page}
+              totalPages={listPagination.totalPages}
               onPageChange={setListPage}
             />
           </div>
@@ -254,38 +188,7 @@ export const TestCasesView: React.FC = () => {
                 stats={coverageStats}
                 onViewGaps={() => setActiveTab('gaps')}
               />
-
-              {/* Additional Analytics Could Go Here */}
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Coverage Breakdown</h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-700">Automated</span>
-                      <span className="font-semibold text-green-600">{coverageStats.automated}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full transition-all"
-                        style={{ width: `${(coverageStats.automated / coverageStats.total) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-700">Manual</span>
-                      <span className="font-semibold text-orange-600">{coverageStats.manual}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-orange-600 h-2 rounded-full transition-all"
-                        style={{ width: `${(coverageStats.manual / coverageStats.total) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <CoverageBreakdown stats={coverageStats} />
             </div>
           </div>
         )}
@@ -316,8 +219,8 @@ export const TestCasesView: React.FC = () => {
                   onViewDetails={setSelectedTestCase}
                 />
                 <Pagination
-                  currentPage={gapsPage}
-                  totalPages={gapsTotalPages}
+                  currentPage={gapsPagination.page}
+                  totalPages={gapsPagination.totalPages}
                   onPageChange={setGapsPage}
                 />
               </>
@@ -340,7 +243,15 @@ export const TestCasesView: React.FC = () => {
         onClose={() => setIsUploadModalOpen(false)}
         onComplete={handleUploadComplete}
       />
+
+      {/* Toast Notification */}
+      {showToast && (
+        <Toast
+          message={toastMessage}
+          type={toastType}
+          onClose={() => setShowToast(false)}
+        />
+      )}
     </div>
   );
 };
-
