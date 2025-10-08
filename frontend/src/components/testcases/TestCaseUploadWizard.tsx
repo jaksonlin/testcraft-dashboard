@@ -102,6 +102,42 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
     }
   };
 
+  // Handle advancing to preview step - refresh preview data
+  const handleAdvanceToPreview = async () => {
+    if (!file) return;
+    
+    try {
+      // Refresh preview with current headerRow and dataStartRow settings
+      const updatedPreview = await previewExcelWithRows(file, headerRow, dataStartRow);
+      setPreview(updatedPreview);
+      
+      // Validate that current mappings are still valid with the refreshed columns
+      // If columns changed, user's mappings might be invalid
+      const currentMappedColumns = Object.keys(mappings);
+      const newColumns = updatedPreview.columns;
+      const invalidMappings = currentMappedColumns.filter(col => !newColumns.includes(col));
+      
+      if (invalidMappings.length > 0) {
+        console.warn('Some mappings reference columns that no longer exist:', invalidMappings);
+        // Optionally: filter out invalid mappings or use suggested mappings
+        // For now, keep user mappings as-is and let them see the data
+      }
+      
+      console.log('Preview refreshed:', {
+        columns: updatedPreview.columns,
+        previewDataRows: updatedPreview.previewData.length,
+        mappings: mappings,
+        headerRow,
+        dataStartRow
+      });
+      
+      setCurrentStep('preview');
+    } catch (error) {
+      console.error('Failed to refresh preview:', error);
+      alert('Failed to refresh preview. Please try again.');
+    }
+  };
+
   // Step 3: Handle import
   const handleImport = async () => {
     if (!file || !isValidMapping) {
@@ -230,7 +266,7 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
             onMappingChange={handleMappingChange}
             onHeaderRowChange={(row) => handleRowChange(row, dataStartRow)}
             onDataStartRowChange={(row) => handleRowChange(headerRow, row)}
-            onNext={() => setCurrentStep('preview')}
+            onNext={handleAdvanceToPreview}
             onBack={() => setCurrentStep('upload')}
           />
         )}
@@ -715,6 +751,16 @@ const PreviewStep: React.FC<PreviewStepProps> = (props) => {
   // Calculate actual number of rows to be imported
   // Total rows in sheet minus the data start row (all rows from dataStartRow to end)
   const estimatedImportCount = Math.max(0, preview.totalRows - dataStartRow);
+  
+  // Debug: Log what we received
+  console.log('PreviewStep received:', {
+    previewColumns: preview.columns,
+    previewDataLength: preview.previewData.length,
+    mappings: mappings,
+    firstRowKeys: preview.previewData[0] ? Object.keys(preview.previewData[0]) : [],
+    firstRowSample: preview.previewData[0]
+  });
+  
   // Map preview data using user's mappings
   // First row is header row, rest are data rows
   const mappedPreview = preview.previewData.map((row, index) => {
@@ -724,11 +770,27 @@ const PreviewStep: React.FC<PreviewStepProps> = (props) => {
         mapped[systemField] = row[excelCol] || '';
       }
     });
+    
+    // Debug: Log mapping for first data row
+    if (index === 1) {
+      console.log('First data row mapping:', {
+        originalRow: row,
+        mappedRow: mapped,
+        mappings: mappings
+      });
+    }
+    
     return { ...mapped, _isHeader: index === 0 } as Record<string, string> & { _isHeader: boolean };
   });
   
   const headerRowData = mappedPreview[0];
   const dataRows = mappedPreview.slice(1);
+  
+  console.log('Mapped preview result:', {
+    headerRowData,
+    dataRowsCount: dataRows.length,
+    firstDataRow: dataRows[0]
+  });
 
   return (
     <div className="space-y-6">
@@ -753,6 +815,43 @@ const PreviewStep: React.FC<PreviewStepProps> = (props) => {
           </div>
           <CheckCircle className="w-8 h-8 text-blue-600" />
         </div>
+      </div>
+
+      {/* Debug Info */}
+      <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
+        <details className="cursor-pointer">
+          <summary className="font-semibold text-gray-700 text-sm">🔍 Debug Info (Click to expand)</summary>
+          <div className="mt-3 space-y-2 text-xs font-mono">
+            <div>
+              <span className="font-bold">Available Columns:</span> {preview.columns.join(', ')}
+            </div>
+            <div>
+              <span className="font-bold">Preview Data Rows:</span> {preview.previewData.length} (header + data rows)
+            </div>
+            <div>
+              <span className="font-bold">Mapped Preview Rows:</span> {mappedPreview.length}
+            </div>
+            <div>
+              <span className="font-bold">Data Rows to Display:</span> {dataRows.length}
+            </div>
+            <div className="pt-2 border-t border-gray-300">
+              <span className="font-bold">Current Mappings:</span>
+              <div className="pl-4 mt-1">
+                {Object.entries(mappings).map(([excel, system]) => (
+                  <div key={excel}>{excel} → {system}</div>
+                ))}
+              </div>
+            </div>
+            {dataRows.length > 0 && (
+              <div className="pt-2 border-t border-gray-300">
+                <span className="font-bold">First Data Row Sample:</span>
+                <pre className="mt-1 p-2 bg-white rounded text-[10px] overflow-auto">
+                  {JSON.stringify(dataRows[0], null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </details>
       </div>
 
       {/* Preview Table */}
