@@ -49,20 +49,22 @@ public class TestCaseRepository {
     
     /**
      * Internal save method with connection
+     * Uses external_id + organization for conflict resolution
      */
     private void save(Connection conn, TestCase testCase) throws SQLException {
-        String sql = "INSERT INTO test_cases (id, title, steps, setup, teardown, expected_result, " +
+        String sql = "INSERT INTO test_cases (external_id, title, steps, setup, teardown, expected_result, " +
                     "priority, type, status, tags, requirements, custom_fields, created_by, organization) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?) " +
-                    "ON CONFLICT (id) DO UPDATE SET " +
+                    "ON CONFLICT (external_id, organization) DO UPDATE SET " +
                     "title = EXCLUDED.title, steps = EXCLUDED.steps, setup = EXCLUDED.setup, " +
                     "teardown = EXCLUDED.teardown, expected_result = EXCLUDED.expected_result, " +
                     "priority = EXCLUDED.priority, type = EXCLUDED.type, status = EXCLUDED.status, " +
                     "tags = EXCLUDED.tags, requirements = EXCLUDED.requirements, " +
-                    "custom_fields = EXCLUDED.custom_fields, updated_date = CURRENT_TIMESTAMP";
+                    "custom_fields = EXCLUDED.custom_fields, updated_date = CURRENT_TIMESTAMP " +
+                    "RETURNING internal_id";
         
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, testCase.getId());
+            stmt.setString(1, testCase.getExternalId());
             stmt.setString(2, testCase.getTitle());
             stmt.setString(3, testCase.getSteps());
             stmt.setString(4, testCase.getSetup());
@@ -86,22 +88,72 @@ public class TestCaseRepository {
             stmt.setString(13, testCase.getCreatedBy());
             stmt.setString(14, testCase.getOrganization());
             
-            stmt.executeUpdate();
+            // Execute and get generated internal_id
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    testCase.setInternalId(rs.getLong("internal_id"));
+                }
+            }
         } catch (Exception e) {
-            throw new SQLException("Failed to save test case: " + testCase.getId(), e);
+            throw new SQLException("Failed to save test case: " + testCase.getExternalId(), e);
         }
     }
     
     /**
-     * Find test case by ID
+     * Find test case by internal ID (primary key)
      */
-    public TestCase findById(String id) throws SQLException {
-        String sql = "SELECT * FROM test_cases WHERE id = ?";
+    public TestCase findById(Long internalId) throws SQLException {
+        String sql = "SELECT * FROM test_cases WHERE internal_id = ?";
         
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setString(1, id);
+            stmt.setLong(1, internalId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToTestCase(rs);
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Find test case by external ID (from test management system)
+     * Note: External ID may not be unique across organizations
+     */
+    public TestCase findByExternalId(String externalId, String organization) throws SQLException {
+        String sql = "SELECT * FROM test_cases WHERE external_id = ? AND organization = ?";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, externalId);
+            stmt.setString(2, organization);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToTestCase(rs);
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Legacy method - finds by external ID (deprecated, use findById with internal ID)
+     */
+    @Deprecated
+    public TestCase findByIdLegacy(String externalId) throws SQLException {
+        String sql = "SELECT * FROM test_cases WHERE external_id = ? LIMIT 1";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, externalId);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -140,7 +192,7 @@ public class TestCaseRepository {
             params.add(priority);
         }
         
-        sql.append(" ORDER BY id");
+        sql.append(" ORDER BY internal_id");
         
         List<TestCase> testCases = new ArrayList<>();
         
@@ -181,7 +233,7 @@ public class TestCaseRepository {
             params.add(priority);
         }
 
-        sql.append(" ORDER BY id OFFSET ? LIMIT ?");
+        sql.append(" ORDER BY internal_id OFFSET ? LIMIT ?");
         params.add(offset);
         params.add(limit);
 
@@ -226,7 +278,7 @@ public class TestCaseRepository {
      * Count test cases with coverage (linked to test methods)
      */
     public int countWithCoverage() throws SQLException {
-        String sql = "SELECT COUNT(DISTINCT test_case_id) FROM test_case_coverage";
+        String sql = "SELECT COUNT(DISTINCT test_case_internal_id) FROM test_case_coverage";
         
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
@@ -245,8 +297,8 @@ public class TestCaseRepository {
      */
     public int countWithoutCoverage() throws SQLException {
         String sql = "SELECT COUNT(*) FROM test_cases tc " +
-                     "LEFT JOIN test_case_coverage tcc ON tc.id = tcc.test_case_id " +
-                     "WHERE tcc.test_case_id IS NULL";
+                     "LEFT JOIN test_case_coverage tcc ON tc.internal_id = tcc.test_case_internal_id " +
+                     "WHERE tcc.test_case_internal_id IS NULL";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
@@ -265,9 +317,9 @@ public class TestCaseRepository {
      */
     public List<TestCase> findWithoutCoverage() throws SQLException {
         String sql = "SELECT tc.* FROM test_cases tc " +
-                    "LEFT JOIN test_case_coverage tcc ON tc.id = tcc.test_case_id " +
-                    "WHERE tcc.test_case_id IS NULL " +
-                    "ORDER BY tc.priority DESC, tc.id";
+                    "LEFT JOIN test_case_coverage tcc ON tc.internal_id = tcc.test_case_internal_id " +
+                    "WHERE tcc.test_case_internal_id IS NULL " +
+                    "ORDER BY tc.priority DESC, tc.internal_id";
         
         List<TestCase> testCases = new ArrayList<>();
         
@@ -288,9 +340,9 @@ public class TestCaseRepository {
      */
     public List<TestCase> findWithoutCoveragePaged(int offset, int limit) throws SQLException {
         String sql = "SELECT tc.* FROM test_cases tc " +
-                     "LEFT JOIN test_case_coverage tcc ON tc.id = tcc.test_case_id " +
-                     "WHERE tcc.test_case_id IS NULL " +
-                     "ORDER BY tc.priority DESC, tc.id OFFSET ? LIMIT ?";
+                     "LEFT JOIN test_case_coverage tcc ON tc.internal_id = tcc.test_case_internal_id " +
+                     "WHERE tcc.test_case_internal_id IS NULL " +
+                     "ORDER BY tc.priority DESC, tc.internal_id OFFSET ? LIMIT ?";
 
         List<TestCase> testCases = new ArrayList<>();
 
@@ -311,21 +363,22 @@ public class TestCaseRepository {
     
     /**
      * Link test case to test method (create coverage record)
+     * Uses internal ID to link test case to implementation
      */
-    public void linkTestCaseToMethod(String testCaseId, String repositoryName, 
+    public void linkTestCaseToMethod(Long testCaseInternalId, String repositoryName, 
                                      String packageName, String className, String methodName,
                                      String filePath, int lineNumber) throws SQLException {
         String sql = "INSERT INTO test_case_coverage " +
-                    "(test_case_id, repository_name, package_name, class_name, method_name, file_path, line_number) " +
+                    "(test_case_internal_id, repository_name, package_name, class_name, method_name, file_path, line_number) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?) " +
-                    "ON CONFLICT (test_case_id, repository_name, package_name, class_name, method_name) " +
+                    "ON CONFLICT (test_case_internal_id, repository_name, package_name, class_name, method_name) " +
                     "DO UPDATE SET file_path = EXCLUDED.file_path, line_number = EXCLUDED.line_number, " +
                     "scan_date = CURRENT_TIMESTAMP";
         
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setString(1, testCaseId);
+            stmt.setLong(1, testCaseInternalId);
             stmt.setString(2, repositoryName);
             stmt.setString(3, packageName);
             stmt.setString(4, className);
@@ -338,15 +391,31 @@ public class TestCaseRepository {
     }
     
     /**
-     * Delete test case by ID
+     * Delete test case by internal ID
      */
-    public boolean deleteById(String id) throws SQLException {
-        String sql = "DELETE FROM test_cases WHERE id = ?";
+    public boolean deleteById(Long internalId) throws SQLException {
+        String sql = "DELETE FROM test_cases WHERE internal_id = ?";
         
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setString(1, id);
+            stmt.setLong(1, internalId);
+            int affected = stmt.executeUpdate();
+            return affected > 0;
+        }
+    }
+    
+    /**
+     * Delete test case by external ID and organization
+     */
+    public boolean deleteByExternalId(String externalId, String organization) throws SQLException {
+        String sql = "DELETE FROM test_cases WHERE external_id = ? AND organization = ?";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, externalId);
+            stmt.setString(2, organization);
             int affected = stmt.executeUpdate();
             return affected > 0;
         }
@@ -371,7 +440,8 @@ public class TestCaseRepository {
     private TestCase mapResultSetToTestCase(ResultSet rs) throws SQLException {
         TestCase testCase = new TestCase();
         
-        testCase.setId(rs.getString("id"));
+        testCase.setInternalId(rs.getLong("internal_id"));
+        testCase.setExternalId(rs.getString("external_id"));
         testCase.setTitle(rs.getString("title"));
         testCase.setSteps(rs.getString("steps"));
         testCase.setSetup(rs.getString("setup"));

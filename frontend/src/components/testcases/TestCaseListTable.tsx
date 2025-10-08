@@ -5,7 +5,7 @@ import type { TestCase } from '../../lib/testCaseApi';
 interface TestCaseListTableProps {
   testCases: TestCase[];
   onViewDetails?: (testCase: TestCase) => void;
-  onDelete?: (id: string) => void;
+  onDelete?: (internalId: number) => void;
 }
 
 export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
@@ -27,7 +27,7 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
     if (filter.status && tc.status !== filter.status) return false;
     if (filter.search) {
       const searchLower = filter.search.toLowerCase();
-      return tc.id.toLowerCase().includes(searchLower) ||
+      return tc.externalId.toLowerCase().includes(searchLower) ||
              tc.title.toLowerCase().includes(searchLower);
     }
     return true;
@@ -189,8 +189,8 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
                     {onDelete && (
                       <button
                         onClick={() => {
-                          if (confirm(`Delete test case ${tc.id}?`)) {
-                            onDelete(tc.id);
+                          if (confirm(`Delete test case ${tc.externalId}?`)) {
+                            onDelete(tc.internalId);
                           }
                         }}
                         className="text-red-600 hover:text-red-900 transition-colors"

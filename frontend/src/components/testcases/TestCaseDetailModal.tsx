@@ -17,7 +17,7 @@ export const TestCaseDetailModal: React.FC<TestCaseDetailModalProps> = ({ testCa
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{testCase.id}</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{testCase.externalId}</h2>
             <p className="text-gray-600">{testCase.title}</p>
           </div>
           <button

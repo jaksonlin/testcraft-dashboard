@@ -8,14 +8,19 @@ import java.util.Map;
  * Entity representing a test case imported from Excel or other sources.
  * 
  * This is a flexible design that stores:
- * - Required fields (id, title, steps)
+ * - Internal ID (auto-generated primary key)
+ * - External ID (test case ID from external system like Jira, TestRail, etc.)
+ * - Required fields (title, steps)
  * - Common optional fields (setup, teardown, expected result, etc.)
  * - Custom organization-specific fields in customFields map
  */
 public class TestCase {
     
+    // Database primary key (auto-generated)
+    private Long internalId;        // Internal database ID
+    
     // Required fields
-    private String id;              // TC-1234, ID-5678, etc.
+    private String externalId;      // TC-1234, ID-5678, etc. (from external test management system)
     private String title;
     private String steps;
     
@@ -47,27 +52,47 @@ public class TestCase {
         this.updatedDate = LocalDateTime.now();
     }
     
-    public TestCase(String id, String title, String steps) {
+    public TestCase(String externalId, String title, String steps) {
         this();
-        this.id = id;
+        this.externalId = externalId;
         this.title = title;
         this.steps = steps;
     }
     
-    // Validation
+    // Validation - external ID is required for new imports
     public boolean isValid() {
-        return id != null && !id.trim().isEmpty() &&
+        return externalId != null && !externalId.trim().isEmpty() &&
                title != null && !title.trim().isEmpty() &&
                steps != null && !steps.trim().isEmpty();
     }
     
     // Getters and Setters
-    public String getId() {
-        return id;
+    public Long getInternalId() {
+        return internalId;
     }
     
+    public void setInternalId(Long internalId) {
+        this.internalId = internalId;
+    }
+    
+    public String getExternalId() {
+        return externalId;
+    }
+    
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
+    }
+    
+    // Legacy getter for backward compatibility (returns external ID)
+    @Deprecated
+    public String getId() {
+        return externalId;
+    }
+    
+    // Legacy setter for backward compatibility (sets external ID)
+    @Deprecated
     public void setId(String id) {
-        this.id = id;
+        this.externalId = id;
     }
     
     public String getTitle() {
@@ -197,7 +222,8 @@ public class TestCase {
     @Override
     public String toString() {
         return "TestCase{" +
-                "id='" + id + '\'' +
+                "internalId=" + internalId +
+                ", externalId='" + externalId + '\'' +
                 ", title='" + title + '\'' +
                 ", type='" + type + '\'' +
                 ", priority='" + priority + '\'' +

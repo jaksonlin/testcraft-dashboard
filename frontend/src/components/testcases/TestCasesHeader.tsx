@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, Upload } from 'lucide-react';
 import DataControls, { type SortOption } from '../shared/DataControls';
 
 interface TestCasesHeaderProps {
@@ -10,6 +10,7 @@ interface TestCasesHeaderProps {
   sortOptions?: SortOption[];
   sortOrder?: 'asc' | 'desc';
   onSortOrderChange?: (order: 'asc' | 'desc') => void;
+  onUploadClick?: () => void;
 }
 
 const TestCasesHeader: React.FC<TestCasesHeaderProps> = ({
@@ -20,6 +21,7 @@ const TestCasesHeader: React.FC<TestCasesHeaderProps> = ({
   sortOptions,
   sortOrder,
   onSortOrderChange,
+  onUploadClick,
 }) => {
   return (
     <div className="flex items-center justify-between mb-6">
@@ -42,6 +44,17 @@ const TestCasesHeader: React.FC<TestCasesHeaderProps> = ({
           sortOrder={sortOrder}
           onSortOrderChange={onSortOrderChange}
         />
+
+        {/* Upload Button */}
+        {onUploadClick && (
+          <button
+            onClick={onUploadClick}
+            className="btn btn-primary flex items-center"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Test Cases
+          </button>
+        )}
       </div>
     </div>
   );

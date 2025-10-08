@@ -199,12 +199,12 @@ public class TestCaseController {
     }
     
     /**
-     * Get single test case by ID
+     * Get single test case by internal ID
      * 
      * GET /api/testcases/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getTestCase(@PathVariable String id) {
+    public ResponseEntity<?> getTestCase(@PathVariable Long id) {
         try {
             TestCase testCase = testCaseService.getTestCaseById(id);
             
@@ -272,12 +272,12 @@ public class TestCaseController {
     }
     
     /**
-     * Delete test case
+     * Delete test case by internal ID
      * 
      * DELETE /api/testcases/{id}
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteTestCase(@PathVariable String id) {
+    public ResponseEntity<?> deleteTestCase(@PathVariable Long id) {
         try {
             boolean deleted = testCaseService.deleteTestCase(id);
             

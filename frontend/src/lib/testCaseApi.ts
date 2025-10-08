@@ -31,7 +31,8 @@ export interface ImportResponse {
 }
 
 export interface TestCase {
-  id: string;
+  internalId: number;        // Internal database ID (primary key)
+  externalId: string;        // External test case ID from test management system (TC-1234, etc.)
   title: string;
   steps: string;
   setup?: string;
@@ -42,11 +43,14 @@ export interface TestCase {
   status?: string;
   tags?: string[];
   requirements?: string[];
-  customFields?: Record<string, any>;
+  customFields?: Record<string, unknown>;
   createdDate?: string;
   updatedDate?: string;
   createdBy?: string;
   organization?: string;
+  
+  // Legacy field for backward compatibility (returns externalId)
+  id?: string;
 }
 
 export interface CoverageStats {
@@ -139,10 +143,10 @@ export const getAllTestCases = async (params?: { page?: number; size?: number; o
 };
 
 /**
- * Get single test case by ID
+ * Get single test case by internal ID
  */
-export const getTestCaseById = async (id: string): Promise<TestCase> => {
-  const response = await axios.get(`${API_BASE_URL}/testcases/${id}`);
+export const getTestCaseById = async (internalId: number): Promise<TestCase> => {
+  const response = await axios.get(`${API_BASE_URL}/testcases/${internalId}`);
   return response.data;
 };
 
@@ -163,9 +167,9 @@ export const getUntestedCases = async (params?: { page?: number; size?: number }
 };
 
 /**
- * Delete test case
+ * Delete test case by internal ID
  */
-export const deleteTestCase = async (id: string): Promise<void> => {
-  await axios.delete(`${API_BASE_URL}/testcases/${id}`);
+export const deleteTestCase = async (internalId: number): Promise<void> => {
+  await axios.delete(`${API_BASE_URL}/testcases/${internalId}`);
 };
 

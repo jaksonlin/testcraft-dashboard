@@ -118,7 +118,8 @@ public class TestCaseService {
     }
     
     /**
-     * Link test methods to test cases based on test case IDs
+     * Link test methods to test cases based on test case IDs (external IDs from annotations)
+     * Note: TestMethodInfo contains external test case IDs, we need to look up internal IDs for linkage
      */
     public int linkTestMethodsToCases(List<TestMethodInfo> testMethods, String repositoryName) throws SQLException {
         int linked = 0;
@@ -127,13 +128,14 @@ public class TestCaseService {
             String[] testCaseIds = method.getTestCaseIds();
             
             if (testCaseIds != null && testCaseIds.length > 0) {
-                for (String testCaseId : testCaseIds) {
-                    // Check if test case exists
-                    TestCase testCase = testCaseRepository.findById(testCaseId);
+                for (String externalTestCaseId : testCaseIds) {
+                    // Look up test case by external ID (first try without organization filter for simplicity)
+                    TestCase testCase = testCaseRepository.findByIdLegacy(externalTestCaseId);
                     
-                    if (testCase != null) {
+                    if (testCase != null && testCase.getInternalId() != null) {
+                        // Link using internal ID
                         testCaseRepository.linkTestCaseToMethod(
-                            testCaseId,
+                            testCase.getInternalId(),
                             repositoryName,
                             method.getPackageName(),
                             method.getClassName(),
@@ -165,10 +167,26 @@ public class TestCaseService {
     }
     
     /**
-     * Get test case by ID
+     * Get test case by internal ID (primary key)
      */
-    public TestCase getTestCaseById(String id) throws SQLException {
-        return testCaseRepository.findById(id);
+    public TestCase getTestCaseById(Long internalId) throws SQLException {
+        return testCaseRepository.findById(internalId);
+    }
+    
+    /**
+     * Get test case by external ID (from test management system)
+     * @deprecated Use getTestCaseById(Long) with internal ID instead
+     */
+    @Deprecated
+    public TestCase getTestCaseByExternalId(String externalId) throws SQLException {
+        return testCaseRepository.findByIdLegacy(externalId);
+    }
+    
+    /**
+     * Get test case by external ID with organization
+     */
+    public TestCase getTestCaseByExternalId(String externalId, String organization) throws SQLException {
+        return testCaseRepository.findByExternalId(externalId, organization);
     }
     
     /**
@@ -202,10 +220,17 @@ public class TestCaseService {
     }
     
     /**
-     * Delete test case by ID
+     * Delete test case by internal ID
      */
-    public boolean deleteTestCase(String id) throws SQLException {
-        return testCaseRepository.deleteById(id);
+    public boolean deleteTestCase(Long internalId) throws SQLException {
+        return testCaseRepository.deleteById(internalId);
+    }
+    
+    /**
+     * Delete test case by external ID and organization
+     */
+    public boolean deleteTestCaseByExternalId(String externalId, String organization) throws SQLException {
+        return testCaseRepository.deleteByExternalId(externalId, organization);
     }
     
     /**

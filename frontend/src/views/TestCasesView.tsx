@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Upload, List, BarChart3, AlertTriangle, CheckCircle } from 'lucide-react';
-import { TestCaseUploadWizard } from '../components/testcases/TestCaseUploadWizard';
+import { List, BarChart3, AlertTriangle, CheckCircle } from 'lucide-react';
+import { TestCaseUploadModal } from '../components/testcases/TestCaseUploadModal';
 import { TestCaseListTable } from '../components/testcases/TestCaseListTable';
 import { TestCaseCoverageCard } from '../components/testcases/TestCaseCoverageCard';
 import { TestCaseDetailModal } from '../components/testcases/TestCaseDetailModal';
@@ -14,10 +14,11 @@ import {
 } from '../lib/testCaseApi';
 import type { TestCase, CoverageStats } from '../lib/testCaseApi';
 
-type TabType = 'upload' | 'list' | 'coverage' | 'gaps';
+type TabType = 'list' | 'coverage' | 'gaps';
 
 /**
- * Main Test Cases view with tabs for upload, list, coverage, and gaps
+ * Main Test Cases view with tabs for list, coverage, and gaps.
+ * Upload functionality is available via the header button.
  */
 export const TestCasesView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('list');
@@ -26,6 +27,7 @@ export const TestCasesView: React.FC = () => {
   const [untestedCases, setUntestedCases] = useState<TestCase[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   
   // Pagination state for list tab
   const [listPage, setListPage] = useState(0);
@@ -103,13 +105,11 @@ export const TestCasesView: React.FC = () => {
   const handleUploadComplete = () => {
     // Reload data after upload
     loadData();
-    // Switch to list view
-    setActiveTab('list');
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (internalId: number) => {
     try {
-      await deleteTestCase(id);
+      await deleteTestCase(internalId);
       // Reload data
       loadData();
     } catch (error) {
@@ -140,6 +140,7 @@ export const TestCasesView: React.FC = () => {
             setListPage(0);
           }
         }}
+        onUploadClick={() => setIsUploadModalOpen(true)}
       />
 
       {/* Coverage Card (Always Visible) */}
@@ -183,18 +184,6 @@ export const TestCasesView: React.FC = () => {
       <div className="border-b border-gray-200">
         <nav className="flex space-x-8">
           <button
-            onClick={() => setActiveTab('upload')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
-              activeTab === 'upload'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <Upload className="w-4 h-4" />
-            Upload Test Cases
-          </button>
-
-          <button
             onClick={() => setActiveTab('list')}
             className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
               activeTab === 'list'
@@ -234,12 +223,6 @@ export const TestCasesView: React.FC = () => {
 
       {/* Tab Content */}
       <div>
-        {activeTab === 'upload' && (
-          <TestCaseUploadWizard
-            onComplete={handleUploadComplete}
-          />
-        )}
-
         {activeTab === 'list' && (
           <div>
             <div className="mb-4">
@@ -350,6 +333,13 @@ export const TestCasesView: React.FC = () => {
           onClose={() => setSelectedTestCase(null)}
         />
       )}
+
+      {/* Upload Modal */}
+      <TestCaseUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onComplete={handleUploadComplete}
+      />
     </div>
   );
 };
