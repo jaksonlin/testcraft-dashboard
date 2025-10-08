@@ -77,6 +77,9 @@ public class UnittestCaseInfoExtractor {
                 case "tags":
                     data.setTags(extractStringArrayValue(value));
                     break;
+                case "testCaseIds":
+                    data.setTestCaseIds(extractStringArrayValue(value));
+                    break;
                 case "status":
                     data.setStatus(extractStatusValue(value));
                     break;

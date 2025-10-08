@@ -8,7 +8,8 @@ import {
   Settings,
   Target,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FileCheck
 } from 'lucide-react';
 
 interface SidebarNavigationProps {
@@ -44,6 +45,12 @@ const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
       href: '/analytics',
       icon: TrendingUp,
       description: 'Advanced reporting and trends'
+    },
+    {
+      name: 'Test Cases',
+      href: '/testcases',
+      icon: FileCheck,
+      description: 'Test case management and coverage'
     },
     {
       name: 'Test Methods',

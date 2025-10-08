@@ -10,6 +10,7 @@ import AnalyticsView from '../views/AnalyticsView';
 import SettingsView from '../views/SettingsView';
 import TestMethodGroupedView from '../views/TestMethodGroupedView';
 import TestMethodsView from '../views/TestMethodsView';
+import { TestCasesView } from '../views/TestCasesView';
 
 const router = createBrowserRouter([
   {
@@ -39,6 +40,10 @@ const router = createBrowserRouter([
       {
         path: 'analytics',
         element: <AnalyticsView />
+      },
+      {
+        path: 'testcases',
+        element: <TestCasesView />
       },
               {
                 path: 'settings',

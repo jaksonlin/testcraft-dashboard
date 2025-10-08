@@ -50,6 +50,16 @@ public @interface UnittestCaseInfo {
     String[] tags() default {};
     
     /**
+     * Array of test case IDs that this test method covers.
+     * This is the RECOMMENDED field for linking test methods to test case designs.
+     * Format: {"TC-1234", "TC-5678"} or {"ID-1234", "ID-5678"}
+     * 
+     * For backward compatibility, if this field is empty, the system will also 
+     * check the 'tags' field for test case IDs.
+     */
+    String[] testCaseIds() default {};
+    
+    /**
      * Current status of the test case (TODO, IN_PROGRESS, PASSED, FAILED, etc.)
      */
     String status() default "TODO";

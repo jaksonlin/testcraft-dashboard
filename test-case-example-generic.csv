@@ -1,0 +1,44 @@
+Test ID,Title,Type,Priority,Status,Precondition,Test Steps,Expected Result,Tags,Requirements
+TC-001,User Login with Valid Credentials,Functional,High,Active,User account exists and is active,"1. Navigate to login page
+2. Enter valid username
+3. Enter valid password
+4. Click Login button",User is redirected to dashboard and sees welcome message,"authentication,smoke,critical",REQ-001
+TC-002,User Login with Invalid Password,Functional,High,Active,User account exists,"1. Navigate to login page
+2. Enter valid username
+3. Enter invalid password
+4. Click Login button",Error message displayed: 'Invalid credentials',"authentication,negative,critical",REQ-001
+TC-003,Password Reset Flow,Functional,Medium,Active,User email is registered,"1. Click 'Forgot Password' link
+2. Enter registered email
+3. Click 'Send Reset Link' button
+4. Check email inbox
+5. Click reset link in email
+6. Enter new password
+7. Confirm new password
+8. Click 'Reset Password'",User receives success message and can login with new password,"authentication,password",REQ-002
+TC-004,User Logout,Functional,Medium,Active,User is logged in,"1. Click user profile icon
+2. Select 'Logout' option
+3. Confirm logout action",User is redirected to login page and session is cleared,"authentication,session",REQ-003
+TC-005,Shopping Cart - Add Item,Functional,High,Active,User is logged in and viewing product catalog,"1. Browse product catalog
+2. Select a product
+3. Choose quantity
+4. Click 'Add to Cart' button
+5. View cart",Product appears in cart with correct quantity and price,"cart,critical",REQ-010
+TC-006,Shopping Cart - Remove Item,Functional,Medium,Active,User has items in cart,"1. View shopping cart
+2. Click 'Remove' button next to item
+3. Confirm removal",Item is removed from cart and total price is updated,"cart,",REQ-010
+TC-007,Checkout Process - Valid Payment,Functional,Critical,Active,User has items in cart and valid payment method,"1. Navigate to cart
+2. Click 'Proceed to Checkout'
+3. Enter shipping address
+4. Select shipping method
+5. Enter payment details
+6. Click 'Place Order'","Order confirmation page displayed, order number generated, confirmation email sent","checkout,payment,critical",REQ-015
+TC-008,Search Product by Name,Functional,Medium,Active,Product catalog has items,"1. Enter product name in search box
+2. Click 'Search' button",Matching products are displayed in results,"search,",REQ-020
+TC-009,Filter Products by Category,Functional,Low,Active,Multiple product categories exist,"1. Navigate to product catalog
+2. Select category from filter menu
+3. Apply filter",Only products in selected category are displayed,"filter,catalog",REQ-021
+TC-010,User Profile Update,Functional,Medium,Active,User is logged in,"1. Navigate to Profile page
+2. Click 'Edit Profile'
+3. Update name and email
+4. Click 'Save Changes'",Profile is updated and success message displayed,"profile,",REQ-030
+
