@@ -26,10 +26,10 @@ const TestCasesHeader: React.FC<TestCasesHeaderProps> = ({
   return (
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-center">
-        <FileText className="h-8 w-8 text-blue-600 mr-3" />
+        <FileText className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Test Case Management</h1>
-          <p className="text-gray-600 mt-1">Upload test case designs and track automation coverage</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Test Case Management</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Upload test case designs and track automation coverage</p>
         </div>
       </div>
       

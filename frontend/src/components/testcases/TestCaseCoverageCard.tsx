@@ -27,10 +27,10 @@ export const TestCaseCoverageCard: React.FC<TestCaseCoverageCardProps> = ({ stat
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Test Case Coverage</h3>
-        <TrendingUp className="w-5 h-5 text-blue-600" />
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Test Case Coverage</h3>
+        <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
       </div>
 
       {/* Coverage Percentage */}
@@ -39,11 +39,11 @@ export const TestCaseCoverageCard: React.FC<TestCaseCoverageCardProps> = ({ stat
           <span className={`text-4xl font-bold ${getCoverageColor()}`}>
             {coveragePercentage.toFixed(1)}%
           </span>
-          <span className="text-gray-600">automated</span>
+          <span className="text-gray-600 dark:text-gray-400">automated</span>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-3">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
           <div
             className={`h-3 rounded-full transition-all duration-500 ${getCoverageBarColor()}`}
             style={{ width: `${Math.min(coveragePercentage, 100)}%` }}
@@ -53,19 +53,19 @@ export const TestCaseCoverageCard: React.FC<TestCaseCoverageCardProps> = ({ stat
 
       {/* Stats Grid */}
       <div className="grid grid-cols-3 gap-4 mb-4">
-        <div className="text-center p-3 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-          <div className="text-xs text-gray-600">Total</div>
+        <div className="text-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">Total</div>
         </div>
 
-        <div className="text-center p-3 bg-green-50 rounded-lg">
-          <div className="text-2xl font-bold text-green-600">{stats.automated}</div>
-          <div className="text-xs text-gray-600">Automated</div>
+        <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.automated}</div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">Automated</div>
         </div>
 
-        <div className="text-center p-3 bg-orange-50 rounded-lg">
-          <div className="text-2xl font-bold text-orange-600">{stats.manual}</div>
-          <div className="text-xs text-gray-600">Manual</div>
+        <div className="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.manual}</div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">Manual</div>
         </div>
       </div>
 
@@ -73,34 +73,34 @@ export const TestCaseCoverageCard: React.FC<TestCaseCoverageCardProps> = ({ stat
       <div className="space-y-2 mb-4">
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-green-600" />
-            <span className="text-gray-700">Automated</span>
+            <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <span className="text-gray-700 dark:text-gray-300">Automated</span>
           </div>
-          <span className="font-semibold text-gray-900">{stats.automated} ({automationRate.toFixed(1)}%)</span>
+          <span className="font-semibold text-gray-900 dark:text-white">{stats.automated} ({automationRate.toFixed(1)}%)</span>
         </div>
 
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
-            <XCircle className="w-4 h-4 text-orange-600" />
-            <span className="text-gray-700">Manual</span>
+            <XCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+            <span className="text-gray-700 dark:text-gray-300">Manual</span>
           </div>
-          <span className="font-semibold text-gray-900">{stats.manual} ({(100 - automationRate).toFixed(1)}%)</span>
+          <span className="font-semibold text-gray-900 dark:text-white">{stats.manual} ({(100 - automationRate).toFixed(1)}%)</span>
         </div>
       </div>
 
       {/* Gap Alert */}
       {stats.manual > 0 && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-orange-600 mt-0.5" />
+            <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-orange-900">
+              <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">
                 {stats.manual} test cases need automation
               </p>
               {onViewGaps && (
                 <button
                   onClick={onViewGaps}
-                  className="text-xs text-orange-700 hover:text-orange-900 underline mt-1"
+                  className="text-xs text-orange-700 dark:text-orange-300 hover:text-orange-900 dark:hover:text-orange-200 underline mt-1"
                 >
                   View gap list →
                 </button>

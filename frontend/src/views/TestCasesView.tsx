@@ -124,8 +124,8 @@ export const TestCasesView: React.FC = () => {
             value={coverageStats.total}
             description="Test cases in database"
             icon={List}
-            iconColor="text-blue-600"
-            valueColor="text-gray-900"
+            iconColor="text-blue-600 dark:text-blue-400"
+            valueColor="text-gray-900 dark:text-white"
           />
 
           <StatsCard
@@ -133,8 +133,8 @@ export const TestCasesView: React.FC = () => {
             value={coverageStats.manual}
             description="Test cases need automation"
             icon={AlertTriangle}
-            iconColor="text-orange-600"
-            valueColor="text-orange-600"
+            iconColor="text-orange-600 dark:text-orange-400"
+            valueColor="text-orange-600 dark:text-orange-400"
             action={
               coverageStats.manual > 0
                 ? {
@@ -160,8 +160,8 @@ export const TestCasesView: React.FC = () => {
         {activeTab === 'list' && (
           <div>
             <div className="mb-4">
-              <h2 className="text-xl font-bold text-gray-900">All Test Cases</h2>
-              <p className="text-sm text-gray-600">View and manage all imported test cases</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">All Test Cases</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">View and manage all imported test cases</p>
             </div>
             <TestCaseListTable
               testCases={testCases}
@@ -179,8 +179,8 @@ export const TestCasesView: React.FC = () => {
         {activeTab === 'coverage' && coverageStats && (
           <div>
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Coverage Analytics</h2>
-              <p className="text-sm text-gray-600">Test case automation coverage metrics</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Coverage Analytics</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Test case automation coverage metrics</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -196,19 +196,19 @@ export const TestCasesView: React.FC = () => {
         {activeTab === 'gaps' && (
           <div>
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Automation Gaps</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Automation Gaps</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Test cases that need automation ({coverageStats?.manual || 0} total)
               </p>
             </div>
 
             {untestedCases.length === 0 ? (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
-                <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-green-900 mb-2">
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-8 text-center">
+                <CheckCircle className="w-16 h-16 text-green-600 dark:text-green-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-green-900 dark:text-green-100 mb-2">
                   Excellent! No gaps found
                 </h3>
-                <p className="text-green-700">
+                <p className="text-green-700 dark:text-green-300">
                   All test cases are automated with test methods
                 </p>
               </div>
