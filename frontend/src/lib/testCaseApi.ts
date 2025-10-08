@@ -12,7 +12,9 @@ export interface ExcelPreviewResponse {
     missingRequiredFields: string[];
     suggestions: string[];
   };
+  suggestedHeaderRow: number;
   suggestedDataStartRow: number;
+  totalRows: number;
 }
 
 export interface ValidationResponse {
@@ -103,6 +105,7 @@ export const validateMappings = async (
 export const importTestCases = async (
   file: File,
   mappings: Record<string, string>,
+  headerRow: number,
   dataStartRow: number,
   replaceExisting: boolean = true,
   createdBy: string = 'system',
@@ -111,6 +114,7 @@ export const importTestCases = async (
   const formData = new FormData();
   formData.append('file', file);
   formData.append('mappings', JSON.stringify(mappings));
+  formData.append('headerRow', headerRow.toString());
   formData.append('dataStartRow', dataStartRow.toString());
   formData.append('replaceExisting', replaceExisting.toString());
   formData.append('createdBy', createdBy);

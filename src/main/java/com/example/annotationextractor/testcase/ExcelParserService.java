@@ -52,7 +52,11 @@ public class ExcelParserService {
             Map<String, String> suggestedMappings = autoDetectMappings(columns);
             Map<String, Integer> confidence = calculateConfidence(suggestedMappings, columns);
             
-            return new ExcelPreview(columns, previewData, suggestedMappings, confidence, headerRow + 1);
+            // Get total row count for accurate import estimation
+            int totalRows = sheet.getLastRowNum() + 1; // LastRowNum is 0-based
+            
+            // Return both headerRow and suggested data start row, plus total rows
+            return new ExcelPreview(columns, previewData, suggestedMappings, confidence, headerRow, headerRow + 1, totalRows);
         }
     }
     
@@ -63,17 +67,22 @@ public class ExcelParserService {
             InputStream inputStream,
             String filename,
             Map<String, String> columnMappings,
+            int headerRow,
             int dataStartRow) throws Exception {
-        return parseWithMappingsDetailed(inputStream, filename, columnMappings, dataStartRow).getValidTestCases();
+        return parseWithMappingsDetailed(inputStream, filename, columnMappings, headerRow, dataStartRow).getValidTestCases();
     }
 
     /**
      * Parse Excel with user-defined mappings and return detailed row errors.
+     * 
+     * @param headerRow Row number (0-based) where column headers are located
+     * @param dataStartRow Row number (0-based) where data starts (can be different from headerRow + 1)
      */
     public ParseResult parseWithMappingsDetailed(
             InputStream inputStream,
             String filename,
             Map<String, String> columnMappings,
+            int headerRow,
             int dataStartRow) throws Exception {
         List<TestCase> valid = new ArrayList<>();
         List<String> rowErrors = new ArrayList<>();
@@ -81,8 +90,8 @@ public class ExcelParserService {
         try (Workbook workbook = createWorkbook(inputStream, filename)) {
             Sheet sheet = workbook.getSheetAt(0);
 
-            // Get column indexes
-            Map<String, Integer> columnIndexes = buildColumnIndexes(sheet, dataStartRow - 1, columnMappings);
+            // Get column indexes from the actual header row
+            Map<String, Integer> columnIndexes = buildColumnIndexes(sheet, headerRow, columnMappings);
 
             // Parse data rows
             for (int i = dataStartRow; i <= sheet.getLastRowNum(); i++) {
@@ -545,23 +554,29 @@ public class ExcelParserService {
         private final List<Map<String, String>> previewData;
         private final Map<String, String> suggestedMappings;
         private final Map<String, Integer> confidence;
+        private final int suggestedHeaderRow;
         private final int suggestedDataStartRow;
+        private final int totalRows;
         
         public ExcelPreview(List<String> columns, List<Map<String, String>> previewData,
                           Map<String, String> suggestedMappings, Map<String, Integer> confidence,
-                          int suggestedDataStartRow) {
+                          int suggestedHeaderRow, int suggestedDataStartRow, int totalRows) {
             this.columns = columns;
             this.previewData = previewData;
             this.suggestedMappings = suggestedMappings;
             this.confidence = confidence;
+            this.suggestedHeaderRow = suggestedHeaderRow;
             this.suggestedDataStartRow = suggestedDataStartRow;
+            this.totalRows = totalRows;
         }
         
         public List<String> getColumns() { return columns; }
         public List<Map<String, String>> getPreviewData() { return previewData; }
         public Map<String, String> getSuggestedMappings() { return suggestedMappings; }
         public Map<String, Integer> getConfidence() { return confidence; }
+        public int getSuggestedHeaderRow() { return suggestedHeaderRow; }
         public int getSuggestedDataStartRow() { return suggestedDataStartRow; }
+        public int getTotalRows() { return totalRows; }
     }
     
     /**

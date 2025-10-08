@@ -23,7 +23,8 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ExcelPreviewResponse | null>(null);
   const [mappings, setMappings] = useState<Record<string, string>>({});
-  const [dataStartRow, setDataStartRow] = useState<number>(2);
+  const [headerRow, setHeaderRow] = useState<number>(0);
+  const [dataStartRow, setDataStartRow] = useState<number>(1);
   const [isValidMapping, setIsValidMapping] = useState<boolean>(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -38,6 +39,7 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
       const previewData = await previewExcelFile(selectedFile);
       setPreview(previewData);
       setMappings(previewData.suggestedMappings);
+      setHeaderRow(previewData.suggestedHeaderRow);
       setDataStartRow(previewData.suggestedDataStartRow);
       setIsValidMapping(previewData.validation.valid);
       setMissingFields(previewData.validation.missingRequiredFields);
@@ -92,6 +94,7 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
       const result = await importTestCases(
         file,
         mappings,
+        headerRow,
         dataStartRow,
         true, // replaceExisting
         'system', // TODO: Get from user context
@@ -199,11 +202,13 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
           <MappingStep
             preview={preview}
             mappings={mappings}
+            headerRow={headerRow}
             dataStartRow={dataStartRow}
             isValid={isValidMapping}
             missingFields={missingFields}
             suggestions={suggestions}
             onMappingChange={handleMappingChange}
+            onHeaderRowChange={setHeaderRow}
             onDataStartRowChange={setDataStartRow}
             onNext={() => setCurrentStep('preview')}
             onBack={() => setCurrentStep('upload')}
@@ -214,6 +219,7 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
           <PreviewStep
             preview={preview}
             mappings={mappings}
+            headerRow={headerRow}
             dataStartRow={dataStartRow}
             importing={importing}
             onImport={handleImport}
@@ -319,11 +325,13 @@ const UploadStep: React.FC<{ onFileSelect: (file: File) => void }> = ({ onFileSe
 interface MappingStepProps {
   preview: ExcelPreviewResponse;
   mappings: Record<string, string>;
+  headerRow: number;
   dataStartRow: number;
   isValid: boolean;
   missingFields: string[];
   suggestions: string[];
   onMappingChange: (excelColumn: string, systemField: string) => void;
+  onHeaderRowChange: (row: number) => void;
   onDataStartRowChange: (row: number) => void;
   onNext: () => void;
   onBack: () => void;
@@ -332,11 +340,13 @@ interface MappingStepProps {
 const MappingStep: React.FC<MappingStepProps> = ({
   preview,
   mappings,
+  headerRow,
   dataStartRow,
   isValid,
   missingFields,
   suggestions,
   onMappingChange,
+  onHeaderRowChange,
   onDataStartRowChange,
   onNext,
   onBack
@@ -496,21 +506,73 @@ const MappingStep: React.FC<MappingStepProps> = ({
         </div>
       </div>
 
-      {/* Data Start Row */}
+      {/* Row Settings */}
       <div className="bg-gray-50 rounded-lg p-4">
-        <label className="block font-semibold text-gray-900 mb-2">
-          Data starts at row:
-        </label>
-        <input
-          type="number"
-          min={1}
-          value={dataStartRow}
-          onChange={(e) => onDataStartRowChange(parseInt(e.target.value) || 1)}
-          className="px-3 py-2 border border-gray-300 rounded-lg w-32"
-        />
-        <p className="text-sm text-gray-600 mt-1">
-          Usually row 2 (row 1 is headers)
-        </p>
+        <h3 className="font-semibold text-gray-900 mb-3">Excel Row Settings</h3>
+        <div className="grid grid-cols-2 gap-6">
+          {/* Header Row */}
+          <div>
+            <label className="block font-semibold text-gray-700 mb-2">
+              Header Row (0-based):
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={headerRow}
+              onChange={(e) => onHeaderRowChange(parseInt(e.target.value) || 0)}
+              className="px-3 py-2 border border-gray-300 rounded-lg w-32"
+            />
+            <p className="text-sm text-gray-600 mt-1">
+              Row containing column headers (usually 0 or 1)
+            </p>
+          </div>
+
+          {/* Data Start Row */}
+          <div>
+            <label className="block font-semibold text-gray-700 mb-2">
+              Data Start Row (0-based):
+            </label>
+            <input
+              type="number"
+              min={headerRow + 1}
+              value={dataStartRow}
+              onChange={(e) => onDataStartRowChange(parseInt(e.target.value) || headerRow + 1)}
+              className="px-3 py-2 border border-gray-300 rounded-lg w-32"
+            />
+            <p className="text-sm text-gray-600 mt-1">
+              First row containing data (must be after header)
+            </p>
+          </div>
+        </div>
+        
+        <div className="mt-3 bg-blue-50 border border-blue-200 rounded p-3">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800 space-y-2">
+              <p>
+                <strong>Row Numbering:</strong> Row numbers are 0-based (Row 0 = Excel Row 1, Row 1 = Excel Row 2, etc.)
+              </p>
+              <div className="space-y-1">
+                <p>
+                  <strong>Header Row {headerRow}</strong> (Excel Row {headerRow + 1}): 
+                  <span className="font-mono ml-2 text-blue-900">Contains column headers like: ID, Title, Steps</span>
+                </p>
+                <p>
+                  <strong>Data Start Row {dataStartRow}</strong> (Excel Row {dataStartRow + 1}): 
+                  <span className="font-mono ml-2 text-green-700">Contains first test case data like: TC-001, Login Test, ...</span>
+                </p>
+                {dataStartRow > headerRow + 1 && (
+                  <p className="text-yellow-700">
+                    <strong>⚠️ Rows {headerRow + 1} to {dataStartRow - 1}</strong> will be skipped (likely empty or description rows)
+                  </p>
+                )}
+              </div>
+              <p className="text-xs italic">
+                Tip: If import results look wrong, check these row numbers match your Excel file structure.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Actions */}
@@ -547,6 +609,7 @@ const MappingStep: React.FC<MappingStepProps> = ({
 interface PreviewStepProps {
   preview: ExcelPreviewResponse;
   mappings: Record<string, string>;
+  headerRow: number;
   dataStartRow: number;
   importing: boolean;
   onImport: () => void;
@@ -554,8 +617,11 @@ interface PreviewStepProps {
 }
 
 const PreviewStep: React.FC<PreviewStepProps> = (props) => {
-  const { preview, mappings, importing, onImport, onBack } = props;
-  // Note: dataStartRow reserved for future use (showing row range in preview)
+  const { preview, mappings, headerRow, dataStartRow, importing, onImport, onBack } = props;
+  
+  // Calculate actual number of rows to be imported
+  // Total rows in sheet minus the data start row (all rows from dataStartRow to end)
+  const estimatedImportCount = Math.max(0, preview.totalRows - dataStartRow);
   // Map preview data using user's mappings
   const mappedPreview = preview.previewData.map(row => {
     const mapped: Record<string, string> = {};
@@ -582,7 +648,10 @@ const PreviewStep: React.FC<PreviewStepProps> = (props) => {
           <div>
             <p className="font-semibold text-blue-900">Ready to import</p>
             <p className="text-sm text-blue-700">
-              {preview.previewData.length} test cases found
+              Estimated {estimatedImportCount} test cases will be imported
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Using Header Row {headerRow} (Excel Row {headerRow + 1}), Data from Row {dataStartRow} to {preview.totalRows - 1}
             </p>
           </div>
           <CheckCircle className="w-8 h-8 text-blue-600" />
@@ -640,7 +709,7 @@ const PreviewStep: React.FC<PreviewStepProps> = (props) => {
             </>
           ) : (
             <>
-              Import {preview.previewData.length} Test Cases
+              Import {estimatedImportCount} Test Cases
               <CheckCircle className="w-5 h-5" />
             </>
           )}

@@ -67,7 +67,9 @@ public class TestCaseController {
                 "previewData", preview.getPreviewData(),
                 "suggestedMappings", preview.getSuggestedMappings(),
                 "confidence", preview.getConfidence(),
+                "suggestedHeaderRow", preview.getSuggestedHeaderRow(),
                 "suggestedDataStartRow", preview.getSuggestedDataStartRow(),
+                "totalRows", preview.getTotalRows(),
                 "validation", Map.of(
                     "valid", validation.isValid(),
                     "missingRequiredFields", validation.getMissingRequiredFields(),
@@ -117,6 +119,7 @@ public class TestCaseController {
     public ResponseEntity<?> importTestCases(
             @RequestParam("file") MultipartFile file,
             @RequestParam("mappings") String mappingsJson,
+            @RequestParam(value = "headerRow", defaultValue = "0") int headerRow,
             @RequestParam("dataStartRow") int dataStartRow,
             @RequestParam(value = "replaceExisting", defaultValue = "true") boolean replaceExisting,
             @RequestParam(value = "createdBy", defaultValue = "system") String createdBy,
@@ -138,6 +141,7 @@ public class TestCaseController {
                 importIn,
                 file.getOriginalFilename(),
                 columnMappings,
+                headerRow,
                 dataStartRow,
                 replaceExisting,
                 createdBy,

@@ -46,6 +46,7 @@ public class TestCaseService {
             InputStream inputStream,
             String filename,
             Map<String, String> columnMappings,
+            int headerRow,
             int dataStartRow,
             boolean replaceExisting,
             String createdBy,
@@ -80,6 +81,7 @@ public class TestCaseService {
             new ByteArrayInputStream(bytes),
             filename,
             columnMappings,
+            headerRow,
             dataStartRow
         );
         List<TestCase> testCases = parseResult.getValidTestCases();
