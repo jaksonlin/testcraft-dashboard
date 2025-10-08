@@ -82,6 +82,57 @@ public class TestCaseController {
                 .body(Map.of("error", "Failed to preview Excel: " + e.getMessage()));
         }
     }
+
+    @PostMapping("/upload/preview-with-rows")
+    public ResponseEntity<?> previewExcelWithRows(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("headerRow") int headerRow,
+            @RequestParam("dataStartRow") int dataStartRow) {
+        try {
+            if (file.isEmpty() || file.getSize() == 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
+            }
+            
+            String filename = file.getOriginalFilename();
+            if (!isExcelFile(filename)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Only Excel files (.xls, .xlsx) are supported"));
+            }
+            
+            // Read fully to avoid stream issues with some servlet containers
+            java.io.ByteArrayInputStream bin = new java.io.ByteArrayInputStream(file.getBytes());
+            ExcelParserService.ExcelPreview preview = testCaseService.previewExcelWithRows(
+                bin,
+                filename,
+                headerRow,
+                dataStartRow
+            );
+            
+            // Also run validation on suggested mappings
+            ExcelParserService.ValidationResult validation = testCaseService.validateMappings(
+                preview.getSuggestedMappings(),
+                preview.getColumns()
+            );
+            
+            return ResponseEntity.ok(Map.of(
+                "columns", preview.getColumns(),
+                "previewData", preview.getPreviewData(),
+                "suggestedMappings", preview.getSuggestedMappings(),
+                "confidence", preview.getConfidence(),
+                "suggestedHeaderRow", preview.getSuggestedHeaderRow(),
+                "suggestedDataStartRow", preview.getSuggestedDataStartRow(),
+                "totalRows", preview.getTotalRows(),
+                "validation", Map.of(
+                    "valid", validation.isValid(),
+                    "missingRequiredFields", validation.getMissingRequiredFields(),
+                    "suggestions", validation.getSuggestions()
+                )
+            ));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to preview Excel: " + e.getMessage()));
+        }
+    }
     
     /**
      * Validate column mappings

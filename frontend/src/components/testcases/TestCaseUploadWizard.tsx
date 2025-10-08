@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, CheckCircle, XCircle, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
-import { previewExcelFile, validateMappings, importTestCases } from '../../lib/testCaseApi';
+import { previewExcelFile, previewExcelWithRows, validateMappings, importTestCases } from '../../lib/testCaseApi';
 import type { ExcelPreviewResponse, ImportResponse } from '../../lib/testCaseApi';
 
 type WizardStep = 'upload' | 'mapping' | 'preview' | 'complete';
@@ -82,6 +82,26 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
     }
   };
 
+  // Handle row changes and update preview
+  const handleRowChange = async (newHeaderRow: number, newDataStartRow: number) => {
+    setHeaderRow(newHeaderRow);
+    setDataStartRow(newDataStartRow);
+    
+    if (file) {
+      try {
+        const updatedPreview = await previewExcelWithRows(file, newHeaderRow, newDataStartRow);
+        setPreview(updatedPreview);
+        // Update mappings based on new columns
+        setMappings(updatedPreview.suggestedMappings);
+        setIsValidMapping(updatedPreview.validation.valid);
+        setMissingFields(updatedPreview.validation.missingRequiredFields);
+        setSuggestions(updatedPreview.validation.suggestions);
+      } catch (error) {
+        console.error('Failed to update preview:', error);
+      }
+    }
+  };
+
   // Step 3: Handle import
   const handleImport = async () => {
     if (!file || !isValidMapping) {
@@ -126,7 +146,7 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-6xl mx-auto">
+    <div className="bg-white rounded-lg shadow-lg p-6 w-[98vw] max-w-[1800px] mx-auto">
       {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -208,8 +228,8 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
             missingFields={missingFields}
             suggestions={suggestions}
             onMappingChange={handleMappingChange}
-            onHeaderRowChange={setHeaderRow}
-            onDataStartRowChange={setDataStartRow}
+            onHeaderRowChange={(row) => handleRowChange(row, dataStartRow)}
+            onDataStartRowChange={(row) => handleRowChange(headerRow, row)}
             onNext={() => setCurrentStep('preview')}
             onBack={() => setCurrentStep('upload')}
           />
@@ -387,25 +407,30 @@ const MappingStep: React.FC<MappingStepProps> = ({
 
       {/* Validation Status */}
       {!isValid && missingFields.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <XCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div className="text-sm text-red-900">
-              <p className="font-semibold mb-1">Missing required fields:</p>
-              <ul className="list-disc list-inside">
+        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-red-900 mb-2">Missing required mappings:</p>
+              <div className="flex flex-wrap gap-2 mb-3">
                 {missingFields.map(field => (
-                  <li key={field}>{field}</li>
+                  <span key={field} className="px-2.5 py-1 bg-red-200 text-red-800 rounded-md text-xs font-semibold">
+                    {field} *
+                  </span>
                 ))}
-              </ul>
+              </div>
+              <p className="text-sm text-red-700 mb-2">
+                <strong>Action:</strong> Map these fields in the Column Mappings section →
+              </p>
               {suggestions.length > 0 && (
-                <>
-                  <p className="font-semibold mt-2 mb-1">Suggestions:</p>
-                  <ul className="list-disc list-inside">
+                <div className="mt-2 text-sm">
+                  <p className="font-semibold text-red-800 mb-1">💡 Suggestions:</p>
+                  <ul className="list-disc list-inside text-red-700 space-y-0.5">
                     {suggestions.map((suggestion, idx) => (
                       <li key={idx}>{suggestion}</li>
                     ))}
                   </ul>
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -413,173 +438,241 @@ const MappingStep: React.FC<MappingStepProps> = ({
       )}
 
       {isValid && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-600" />
             <span className="text-sm font-semibold text-green-900">
-              All required fields are mapped
+              ✓ All required fields are mapped - ready to proceed
             </span>
           </div>
         </div>
       )}
 
-      {/* Preview Data */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="font-semibold text-gray-900 mb-3">Excel Preview (First 5 Rows)</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-300">
-                {preview.columns.map((col, idx) => (
-                  <th key={idx} className="px-3 py-2 text-left font-semibold text-gray-700">
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {preview.previewData.slice(0, 5).map((row, idx) => (
-                <tr key={idx} className="border-b border-gray-200">
-                  {preview.columns.map((col, colIdx) => (
-                    <td key={colIdx} className="px-3 py-2 text-gray-600">
-                      {row[col]?.substring(0, 50)}{row[col]?.length > 50 ? '...' : ''}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Two Column Layout - Balanced spacing */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Left Column: Preview + Row Settings */}
+        <div className="space-y-6">
 
-      {/* Column Mappings */}
-      <div>
-        <h3 className="font-semibold text-gray-900 mb-3">Column Mappings</h3>
-        <div className="space-y-3">
-          {preview.columns.map((excelCol, idx) => {
-            const mappedField = mappings[excelCol] || 'ignore';
-            const confidence = preview.confidence[excelCol] || 0;
-            const isRequired = ['id', 'title', 'steps'].includes(mappedField);
-
-            return (
-              <div
-                key={idx}
-                className="grid items-center grid-cols-[1fr_auto_2fr_6rem_7rem] gap-4 p-3 bg-gray-50 rounded-lg"
-              >
-                <div className="truncate">
-                  <span className="font-medium text-gray-900">{excelCol}</span>
+          {/* Preview Data */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900">Excel Preview</h3>
+              <div className="flex items-center gap-3 text-xs text-gray-600">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                  <span>Header Row {headerRow}</span>
                 </div>
-
-                <span className="w-6 text-center text-gray-400">→</span>
-
-                <select
-                  value={mappedField}
-                  onChange={(e) => onMappingChange(excelCol, e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {systemFields.map(field => (
-                    <option key={field.value} value={field.value}>
-                      {field.label}{field.required ? ' *' : ''}
-                    </option>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-green-500 rounded"></div>
+                  <span>Data from Row {dataStartRow}</span>
+                </div>
+              </div>
+            </div>
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-blue-500 bg-blue-50">
+                    {preview.columns.slice(0, 8).map((col, idx) => (
+                      <th key={idx} className="px-3 py-2 text-left font-semibold text-blue-900 min-w-[100px] whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <span title={col}>{col}</span>
+                        </div>
+                      </th>
+                    ))}
+                    {preview.columns.length > 8 && (
+                      <th className="px-3 py-2 text-center font-semibold text-blue-600 min-w-[60px] sticky right-0 bg-blue-50">
+                        +{preview.columns.length - 8}
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.previewData.slice(1, 5).map((row, idx) => (
+                    <tr key={idx} className={`border-b border-gray-200 ${idx === 0 ? 'bg-green-50' : 'bg-white'}`}>
+                      {preview.columns.slice(0, 8).map((col, colIdx) => (
+                        <td key={colIdx} className={`px-3 py-2 ${idx === 0 ? 'text-green-800 font-medium' : 'text-gray-600'} min-w-[100px]`}>
+                          <div className="truncate max-w-[150px]" title={row[col]}>
+                            {row[col] || '-'}
+                          </div>
+                        </td>
+                      ))}
+                      {preview.columns.length > 8 && (
+                        <td className={`px-3 py-2 text-center sticky right-0 ${idx === 0 ? 'bg-green-50' : 'bg-white'}`}>
+                          <span className="text-gray-400">…</span>
+                        </td>
+                      )}
+                    </tr>
                   ))}
-                </select>
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+              Showing first 4 data rows • {preview.columns.length} columns total • Scroll horizontally →
+            </div>
+          </div>
 
-                {confidence > 0 ? (
-                  <div className="flex items-center gap-2 w-24">
-                    {getConfidenceIcon(confidence)}
-                    <span className={`text-sm font-medium ${getConfidenceColor(confidence)}`}>
-                      {confidence}%
-                    </span>
-                  </div>
-                ) : (
-                  <div className="w-24 invisible">0%</div>
-                )}
-
-                {isRequired ? (
-                  <span className="text-green-600 font-semibold text-sm">Required ✓</span>
-                ) : (
-                  <span className="text-sm invisible">placeholder</span>
-                )}
+          {/* Row Settings */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 mb-3">Excel Row Settings</h3>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Header Row */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Header Row (0-based):
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={headerRow}
+                  onChange={(e) => onHeaderRowChange(parseInt(e.target.value) || 0)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg w-full text-sm"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  Row with column headers (usually 0)
+                </p>
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Row Settings */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="font-semibold text-gray-900 mb-3">Excel Row Settings</h3>
-        <div className="grid grid-cols-2 gap-6">
-          {/* Header Row */}
-          <div>
-            <label className="block font-semibold text-gray-700 mb-2">
-              Header Row (0-based):
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={headerRow}
-              onChange={(e) => onHeaderRowChange(parseInt(e.target.value) || 0)}
-              className="px-3 py-2 border border-gray-300 rounded-lg w-32"
-            />
-            <p className="text-sm text-gray-600 mt-1">
-              Row containing column headers (usually 0 or 1)
-            </p>
-          </div>
-
-          {/* Data Start Row */}
-          <div>
-            <label className="block font-semibold text-gray-700 mb-2">
-              Data Start Row (0-based):
-            </label>
-            <input
-              type="number"
-              min={headerRow + 1}
-              value={dataStartRow}
-              onChange={(e) => onDataStartRowChange(parseInt(e.target.value) || headerRow + 1)}
-              className="px-3 py-2 border border-gray-300 rounded-lg w-32"
-            />
-            <p className="text-sm text-gray-600 mt-1">
-              First row containing data (must be after header)
-            </p>
-          </div>
-        </div>
-        
-        <div className="mt-3 bg-blue-50 border border-blue-200 rounded p-3">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-800 space-y-2">
-              <p>
-                <strong>Row Numbering:</strong> Row numbers are 0-based (Row 0 = Excel Row 1, Row 1 = Excel Row 2, etc.)
-              </p>
-              <div className="space-y-1">
-                <p>
-                  <strong>Header Row {headerRow}</strong> (Excel Row {headerRow + 1}): 
-                  <span className="font-mono ml-2 text-blue-900">Contains column headers like: ID, Title, Steps</span>
+              {/* Data Start Row */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Data Start Row (0-based):
+                </label>
+                <input
+                  type="number"
+                  min={headerRow + 1}
+                  value={dataStartRow}
+                  onChange={(e) => onDataStartRowChange(parseInt(e.target.value) || headerRow + 1)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg w-full text-sm"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  First row with data (after header)
                 </p>
-                <p>
-                  <strong>Data Start Row {dataStartRow}</strong> (Excel Row {dataStartRow + 1}): 
-                  <span className="font-mono ml-2 text-green-700">Contains first test case data like: TC-001, Login Test, ...</span>
-                </p>
-                {dataStartRow > headerRow + 1 && (
-                  <p className="text-yellow-700">
-                    <strong>⚠️ Rows {headerRow + 1} to {dataStartRow - 1}</strong> will be skipped (likely empty or description rows)
+              </div>
+            </div>
+            
+            <div className="mt-3 bg-blue-50 border border-blue-200 rounded p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-800 space-y-1.5">
+                  <p>
+                    <strong>Row Numbering:</strong> 0-based (Row 0 = Excel Row 1)
                   </p>
-                )}
+                  <p>
+                    <strong>Header Row {headerRow}</strong> (Excel {headerRow + 1}): 
+                    <span className="ml-1 text-blue-900">Column names (ID, Title, Steps)</span>
+                  </p>
+                  <p>
+                    <strong>Data Row {dataStartRow}</strong> (Excel {dataStartRow + 1}): 
+                    <span className="ml-1 text-green-700">First test case data</span>
+                  </p>
+                  {dataStartRow > headerRow + 1 && (
+                    <p className="text-yellow-700">
+                      ⚠️ Rows {headerRow + 1} to {dataStartRow - 1} will be skipped
+                    </p>
+                  )}
+                </div>
               </div>
-              <p className="text-xs italic">
-                Tip: If import results look wrong, check these row numbers match your Excel file structure.
-              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Column Mappings */}
+        <div className="flex flex-col">
+          <div className="mb-3 pb-3 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">Column Mappings</h3>
+              <div className="text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-full">
+                {Object.values(mappings).filter(f => f !== 'ignore').length} of {preview.columns.length} mapped
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Map Excel columns to system fields (* = required)</p>
+          </div>
+          <div className="overflow-y-auto max-h-[600px] pr-2 scrollbar-thin">
+            <div className="space-y-3">
+              {preview.columns.map((excelCol, idx) => {
+                const mappedField = mappings[excelCol] || 'ignore';
+                const confidence = preview.confidence[excelCol] || 0;
+                const isRequired = ['id', 'title', 'steps'].includes(mappedField);
+                const isMapped = mappedField !== 'ignore';
+
+                return (
+                  <div
+                    key={idx}
+                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                      isMapped 
+                        ? 'bg-green-50 border-green-200 shadow-sm' 
+                        : 'bg-white border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {/* Excel Column Name */}
+                    <div className="flex-shrink-0 w-[140px]">
+                      <div className="font-semibold text-gray-900 text-sm truncate" title={excelCol}>
+                        {excelCol}
+                      </div>
+                      {confidence > 0 && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <div className="text-xs text-blue-600">Auto</div>
+                          <span className={`text-xs font-medium ${getConfidenceColor(confidence)}`}>
+                            {confidence}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Arrow */}
+                    <div className="flex-shrink-0 text-gray-400 text-lg">→</div>
+
+                    {/* System Field Dropdown */}
+                    <div className="flex-1 min-w-[160px]">
+                      <select
+                        value={mappedField}
+                        onChange={(e) => onMappingChange(excelCol, e.target.value)}
+                        className={`w-full px-2.5 py-1.5 text-sm rounded-md border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                          isRequired && !isMapped
+                            ? 'border-red-300 bg-red-50'
+                            : isMapped
+                            ? 'border-green-300 bg-white'
+                            : 'border-gray-300 bg-white'
+                        }`}
+                      >
+                        {systemFields.map(field => (
+                          <option key={field.value} value={field.value}>
+                            {field.label}{field.required ? ' *' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="flex-shrink-0">
+                      {isRequired && (
+                        <span className={`text-xs font-semibold px-2 py-1 rounded whitespace-nowrap ${
+                          isMapped 
+                            ? 'text-green-700 bg-green-100' 
+                            : 'text-red-700 bg-red-100'
+                        }`}>
+                          {isMapped ? '✓' : '⚠'}
+                        </span>
+                      )}
+                      {!isRequired && confidence > 0 && (
+                        <div className="flex items-center">
+                          {getConfidenceIcon(confidence)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between pt-4 border-t">
+      <div className="flex justify-between items-center pt-6 border-t-2 border-gray-200 mt-6">
         <button
           onClick={onBack}
-          className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+          className="px-6 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
@@ -588,9 +681,9 @@ const MappingStep: React.FC<MappingStepProps> = ({
         <button
           onClick={onNext}
           disabled={!isValid}
-          className={`px-6 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+          className={`px-8 py-2.5 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
             isValid
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
@@ -617,28 +710,32 @@ interface PreviewStepProps {
 }
 
 const PreviewStep: React.FC<PreviewStepProps> = (props) => {
-  const { preview, mappings, headerRow, dataStartRow, importing, onImport, onBack } = props;
+  const { preview, mappings, headerRow: headerRowIndex, dataStartRow, importing, onImport, onBack } = props;
   
   // Calculate actual number of rows to be imported
   // Total rows in sheet minus the data start row (all rows from dataStartRow to end)
   const estimatedImportCount = Math.max(0, preview.totalRows - dataStartRow);
   // Map preview data using user's mappings
-  const mappedPreview = preview.previewData.map(row => {
+  // First row is header row, rest are data rows
+  const mappedPreview = preview.previewData.map((row, index) => {
     const mapped: Record<string, string> = {};
     Object.entries(mappings).forEach(([excelCol, systemField]) => {
       if (systemField !== 'ignore') {
         mapped[systemField] = row[excelCol] || '';
       }
     });
-    return mapped;
+    return { ...mapped, _isHeader: index === 0 } as Record<string, string> & { _isHeader: boolean };
   });
+  
+  const headerRowData = mappedPreview[0];
+  const dataRows = mappedPreview.slice(1);
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Preview Import</h2>
         <p className="text-gray-600">
-          Review the mapped data before importing. Showing first 10 test cases.
+          Review the mapped data before importing. Showing header row + first 9 data rows.
         </p>
       </div>
 
@@ -651,7 +748,7 @@ const PreviewStep: React.FC<PreviewStepProps> = (props) => {
               Estimated {estimatedImportCount} test cases will be imported
             </p>
             <p className="text-xs text-blue-600 mt-1">
-              Using Header Row {headerRow} (Excel Row {headerRow + 1}), Data from Row {dataStartRow} to {preview.totalRows - 1}
+              Using Header Row {headerRowIndex} (Excel Row {headerRowIndex + 1}), Data from Row {dataStartRow} to {preview.totalRows - 1}
             </p>
           </div>
           <CheckCircle className="w-8 h-8 text-blue-600" />
@@ -659,39 +756,71 @@ const PreviewStep: React.FC<PreviewStepProps> = (props) => {
       </div>
 
       {/* Preview Table */}
-      <div className="bg-gray-50 rounded-lg p-4 overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="border-b-2 border-gray-300">
-              <th className="px-3 py-2 text-left font-semibold text-gray-700">ID *</th>
-              <th className="px-3 py-2 text-left font-semibold text-gray-700">Title *</th>
-              <th className="px-3 py-2 text-left font-semibold text-gray-700">Steps *</th>
-              <th className="px-3 py-2 text-left font-semibold text-gray-700">Priority</th>
-              <th className="px-3 py-2 text-left font-semibold text-gray-700">Type</th>
-            </tr>
-          </thead>
-          <tbody>
-            {mappedPreview.slice(0, 10).map((row, idx) => (
-              <tr key={idx} className="border-b border-gray-200">
-                <td className="px-3 py-2 text-gray-900 font-mono">{row.id}</td>
-                <td className="px-3 py-2 text-gray-900">{row.title}</td>
-                <td className="px-3 py-2 text-gray-600 text-xs">
-                  {row.steps?.substring(0, 60)}{row.steps?.length > 60 ? '...' : ''}
-                </td>
-                <td className="px-3 py-2 text-gray-600">{row.priority || '-'}</td>
-                <td className="px-3 py-2 text-gray-600">{row.type || '-'}</td>
+      <div className="bg-gray-50 rounded-lg p-4">
+        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b-2 border-gray-300 bg-gray-100">
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-700 whitespace-nowrap">ID *</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-700 whitespace-nowrap">Title *</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-700 whitespace-nowrap">Steps *</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-700 whitespace-nowrap">Priority</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-700 whitespace-nowrap">Type</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {/* Header Row (shows column descriptions) */}
+              {headerRowData && (
+                <tr className="border-b-2 border-blue-300 bg-blue-50">
+                  <td className="px-4 py-2 text-blue-800 font-semibold text-xs italic">
+                    {headerRowData.id}
+                  </td>
+                  <td className="px-4 py-2 text-blue-800 font-semibold text-xs italic">
+                    {headerRowData.title}
+                  </td>
+                  <td className="px-4 py-2 text-blue-800 font-semibold text-xs italic">
+                    {headerRowData.steps}
+                  </td>
+                  <td className="px-4 py-2 text-blue-800 font-semibold text-xs italic">
+                    {headerRowData.priority || '-'}
+                  </td>
+                  <td className="px-4 py-2 text-blue-800 font-semibold text-xs italic">
+                    {headerRowData.type || '-'}
+                  </td>
+                </tr>
+              )}
+              
+              {/* Data Rows */}
+              {dataRows.slice(0, 9).map((row, idx) => (
+                <tr key={idx} className="border-b border-gray-200 bg-white hover:bg-gray-50">
+                  <td className="px-4 py-2 text-gray-900 font-mono text-xs">{row.id}</td>
+                  <td className="px-4 py-2 text-gray-900">
+                    <div className="max-w-xs truncate" title={row.title}>{row.title}</div>
+                  </td>
+                  <td className="px-4 py-2 text-gray-600 text-xs">
+                    <div className="max-w-md truncate" title={row.steps}>
+                      {row.steps || '-'}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 text-gray-600 text-center">{row.priority || '-'}</td>
+                  <td className="px-4 py-2 text-gray-600 text-center">{row.type || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 text-xs text-gray-500 flex items-center justify-between">
+          <span>Showing header + first {Math.min(9, dataRows.length)} data rows</span>
+          <span className="text-blue-600">Scroll horizontally to see all columns →</span>
+        </div>
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between pt-4 border-t">
+      <div className="flex justify-between items-center pt-6 border-t-2 border-gray-200 mt-6">
         <button
           onClick={onBack}
           disabled={importing}
-          className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50"
+          className="px-6 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50 font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
@@ -700,11 +829,11 @@ const PreviewStep: React.FC<PreviewStepProps> = (props) => {
         <button
           onClick={onImport}
           disabled={importing}
-          className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 font-semibold"
+          className="px-10 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl text-base"
         >
           {importing ? (
             <>
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
               Importing...
             </>
           ) : (
@@ -749,21 +878,21 @@ const CompleteStep: React.FC<CompleteStepProps> = ({ result, onClose }) => {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="text-3xl font-bold text-blue-600">{result.created || 0}</div>
-              <div className="text-sm text-gray-600 font-medium">Created</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-5 text-center">
+              <div className="text-4xl font-bold text-blue-600 mb-1">{result.created || 0}</div>
+              <div className="text-sm text-gray-700 font-semibold">Created</div>
               <div className="text-xs text-gray-500 mt-1">New test cases</div>
             </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="text-3xl font-bold text-green-600">{result.updated || 0}</div>
-              <div className="text-sm text-gray-600 font-medium">Updated</div>
+            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-5 text-center">
+              <div className="text-4xl font-bold text-green-600 mb-1">{result.updated || 0}</div>
+              <div className="text-sm text-gray-700 font-semibold">Updated</div>
               <div className="text-xs text-gray-500 mt-1">Existing test cases</div>
             </div>
             {result.skipped > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="text-3xl font-bold text-yellow-600">{result.skipped}</div>
-                <div className="text-sm text-gray-600 font-medium">Skipped</div>
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-5 text-center">
+                <div className="text-4xl font-bold text-yellow-600 mb-1">{result.skipped}</div>
+                <div className="text-sm text-gray-700 font-semibold">Skipped</div>
                 <div className="text-xs text-gray-500 mt-1">Invalid entries</div>
               </div>
             )}

@@ -32,6 +32,10 @@ public class TestCaseService {
         return excelParserService.previewExcel(inputStream, filename);
     }
     
+    public ExcelParserService.ExcelPreview previewExcelWithRows(InputStream inputStream, String filename, int headerRow, int dataStartRow) throws Exception {
+        return excelParserService.previewExcelWithRows(inputStream, filename, headerRow, dataStartRow);
+    }
+    
     /**
      * Validate column mappings
      */

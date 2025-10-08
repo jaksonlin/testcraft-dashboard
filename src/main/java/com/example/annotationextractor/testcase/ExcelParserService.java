@@ -45,8 +45,9 @@ public class ExcelParserService {
             // Extract column names
             List<String> columns = extractColumns(sheet, headerRow);
             
-            // Get preview data (first 10 rows)
-            List<Map<String, String>> previewData = extractPreviewData(sheet, headerRow, columns, 10);
+            // Get preview data: header row + 9 sample data rows from suggested data start
+            int suggestedDataStartRow = headerRow + 1;
+            List<Map<String, String>> previewData = extractPreviewDataFromDataStart(sheet, headerRow, suggestedDataStartRow, columns, 9);
             
             // Auto-detect column mappings
             Map<String, String> suggestedMappings = autoDetectMappings(columns);
@@ -57,6 +58,28 @@ public class ExcelParserService {
             
             // Return both headerRow and suggested data start row, plus total rows
             return new ExcelPreview(columns, previewData, suggestedMappings, confidence, headerRow, headerRow + 1, totalRows);
+        }
+    }
+    
+    public ExcelPreview previewExcelWithRows(InputStream inputStream, String filename, int headerRow, int dataStartRow) throws Exception {
+        try (Workbook workbook = createWorkbook(inputStream, filename)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            
+            // Extract column names from user-specified header row
+            List<String> columns = extractColumns(sheet, headerRow);
+            
+            // Get preview data: header row + 9 sample data rows from user-specified data start
+            List<Map<String, String>> previewData = extractPreviewDataFromDataStart(sheet, headerRow, dataStartRow, columns, 9);
+            
+            // Auto-detect column mappings
+            Map<String, String> suggestedMappings = autoDetectMappings(columns);
+            Map<String, Integer> confidence = calculateConfidence(suggestedMappings, columns);
+            
+            // Get total row count for accurate import estimation
+            int totalRows = sheet.getLastRowNum() + 1; // LastRowNum is 0-based
+            
+            // Return with user-specified rows
+            return new ExcelPreview(columns, previewData, suggestedMappings, confidence, headerRow, dataStartRow, totalRows);
         }
     }
     
@@ -160,6 +183,44 @@ public class ExcelParserService {
         
         int count = 0;
         for (int i = headerRow + 1; i <= sheet.getLastRowNum() && count < maxRows; i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || isEmptyRow(row)) {
+                continue;
+            }
+            
+            Map<String, String> rowData = new LinkedHashMap<>();
+            for (int j = 0; j < columns.size(); j++) {
+                Cell cell = row.getCell(j);
+                rowData.put(columns.get(j), getCellValueAsString(cell));
+            }
+            
+            preview.add(rowData);
+            count++;
+        }
+        
+        return preview;
+    }
+    
+    /**
+     * Extract preview data: header row + sample data rows starting from dataStartRow
+     */
+    private List<Map<String, String>> extractPreviewDataFromDataStart(Sheet sheet, int headerRow, int dataStartRow, List<String> columns, int maxDataRows) {
+        List<Map<String, String>> preview = new ArrayList<>();
+        
+        // First, add the header row
+        Map<String, String> headerData = new LinkedHashMap<>();
+        for (int j = 0; j < columns.size(); j++) {
+            String columnName = columns.get(j);
+            // For header row, show the column name as the value for better UX
+            headerData.put(columnName, columnName);
+        }
+        preview.add(headerData);
+        
+        // Then add sample data rows starting from dataStartRow
+        // Skip the header row if it's the same as dataStartRow to avoid duplication
+        int startRow = Math.max(dataStartRow, headerRow + 1);
+        int count = 0;
+        for (int i = startRow; i <= sheet.getLastRowNum() && count < maxDataRows; i++) {
             Row row = sheet.getRow(i);
             if (row == null || isEmptyRow(row)) {
                 continue;

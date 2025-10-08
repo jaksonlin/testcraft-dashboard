@@ -84,6 +84,19 @@ export const previewExcelFile = async (file: File): Promise<ExcelPreviewResponse
   return response.data;
 };
 
+export const previewExcelWithRows = async (file: File, headerRow: number, dataStartRow: number): Promise<ExcelPreviewResponse> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('headerRow', headerRow.toString());
+  formData.append('dataStartRow', dataStartRow.toString());
+  
+  const response = await axios.post(`${API_BASE_URL}/testcases/upload/preview-with-rows`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  
+  return response.data;
+};
+
 /**
  * Validate column mappings
  */
