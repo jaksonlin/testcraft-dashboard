@@ -69,6 +69,7 @@ public class TestCaseService {
                 false,
                 0,
                 0,
+                0,
                 validation.getMissingRequiredFields(),
                 validation.getSuggestions()
             );
@@ -95,18 +96,19 @@ public class TestCaseService {
         }
         
         // Import to database
-        int imported = 0;
         int skipped = testCases.size() - validTestCases.size();
+        TestCaseRepository.SaveResult saveResult;
         
         try {
             if (!parseResult.getRowErrors().isEmpty()) {
                 // If any row errors exist, fail the import and report them
-                return new ImportResult(false, 0, testCases.size(), parseResult.getRowErrors(), List.of());
+                return new ImportResult(false, 0, 0, testCases.size(), parseResult.getRowErrors(), List.of());
             }
-            imported = testCaseRepository.saveAll(validTestCases);
+            saveResult = testCaseRepository.saveAll(validTestCases);
         } catch (SQLException e) {
             return new ImportResult(
                 false,
+                0,
                 0,
                 testCases.size(),
                 List.of("Database error: " + e.getMessage()),
@@ -114,7 +116,14 @@ public class TestCaseService {
             );
         }
         
-        return new ImportResult(true, imported, skipped, List.of(), List.of());
+        return new ImportResult(
+            true, 
+            saveResult.getCreated(), 
+            saveResult.getUpdated(), 
+            skipped, 
+            List.of(), 
+            List.of()
+        );
     }
     
     /**
@@ -238,21 +247,25 @@ public class TestCaseService {
      */
     public static class ImportResult {
         private final boolean success;
-        private final int imported;
+        private final int created;
+        private final int updated;
         private final int skipped;
         private final List<String> errors;
         private final List<String> suggestions;
         
-        public ImportResult(boolean success, int imported, int skipped, List<String> errors, List<String> suggestions) {
+        public ImportResult(boolean success, int created, int updated, int skipped, List<String> errors, List<String> suggestions) {
             this.success = success;
-            this.imported = imported;
+            this.created = created;
+            this.updated = updated;
             this.skipped = skipped;
             this.errors = errors;
             this.suggestions = suggestions;
         }
         
         public boolean isSuccess() { return success; }
-        public int getImported() { return imported; }
+        public int getCreated() { return created; }
+        public int getUpdated() { return updated; }
+        public int getImported() { return created + updated; } // Total for backward compatibility
         public int getSkipped() { return skipped; }
         public List<String> getErrors() { return errors; }
         public List<String> getSuggestions() { return suggestions; }

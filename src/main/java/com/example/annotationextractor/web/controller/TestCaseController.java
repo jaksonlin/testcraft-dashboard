@@ -155,8 +155,11 @@ public class TestCaseController {
             return ResponseEntity.ok(Map.of(
                 "success", true,
                 "imported", result.getImported(),
+                "created", result.getCreated(),
+                "updated", result.getUpdated(),
                 "skipped", result.getSkipped(),
-                "message", "Successfully imported " + result.getImported() + " test cases"
+                "message", "Successfully imported " + result.getImported() + " test cases (" + 
+                          result.getCreated() + " created, " + result.getUpdated() + " updated)"
             ));
             
         } catch (Exception e) {

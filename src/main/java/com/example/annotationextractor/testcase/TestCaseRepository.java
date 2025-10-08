@@ -30,16 +30,25 @@ public class TestCaseRepository {
     
     /**
      * Save multiple test cases in a transaction
+     * Returns SaveResult with breakdown of created vs updated
      */
-    public int saveAll(List<TestCase> testCases) throws SQLException {
+    public SaveResult saveAll(List<TestCase> testCases) throws SQLException {
+        int created = 0;
+        int updated = 0;
+        
         try (Connection conn = DatabaseConfig.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 for (TestCase testCase : testCases) {
-                    save(conn, testCase);
+                    boolean isNew = save(conn, testCase);
+                    if (isNew) {
+                        created++;
+                    } else {
+                        updated++;
+                    }
                 }
                 conn.commit();
-                return testCases.size();
+                return new SaveResult(created, updated);
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
@@ -48,10 +57,40 @@ public class TestCaseRepository {
     }
     
     /**
+     * Result of save operation
+     */
+    public static class SaveResult {
+        private final int created;
+        private final int updated;
+        
+        public SaveResult(int created, int updated) {
+            this.created = created;
+            this.updated = updated;
+        }
+        
+        public int getCreated() { return created; }
+        public int getUpdated() { return updated; }
+        public int getTotal() { return created + updated; }
+    }
+    
+    /**
      * Internal save method with connection
      * Uses external_id + organization for conflict resolution
+     * Returns true if new record was created, false if existing record was updated
      */
-    private void save(Connection conn, TestCase testCase) throws SQLException {
+    private boolean save(Connection conn, TestCase testCase) throws SQLException {
+        // Check if test case already exists
+        boolean exists = false;
+        String checkSql = "SELECT internal_id FROM test_cases WHERE external_id = ? AND organization = ?";
+        try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+            checkStmt.setString(1, testCase.getExternalId());
+            checkStmt.setString(2, testCase.getOrganization());
+            try (ResultSet rs = checkStmt.executeQuery()) {
+                exists = rs.next();
+            }
+        }
+        
+        // Perform upsert
         String sql = "INSERT INTO test_cases (external_id, title, steps, setup, teardown, expected_result, " +
                     "priority, type, status, tags, requirements, custom_fields, created_by, organization) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?) " +
@@ -97,6 +136,8 @@ public class TestCaseRepository {
         } catch (Exception e) {
             throw new SQLException("Failed to save test case: " + testCase.getExternalId(), e);
         }
+        
+        return !exists; // true if it was a new record, false if it was an update
     }
     
     /**

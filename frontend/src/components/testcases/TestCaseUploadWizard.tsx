@@ -100,22 +100,20 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
 
       setImportResult(result);
       setCurrentStep('complete');
-      
-      if (onComplete) {
-        onComplete();
-      }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Import failed:', error);
       // Try to extract structured server response (400) with errors list
-      const respData = error?.response?.data;
-      const failureResult = {
+      const respData = (error as {response?: {data?: {message?: string; errors?: string[]; suggestions?: string[]}}})?.response?.data;
+      const failureResult: ImportResponse = {
         success: false,
         imported: 0,
+        created: 0,
+        updated: 0,
         skipped: 0,
         message: respData?.message || (error instanceof Error ? error.message : 'Unknown error'),
-        errors: respData?.errors || (respData ? [JSON.stringify(respData)] : [String(error?.message || 'Unknown error')]),
+        errors: respData?.errors || [],
         suggestions: respData?.suggestions || []
-      } as ImportResponse;
+      };
 
       setImportResult(failureResult);
       setCurrentStep('complete');
@@ -677,21 +675,36 @@ const CompleteStep: React.FC<CompleteStepProps> = ({ result, onClose }) => {
         <>
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Import Complete!</h2>
-            <p className="text-gray-600 text-lg">Successfully imported {result.imported} test cases</p>
+            <p className="text-gray-600 text-lg">
+              Successfully processed {result.imported} test cases
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+          <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="text-3xl font-bold text-blue-600">{result.created || 0}</div>
+              <div className="text-sm text-gray-600 font-medium">Created</div>
+              <div className="text-xs text-gray-500 mt-1">New test cases</div>
+            </div>
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="text-3xl font-bold text-green-600">{result.imported}</div>
-              <div className="text-sm text-gray-600">Imported</div>
+              <div className="text-3xl font-bold text-green-600">{result.updated || 0}</div>
+              <div className="text-sm text-gray-600 font-medium">Updated</div>
+              <div className="text-xs text-gray-500 mt-1">Existing test cases</div>
             </div>
             {result.skipped > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="text-3xl font-bold text-yellow-600">{result.skipped}</div>
-                <div className="text-sm text-gray-600">Skipped</div>
+                <div className="text-sm text-gray-600 font-medium">Skipped</div>
+                <div className="text-xs text-gray-500 mt-1">Invalid entries</div>
               </div>
             )}
           </div>
+          
+          {result.message && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-2xl mx-auto">
+              <p className="text-sm text-gray-700">{result.message}</p>
+            </div>
+          )}
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left max-w-md mx-auto">
             <p className="font-semibold text-blue-900 mb-2">What's next?</p>

@@ -24,6 +24,8 @@ export interface ValidationResponse {
 export interface ImportResponse {
   success: boolean;
   imported: number;
+  created: number;
+  updated: number;
   skipped: number;
   message?: string;
   errors?: string[];
