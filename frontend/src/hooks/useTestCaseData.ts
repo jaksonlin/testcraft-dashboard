@@ -215,17 +215,22 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
     setState(prev => ({ ...prev, error: null }));
   }, []);
 
-  // Load data on mount
+  // Load data on mount only
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount
 
-  // Reload when filters or pagination change
+  // Reload when filters or pagination change (but not on mount)
   useEffect(() => {
-    if (!state.loading) {
-      loadTestCases();
+    // Skip if this is initial load (loading is true)
+    if (state.loading) {
+      return;
     }
-  }, [state.filters, state.listPagination.page, state.listPagination.pageSize, loadTestCases, state.loading]);
+    
+    loadTestCases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.filters, state.listPagination.page, state.listPagination.pageSize]); // Don't include loadTestCases to avoid recreation cycles
 
   return {
     ...state,

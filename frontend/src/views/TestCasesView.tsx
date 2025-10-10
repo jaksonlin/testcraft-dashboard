@@ -79,14 +79,15 @@ export const TestCasesView: React.FC = () => {
     }
   }, [error, clearError]);
 
-  // Reload data when tab changes
+  // Reload data when tab changes (not when functions are recreated)
   useEffect(() => {
     if (activeTab === 'list') {
       loadTestCases();
     } else if (activeTab === 'gaps') {
       loadGaps();
     }
-  }, [activeTab, loadTestCases, loadGaps]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]); // Only depend on activeTab, not the functions themselves
 
   const handleUploadComplete = () => {
     loadData();
