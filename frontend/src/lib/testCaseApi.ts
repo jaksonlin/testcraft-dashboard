@@ -53,6 +53,10 @@ export interface TestCase {
   createdBy?: string;
   organization?: string;
   
+  // Team association
+  teamId?: number;
+  teamName?: string;
+  
   // Legacy field for backward compatibility (returns externalId)
   id?: string;
 }
@@ -156,7 +160,7 @@ export interface PageResponse<T> {
   total: number;
 }
 
-export const getAllTestCases = async (params?: { page?: number; size?: number; organization?: string; type?: string; priority?: string }): Promise<PageResponse<TestCase>> => {
+export const getAllTestCases = async (params?: { page?: number; size?: number; organization?: string; type?: string; priority?: string; teamId?: number }): Promise<PageResponse<TestCase>> => {
   const response = await axios.get(`${API_BASE_URL}/testcases`, { params });
   return response.data as PageResponse<TestCase>;
 };
@@ -190,5 +194,13 @@ export const getUntestedCases = async (params?: { page?: number; size?: number }
  */
 export const deleteTestCase = async (internalId: number): Promise<void> => {
   await axios.delete(`${API_BASE_URL}/testcases/${internalId}`);
+};
+
+/**
+ * Get distinct organizations for filter dropdown
+ */
+export const getOrganizations = async (): Promise<string[]> => {
+  const response = await axios.get(`${API_BASE_URL}/testcases/organizations`);
+  return response.data;
 };
 

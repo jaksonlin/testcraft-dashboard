@@ -15,6 +15,8 @@ export const SYSTEM_FIELDS: SystemField[] = [
   { value: 'priority', label: 'Priority', required: false },
   { value: 'type', label: 'Type', required: false },
   { value: 'status', label: 'Status', required: false },
+  { value: 'organization', label: 'Organization', required: false },
+  { value: 'team', label: 'Team', required: false },
 ];
 
 export const REQUIRED_FIELDS = SYSTEM_FIELDS

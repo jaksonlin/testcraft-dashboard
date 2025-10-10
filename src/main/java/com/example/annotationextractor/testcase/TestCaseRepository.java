@@ -92,14 +92,15 @@ public class TestCaseRepository {
         
         // Perform upsert
         String sql = "INSERT INTO test_cases (external_id, title, steps, setup, teardown, expected_result, " +
-                    "priority, type, status, tags, requirements, custom_fields, created_by, organization) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?) " +
+                    "priority, type, status, tags, requirements, custom_fields, created_by, organization, team_id, team_name) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?) " +
                     "ON CONFLICT (external_id, organization) DO UPDATE SET " +
                     "title = EXCLUDED.title, steps = EXCLUDED.steps, setup = EXCLUDED.setup, " +
                     "teardown = EXCLUDED.teardown, expected_result = EXCLUDED.expected_result, " +
                     "priority = EXCLUDED.priority, type = EXCLUDED.type, status = EXCLUDED.status, " +
                     "tags = EXCLUDED.tags, requirements = EXCLUDED.requirements, " +
-                    "custom_fields = EXCLUDED.custom_fields, updated_date = CURRENT_TIMESTAMP " +
+                    "custom_fields = EXCLUDED.custom_fields, team_id = EXCLUDED.team_id, team_name = EXCLUDED.team_name, " +
+                    "updated_date = CURRENT_TIMESTAMP " +
                     "RETURNING internal_id";
         
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -127,6 +128,16 @@ public class TestCaseRepository {
             stmt.setString(13, testCase.getCreatedBy());
             stmt.setString(14, testCase.getOrganization());
             
+            // Team ID (nullable)
+            if (testCase.getTeamId() != null) {
+                stmt.setLong(15, testCase.getTeamId());
+            } else {
+                stmt.setNull(15, java.sql.Types.BIGINT);
+            }
+            
+            // Team Name (nullable, denormalized)
+            stmt.setString(16, testCase.getTeamName());
+            
             // Execute and get generated internal_id
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -144,7 +155,9 @@ public class TestCaseRepository {
      * Find test case by internal ID (primary key)
      */
     public TestCase findById(Long internalId) throws SQLException {
-        String sql = "SELECT * FROM test_cases WHERE internal_id = ?";
+        String sql = "SELECT tc.*, COALESCE(t.team_name, tc.team_name) as team_name FROM test_cases tc " +
+                    "LEFT JOIN teams t ON tc.team_id = t.id " +
+                    "WHERE tc.internal_id = ?";
         
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -217,23 +230,38 @@ public class TestCaseRepository {
      * Find test cases with filters
      */
     public List<TestCase> findAll(String organization, String type, String priority) throws SQLException {
-        StringBuilder sql = new StringBuilder("SELECT * FROM test_cases WHERE 1=1");
+        return findAll(organization, type, priority, null);
+    }
+    
+    /**
+     * Find test cases with filters including team
+     */
+    public List<TestCase> findAll(String organization, String type, String priority, Long teamId) throws SQLException {
+        StringBuilder sql = new StringBuilder(
+            "SELECT tc.*, COALESCE(t.team_name, tc.team_name) as team_name FROM test_cases tc " +
+            "LEFT JOIN teams t ON tc.team_id = t.id " +
+            "WHERE 1=1"
+        );
         List<Object> params = new ArrayList<>();
         
         if (organization != null) {
-            sql.append(" AND organization = ?");
+            sql.append(" AND tc.organization = ?");
             params.add(organization);
         }
         if (type != null) {
-            sql.append(" AND type = ?");
+            sql.append(" AND tc.type = ?");
             params.add(type);
         }
         if (priority != null) {
-            sql.append(" AND priority = ?");
+            sql.append(" AND tc.priority = ?");
             params.add(priority);
         }
+        if (teamId != null) {
+            sql.append(" AND tc.team_id = ?");
+            params.add(teamId);
+        }
         
-        sql.append(" ORDER BY internal_id");
+        sql.append(" ORDER BY tc.internal_id");
         
         List<TestCase> testCases = new ArrayList<>();
         
@@ -258,23 +286,38 @@ public class TestCaseRepository {
      * Find test cases with pagination
      */
     public List<TestCase> findAllPaged(String organization, String type, String priority, int offset, int limit) throws SQLException {
-        StringBuilder sql = new StringBuilder("SELECT * FROM test_cases WHERE 1=1");
+        return findAllPaged(organization, type, priority, null, offset, limit);
+    }
+    
+    /**
+     * Find test cases with pagination including team filter
+     */
+    public List<TestCase> findAllPaged(String organization, String type, String priority, Long teamId, int offset, int limit) throws SQLException {
+        StringBuilder sql = new StringBuilder(
+            "SELECT tc.*, COALESCE(t.team_name, tc.team_name) as team_name FROM test_cases tc " +
+            "LEFT JOIN teams t ON tc.team_id = t.id " +
+            "WHERE 1=1"
+        );
         List<Object> params = new ArrayList<>();
 
         if (organization != null) {
-            sql.append(" AND organization = ?");
+            sql.append(" AND tc.organization = ?");
             params.add(organization);
         }
         if (type != null) {
-            sql.append(" AND type = ?");
+            sql.append(" AND tc.type = ?");
             params.add(type);
         }
         if (priority != null) {
-            sql.append(" AND priority = ?");
+            sql.append(" AND tc.priority = ?");
             params.add(priority);
         }
+        if (teamId != null) {
+            sql.append(" AND tc.team_id = ?");
+            params.add(teamId);
+        }
 
-        sql.append(" ORDER BY internal_id OFFSET ? LIMIT ?");
+        sql.append(" ORDER BY tc.internal_id OFFSET ? LIMIT ?");
         params.add(offset);
         params.add(limit);
 
@@ -301,14 +344,44 @@ public class TestCaseRepository {
      * Count total test cases
      */
     public int countAll() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM test_cases";
+        return countAll(null, null, null, null);
+    }
+    
+    /**
+     * Count test cases with filters
+     */
+    public int countAll(String organization, String type, String priority, Long teamId) throws SQLException {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM test_cases WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+        
+        if (organization != null) {
+            sql.append(" AND organization = ?");
+            params.add(organization);
+        }
+        if (type != null) {
+            sql.append(" AND type = ?");
+            params.add(type);
+        }
+        if (priority != null) {
+            sql.append(" AND priority = ?");
+            params.add(priority);
+        }
+        if (teamId != null) {
+            sql.append(" AND team_id = ?");
+            params.add(teamId);
+        }
         
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
             
-            if (rs.next()) {
-                return rs.getInt(1);
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
             }
         }
         
@@ -476,6 +549,54 @@ public class TestCaseRepository {
     }
     
     /**
+     * Get distinct organization values from test cases
+     */
+    public List<String> findDistinctOrganizations() throws SQLException {
+        String sql = "SELECT DISTINCT organization FROM test_cases WHERE organization IS NOT NULL ORDER BY organization";
+        List<String> organizations = new ArrayList<>();
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
+            while (rs.next()) {
+                String org = rs.getString("organization");
+                if (org != null && !org.trim().isEmpty()) {
+                    organizations.add(org);
+                }
+            }
+        }
+        
+        return organizations;
+    }
+    
+    /**
+     * Look up team ID by team name
+     * Returns null if team not found
+     */
+    public Long findTeamIdByName(String teamName) throws SQLException {
+        if (teamName == null || teamName.trim().isEmpty()) {
+            return null;
+        }
+        
+        String sql = "SELECT id FROM teams WHERE LOWER(team_name) = LOWER(?)";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, teamName.trim());
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong("id");
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
      * Map ResultSet to TestCase object
      */
     private TestCase mapResultSetToTestCase(ResultSet rs) throws SQLException {
@@ -493,6 +614,13 @@ public class TestCaseRepository {
         testCase.setStatus(rs.getString("status"));
         testCase.setCreatedBy(rs.getString("created_by"));
         testCase.setOrganization(rs.getString("organization"));
+        
+        // Team fields
+        Long teamId = rs.getLong("team_id");
+        if (!rs.wasNull()) {
+            testCase.setTeamId(teamId);
+        }
+        testCase.setTeamName(rs.getString("team_name"));
         
         // Arrays
         Array tagsArray = rs.getArray("tags");

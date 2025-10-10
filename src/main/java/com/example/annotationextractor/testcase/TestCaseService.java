@@ -95,10 +95,26 @@ public class TestCaseService {
             .filter(TestCase::isValid)
             .collect(Collectors.toList());
         
-        // Set metadata
+        // Set metadata and resolve team names to team IDs
         for (TestCase testCase : validTestCases) {
             testCase.setCreatedBy(createdBy);
-            testCase.setOrganization(organization);
+            if (testCase.getOrganization() == null || testCase.getOrganization().trim().isEmpty()) {
+                testCase.setOrganization(organization);
+            }
+            
+            // Look up team ID by team name if team name was provided in Excel
+            if (testCase.getTeamName() != null && !testCase.getTeamName().trim().isEmpty()) {
+                try {
+                    Long teamId = testCaseRepository.findTeamIdByName(testCase.getTeamName());
+                    if (teamId != null) {
+                        testCase.setTeamId(teamId);
+                    }
+                    // Note: teamName is kept for display purposes even if lookup fails
+                } catch (SQLException e) {
+                    // Log warning but don't fail import - team assignment can be done later
+                    System.err.println("Warning: Could not lookup team '" + testCase.getTeamName() + "': " + e.getMessage());
+                }
+            }
         }
         
         // Import to database
@@ -174,11 +190,18 @@ public class TestCaseService {
         return testCaseRepository.findAll();
     }
 
-    public List<TestCase> getAllTestCasesPaged(Integer page, Integer size, String organization, String type, String priority) throws SQLException {
+    public List<TestCase> getAllTestCasesPaged(Integer page, Integer size, String organization, String type, String priority, Long teamId) throws SQLException {
         int pageNum = page != null && page >= 0 ? page : 0;
         int pageSize = size != null && size > 0 ? size : 20;
         int offset = pageNum * pageSize;
-        return testCaseRepository.findAllPaged(organization, type, priority, offset, pageSize);
+        return testCaseRepository.findAllPaged(organization, type, priority, teamId, offset, pageSize);
+    }
+    
+    /**
+     * Count test cases with filters (for pagination)
+     */
+    public int countTestCases(String organization, String type, String priority, Long teamId) throws SQLException {
+        return testCaseRepository.countAll(organization, type, priority, teamId);
     }
     
     /**
@@ -246,6 +269,13 @@ public class TestCaseService {
      */
     public boolean deleteTestCaseByExternalId(String externalId, String organization) throws SQLException {
         return testCaseRepository.deleteByExternalId(externalId, organization);
+    }
+    
+    /**
+     * Get distinct organizations for filter dropdown
+     */
+    public List<String> getDistinctOrganizations() throws SQLException {
+        return testCaseRepository.findDistinctOrganizations();
     }
     
     /**

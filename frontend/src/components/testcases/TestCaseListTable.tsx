@@ -1,42 +1,43 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { CheckCircle, XCircle, Eye, Trash2, Filter } from 'lucide-react';
 import type { TestCase } from '../../lib/testCaseApi';
 
+interface TestCaseFilters {
+  organization: string;
+  team: string;
+  priority: string;
+  type: string;
+  status: string;
+  search: string;
+}
+
 interface TestCaseListTableProps {
   testCases: TestCase[];
+  filters: TestCaseFilters;
+  organizations: string[];
+  onFilterChange: (filters: TestCaseFilters) => void;
   onViewDetails?: (testCase: TestCase) => void;
   onDelete?: (internalId: number) => void;
 }
 
 export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
   testCases,
+  filters,
+  organizations,
+  onFilterChange,
   onViewDetails,
   onDelete
 }) => {
-  const [filter, setFilter] = useState({
-    priority: '',
-    type: '',
-    status: '',
-    search: ''
-  });
+  const handleFilterChange = (field: keyof TestCaseFilters, value: string) => {
+    onFilterChange({ ...filters, [field]: value });
+  };
 
-  // Filter test cases
-  const filteredTestCases = testCases.filter(tc => {
-    if (filter.priority && tc.priority !== filter.priority) return false;
-    if (filter.type && tc.type !== filter.type) return false;
-    if (filter.status && tc.status !== filter.status) return false;
-    if (filter.search) {
-      const searchLower = filter.search.toLowerCase();
-      return tc.externalId.toLowerCase().includes(searchLower) ||
-             tc.title.toLowerCase().includes(searchLower);
-    }
-    return true;
-  });
-
-  // Extract unique values for filters
+  // Extract unique values for filters from loaded test cases
   const priorities = [...new Set(testCases.map(tc => tc.priority).filter(Boolean))];
   const types = [...new Set(testCases.map(tc => tc.type).filter(Boolean))];
   const statuses = [...new Set(testCases.map(tc => tc.status).filter(Boolean))];
+  // organizations loaded from API (not extracted from testCases)
+  const teamNames = [...new Set(testCases.map(tc => tc.teamName).filter(Boolean))];
 
   const getPriorityBadgeColor = (priority?: string) => {
     switch (priority?.toLowerCase()) {
@@ -68,20 +69,46 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
           <span className="font-semibold text-gray-900 dark:text-white">Filters</span>
         </div>
         
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4 mb-4">
           {/* Search */}
           <input
             type="text"
             placeholder="Search ID or Title..."
-            value={filter.search}
-            onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
 
+          {/* Organization Filter */}
+          <select
+            value={filters.organization}
+            onChange={(e) => handleFilterChange('organization', e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">All Organizations</option>
+            {organizations.map(org => (
+              <option key={org} value={org}>{org}</option>
+            ))}
+          </select>
+
+          {/* Team Filter */}
+          <select
+            value={filters.team}
+            onChange={(e) => handleFilterChange('team', e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">All Teams</option>
+            {teamNames.map(team => (
+              <option key={team} value={team}>{team}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
           {/* Priority Filter */}
           <select
-            value={filter.priority}
-            onChange={(e) => setFilter({ ...filter, priority: e.target.value })}
+            value={filters.priority}
+            onChange={(e) => handleFilterChange('priority', e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Priorities</option>
@@ -92,8 +119,8 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
 
           {/* Type Filter */}
           <select
-            value={filter.type}
-            onChange={(e) => setFilter({ ...filter, type: e.target.value })}
+            value={filters.type}
+            onChange={(e) => handleFilterChange('type', e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Types</option>
@@ -104,8 +131,8 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
 
           {/* Status Filter */}
           <select
-            value={filter.status}
-            onChange={(e) => setFilter({ ...filter, status: e.target.value })}
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Statuses</option>
@@ -118,7 +145,7 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
 
       {/* Results Count */}
       <div className="text-sm text-gray-600 dark:text-gray-400">
-        Showing {filteredTestCases.length} of {testCases.length} test cases
+        Showing {testCases.length} test cases
       </div>
 
       {/* Table */}
@@ -131,6 +158,12 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Title
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Organization
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Team
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Priority
@@ -147,7 +180,7 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredTestCases.map(tc => (
+            {testCases.map(tc => (
               <tr key={tc.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
@@ -158,6 +191,12 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
                     {tc.title}
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{tc.organization || '-'}</span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{tc.teamName || '-'}</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {tc.priority && (
@@ -206,7 +245,7 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
           </tbody>
         </table>
 
-        {filteredTestCases.length === 0 && (
+        {testCases.length === 0 && (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             No test cases found matching the filters
           </div>

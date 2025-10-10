@@ -10,8 +10,9 @@ import { CoverageBreakdown } from '../components/testcases/CoverageBreakdown';
 import TestCasesHeader from '../components/testcases/TestCasesHeader';
 import Pagination from '../components/shared/Pagination';
 import { Toast } from '../components/shared/Toast';
-import { useTestCaseData, type TabType } from '../hooks/useTestCaseData';
+import { useTestCaseData, type TabType, type TestCaseFilters } from '../hooks/useTestCaseData';
 import type { TestCase } from '../lib/testCaseApi';
+import { getOrganizations } from '../lib/testCaseApi';
 
 /**
  * Main Test Cases view with tabs for list, coverage, and gaps.
@@ -24,6 +25,15 @@ export const TestCasesView: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [organizations, setOrganizations] = useState<string[]>([]);
+  const [uiFilters, setUiFilters] = useState({
+    organization: '',
+    team: '',
+    priority: '',
+    type: '',
+    status: '',
+    search: ''
+  });
 
   // Use the custom hook for data management
   const {
@@ -42,8 +52,22 @@ export const TestCasesView: React.FC = () => {
     setListPageSize,
     setGapsPage,
     setGapsPageSize,
+    setFilters,
     clearError,
   } = useTestCaseData();
+
+  // Load organizations on mount
+  useEffect(() => {
+    const loadOrgs = async () => {
+      try {
+        const orgs = await getOrganizations();
+        setOrganizations(orgs);
+      } catch (error) {
+        console.error('Failed to load organizations:', error);
+      }
+    };
+    loadOrgs();
+  }, []);
 
   // Show error toast
   useEffect(() => {
@@ -93,6 +117,21 @@ export const TestCasesView: React.FC = () => {
   };
 
   const currentPageSize = activeTab === 'gaps' ? gapsPagination.pageSize : listPagination.pageSize;
+
+  // Handle filter changes - convert UI filters to backend filters
+  const handleFilterChange = (newFilters: typeof uiFilters) => {
+    setUiFilters(newFilters);
+    
+    // Convert to backend filter format
+    const backendFilters: TestCaseFilters = {};
+    if (newFilters.organization) backendFilters.organization = newFilters.organization;
+    if (newFilters.priority) backendFilters.priority = newFilters.priority;
+    if (newFilters.type) backendFilters.type = newFilters.type;
+    // Note: team and search filtering not yet implemented on backend
+    // TODO: Add backend support for team name and search filtering
+    
+    setFilters(backendFilters);
+  };
 
   if (loading) {
     return (
@@ -165,6 +204,9 @@ export const TestCasesView: React.FC = () => {
             </div>
             <TestCaseListTable
               testCases={testCases}
+              filters={uiFilters}
+              organizations={organizations}
+              onFilterChange={handleFilterChange}
               onViewDetails={setSelectedTestCase}
               onDelete={handleDeleteWithToast}
             />
@@ -216,6 +258,9 @@ export const TestCasesView: React.FC = () => {
               <>
                 <TestCaseListTable
                   testCases={untestedCases}
+                  filters={uiFilters}
+                  organizations={organizations}
+                  onFilterChange={handleFilterChange}
                   onViewDetails={setSelectedTestCase}
                 />
                 <Pagination

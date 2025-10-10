@@ -233,6 +233,7 @@ public class TestCaseController {
             @RequestParam(required = false) String organization,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String priority,
+            @RequestParam(required = false) Long teamId,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
         
@@ -240,8 +241,8 @@ public class TestCaseController {
             int pageNum = page != null && page >= 0 ? page : 0;
             int pageSize = size != null && size > 0 ? size : 20;
 
-            List<TestCase> testCases = testCaseService.getAllTestCasesPaged(pageNum, pageSize, organization, type, priority);
-            int total = testCaseService.getAllTestCases().size(); // simple total; can optimize later
+            List<TestCase> testCases = testCaseService.getAllTestCasesPaged(pageNum, pageSize, organization, type, priority, teamId);
+            int total = testCaseService.countTestCases(organization, type, priority, teamId); // Count with same filters
 
             return ResponseEntity.ok(Map.of(
                 "content", testCases,
@@ -326,6 +327,22 @@ public class TestCaseController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Failed to get untested cases: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Get distinct organizations for filter dropdown
+     * 
+     * GET /api/testcases/organizations
+     */
+    @GetMapping("/organizations")
+    public ResponseEntity<?> getOrganizations() {
+        try {
+            List<String> organizations = testCaseService.getDistinctOrganizations();
+            return ResponseEntity.ok(organizations);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to get organizations: " + e.getMessage()));
         }
     }
     
