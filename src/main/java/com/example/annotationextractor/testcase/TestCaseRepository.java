@@ -237,6 +237,13 @@ public class TestCaseRepository {
      * Find test cases with filters including team
      */
     public List<TestCase> findAll(String organization, String type, String priority, Long teamId) throws SQLException {
+        return findAll(organization, type, priority, teamId, null, null);
+    }
+    
+    /**
+     * Find test cases with all filters including status and search
+     */
+    public List<TestCase> findAll(String organization, String type, String priority, Long teamId, String status, String search) throws SQLException {
         StringBuilder sql = new StringBuilder(
             "SELECT tc.*, COALESCE(t.team_name, tc.team_name) as team_name FROM test_cases tc " +
             "LEFT JOIN teams t ON tc.team_id = t.id " +
@@ -259,6 +266,16 @@ public class TestCaseRepository {
         if (teamId != null) {
             sql.append(" AND tc.team_id = ?");
             params.add(teamId);
+        }
+        if (status != null) {
+            sql.append(" AND tc.status = ?");
+            params.add(status);
+        }
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (LOWER(tc.external_id) LIKE ? OR LOWER(tc.title) LIKE ?)");
+            String searchPattern = "%" + search.toLowerCase() + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
         }
         
         sql.append(" ORDER BY tc.internal_id");
@@ -293,6 +310,13 @@ public class TestCaseRepository {
      * Find test cases with pagination including team filter
      */
     public List<TestCase> findAllPaged(String organization, String type, String priority, Long teamId, int offset, int limit) throws SQLException {
+        return findAllPaged(organization, type, priority, teamId, null, null, offset, limit);
+    }
+    
+    /**
+     * Find test cases with pagination including all filters
+     */
+    public List<TestCase> findAllPaged(String organization, String type, String priority, Long teamId, String status, String search, int offset, int limit) throws SQLException {
         StringBuilder sql = new StringBuilder(
             "SELECT tc.*, COALESCE(t.team_name, tc.team_name) as team_name FROM test_cases tc " +
             "LEFT JOIN teams t ON tc.team_id = t.id " +
@@ -315,6 +339,16 @@ public class TestCaseRepository {
         if (teamId != null) {
             sql.append(" AND tc.team_id = ?");
             params.add(teamId);
+        }
+        if (status != null) {
+            sql.append(" AND tc.status = ?");
+            params.add(status);
+        }
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (LOWER(tc.external_id) LIKE ? OR LOWER(tc.title) LIKE ?)");
+            String searchPattern = "%" + search.toLowerCase() + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
         }
 
         sql.append(" ORDER BY tc.internal_id OFFSET ? LIMIT ?");
@@ -351,6 +385,13 @@ public class TestCaseRepository {
      * Count test cases with filters
      */
     public int countAll(String organization, String type, String priority, Long teamId) throws SQLException {
+        return countAll(organization, type, priority, teamId, null, null);
+    }
+    
+    /**
+     * Count test cases with all filters
+     */
+    public int countAll(String organization, String type, String priority, Long teamId, String status, String search) throws SQLException {
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM test_cases WHERE 1=1");
         List<Object> params = new ArrayList<>();
         
@@ -369,6 +410,16 @@ public class TestCaseRepository {
         if (teamId != null) {
             sql.append(" AND team_id = ?");
             params.add(teamId);
+        }
+        if (status != null) {
+            sql.append(" AND status = ?");
+            params.add(status);
+        }
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (LOWER(external_id) LIKE ? OR LOWER(title) LIKE ?)");
+            String searchPattern = "%" + search.toLowerCase() + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
         }
         
         try (Connection conn = DatabaseConfig.getConnection();

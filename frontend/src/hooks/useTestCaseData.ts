@@ -20,6 +20,8 @@ export interface TestCaseFilters {
   teamId?: number;
   type?: string;
   priority?: string;
+  status?: string;
+  search?: string;
 }
 
 interface TestCaseDataState {

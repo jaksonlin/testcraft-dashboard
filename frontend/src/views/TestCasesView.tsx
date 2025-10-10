@@ -128,8 +128,10 @@ export const TestCasesView: React.FC = () => {
     if (newFilters.organization) backendFilters.organization = newFilters.organization;
     if (newFilters.priority) backendFilters.priority = newFilters.priority;
     if (newFilters.type) backendFilters.type = newFilters.type;
-    // Note: team and search filtering not yet implemented on backend
-    // TODO: Add backend support for team name and search filtering
+    if (newFilters.status) backendFilters.status = newFilters.status;
+    if (newFilters.search) backendFilters.search = newFilters.search;
+    // Note: team filtering by name needs team ID lookup
+    // For now, team filter options come from test case data (client-side)
     
     setFilters(backendFilters);
   };

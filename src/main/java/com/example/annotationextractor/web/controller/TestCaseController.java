@@ -234,6 +234,8 @@ public class TestCaseController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) Long teamId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
         
@@ -241,8 +243,8 @@ public class TestCaseController {
             int pageNum = page != null && page >= 0 ? page : 0;
             int pageSize = size != null && size > 0 ? size : 20;
 
-            List<TestCase> testCases = testCaseService.getAllTestCasesPaged(pageNum, pageSize, organization, type, priority, teamId);
-            int total = testCaseService.countTestCases(organization, type, priority, teamId); // Count with same filters
+            List<TestCase> testCases = testCaseService.getAllTestCasesPaged(pageNum, pageSize, organization, type, priority, teamId, status, search);
+            int total = testCaseService.countTestCases(organization, type, priority, teamId, status, search); // Count with same filters
 
             return ResponseEntity.ok(Map.of(
                 "content", testCases,

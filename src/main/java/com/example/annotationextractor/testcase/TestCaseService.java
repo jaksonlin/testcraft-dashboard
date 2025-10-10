@@ -190,18 +190,18 @@ public class TestCaseService {
         return testCaseRepository.findAll();
     }
 
-    public List<TestCase> getAllTestCasesPaged(Integer page, Integer size, String organization, String type, String priority, Long teamId) throws SQLException {
+    public List<TestCase> getAllTestCasesPaged(Integer page, Integer size, String organization, String type, String priority, Long teamId, String status, String search) throws SQLException {
         int pageNum = page != null && page >= 0 ? page : 0;
         int pageSize = size != null && size > 0 ? size : 20;
         int offset = pageNum * pageSize;
-        return testCaseRepository.findAllPaged(organization, type, priority, teamId, offset, pageSize);
+        return testCaseRepository.findAllPaged(organization, type, priority, teamId, status, search, offset, pageSize);
     }
     
     /**
      * Count test cases with filters (for pagination)
      */
-    public int countTestCases(String organization, String type, String priority, Long teamId) throws SQLException {
-        return testCaseRepository.countAll(organization, type, priority, teamId);
+    public int countTestCases(String organization, String type, String priority, Long teamId, String status, String search) throws SQLException {
+        return testCaseRepository.countAll(organization, type, priority, teamId, status, search);
     }
     
     /**

@@ -160,7 +160,7 @@ export interface PageResponse<T> {
   total: number;
 }
 
-export const getAllTestCases = async (params?: { page?: number; size?: number; organization?: string; type?: string; priority?: string; teamId?: number }): Promise<PageResponse<TestCase>> => {
+export const getAllTestCases = async (params?: { page?: number; size?: number; organization?: string; type?: string; priority?: string; teamId?: number; status?: string; search?: string }): Promise<PageResponse<TestCase>> => {
   const response = await axios.get(`${API_BASE_URL}/testcases`, { params });
   return response.data as PageResponse<TestCase>;
 };
