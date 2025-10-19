@@ -2,7 +2,7 @@
 
 ## 📍 Where to Find Bulk Delete in the UI
 
-The bulk delete button appears in the **Test Cases view** when **filters are active**.
+The bulk delete feature is in the **Actions menu** in the Test Cases view header (top-right).
 
 ---
 
@@ -11,8 +11,8 @@ The bulk delete button appears in the **Test Cases view** when **filters are act
 ### Navigation Path
 ```
 1. Click "Test Cases" in sidebar
-2. Apply at least one filter
-3. Bulk delete button appears automatically
+2. Click "Actions" button in header (top-right)
+3. Select "Delete Filtered Test Cases" from dropdown
 ```
 
 ### UI Layout
@@ -21,7 +21,9 @@ The bulk delete button appears in the **Test Cases view** when **filters are act
 │ TestCraft Dashboard                                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  📊 Test Cases                           [Upload] Button    │
+│  📊 Test Cases               [Actions ▼] [Upload]  ← HERE!  │
+│                                   ↓                         │
+│                              Click to open menu             │
 │  ══════════════════════════════════════════════════════════ │
 │                                                             │
 │  [Stats Cards: Total | Automated | Gaps]                   │
@@ -32,55 +34,42 @@ The bulk delete button appears in the **Test Cases view** when **filters are act
 │  All Test Cases                                             │
 │  View and manage all imported test cases                    │
 │                                                             │
-│  ┌─ FILTERS ────────────────────────────────────────────┐   │
-│  │ [Organization ▼] [Team ▼] [Priority ▼]              │   │
-│  │ [Type ▼] [Status ▼] [Search: _______]               │   │
-│  └──────────────────────────────────────────────────────┘   │
+│  [Filters: Organization ▼] [Team ▼] [Status ▼]             │
 │                                                             │
-│  ┌─ ⚠️ BULK ACTIONS AVAILABLE ─────────────────────────┐   │
-│  │                                                      │   │
-│  │  ⚠️ Bulk Actions Available                          │   │
-│  │  150 test cases match current filters               │   │
-│  │                                                      │   │
-│  │                    [🗑️ Delete All Filtered Test Cases]│   │
-│  │                                                      │   │
-│  │  ⚠️ Warning: Permanent deletion, cannot be undone    │   │
-│  └──────────────────────────────────────────────────────┘   │
-│  ↑                                                           │
-│  └─ THIS SECTION ONLY APPEARS WHEN FILTERS ARE ACTIVE       │
-│                                                             │
-│  [Test Cases Table...]                                      │
+│  [Test Cases Table...]  ← CLEAN, NO RED BOX ✅              │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🎯 When Does the Button Appear?
+## 🎯 Actions Menu States
 
-### ✅ Button VISIBLE (filters active)
+### Menu with Filters Active (Enabled)
 ```
-Filters:
-  Organization: ACME ✓
-  Status: inactive ✓
-  
-Result: 
-  ┌────────────────────────────────────────┐
-  │ ⚠️ Bulk Actions Available              │
-  │ 150 test cases match current filters  │
-  │ [🗑️ Delete All Filtered Test Cases]   │ ← VISIBLE
-  └────────────────────────────────────────┘
+Click [Actions ▼] button:
+
+┌──────────────────────────────┐
+│ Export All (Coming Soon)     │
+│ ─────────────────            │
+│ 🗑️ Delete Filtered           │ ← ENABLED (red text)
+│    Test Cases                │
+└──────────────────────────────┘
 ```
 
-### ❌ Button HIDDEN (no filters)
+### Menu without Filters (Disabled)
 ```
-Filters:
-  All empty
-  
-Result:
-  (No bulk delete section visible)
-  
-  [Test Cases Table shows all data...]
+Click [Actions ▼] button:
+
+┌──────────────────────────────┐
+│ Export All (Coming Soon)     │
+│ ─────────────────            │
+│ 🗑️ Delete Filtered           │ ← DISABLED (gray text)
+│    Test Cases                │
+│                              │
+│ Apply filters to enable      │ ← Helper text
+│ bulk delete                  │
+└──────────────────────────────┘
 ```
 
 ---
@@ -103,13 +92,18 @@ Examples:
 - Any combination
 ```
 
-**3. Bulk Delete Section Appears**
+**3. Click Actions Menu**
 ```
-┌─────────────────────────────────────────┐
-│ ⚠️ Bulk Actions Available               │
-│ 150 test cases match current filters   │
-│ [🗑️ Delete All Filtered Test Cases]    │ ← Click this
-└─────────────────────────────────────────┘
+Top-right header:
+[Actions ▼] ← Click this
+
+Dropdown appears:
+┌──────────────────────────────┐
+│ Export All                   │
+│ ─────────────────            │
+│ 🗑️ Delete Filtered           │ ← Click this
+│    Test Cases                │
+└──────────────────────────────┘
 ```
 
 **4. First Confirmation Dialog**
@@ -155,49 +149,40 @@ Table reloads showing remaining test cases
 
 ## 🎨 Visual States
 
-### State 1: No Filters (Button Hidden)
+### State 1: No Filters (Button Disabled in Menu)
 
 ```
 ┌───────────────────────────────────────┐
-│ All Test Cases                        │
-│ View and manage all imported cases    │
-│                                       │
-│ [Filters: All empty]                  │
-│                                       │
-│ (No bulk delete section)              │
-│                                       │
-│ [Test Cases Table...]                 │
-│ ID    │ Title    │ Organization       │
-│ TC-1  │ Login    │ ACME              │
-│ TC-2  │ Logout   │ ACME              │
-│ ...                                   │
+│ Test Cases    [Actions ▼] [Upload]   │
+│                    ↓                  │
+│ [Filters: Empty]   Menu appears:     │
+│                    ┌─────────────┐   │
+│ [Table...]         │ Export      │   │
+│ ID  │ Title        │ ─────       │   │
+│ TC-1│ Login        │ 🗑️ Delete   │   │ ← GRAYED OUT
+│ TC-2│ Logout       │  (disabled) │   │
+│ ...                └─────────────┘   │
 └───────────────────────────────────────┘
+
+Clean view, delete not prominent ✅
 ```
 
-### State 2: Filters Active (Button Visible - Red Alert Box)
+### State 2: Filters Active (Button Enabled in Menu)
 
 ```
 ┌───────────────────────────────────────┐
-│ All Test Cases                        │
-│ View and manage all imported cases    │
-│                                       │
-│ [Filters: Organization=default ✓]    │
-│                                       │
-│ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓  │
-│ ┃ ⚠️ Bulk Actions Available        ┃  │
-│ ┃ 150 test cases match filters     ┃  │
-│ ┃                                  ┃  │
-│ ┃   [🗑️ Delete All Filtered]       ┃  │ ← RED BUTTON
-│ ┃                                  ┃  │
-│ ┃ ⚠️ Warning: Permanent deletion   ┃  │
-│ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛  │
-│                                       │
-│ [Filtered Test Cases Table...]        │
-│ ID    │ Title    │ Organization       │
-│ TC-99 │ Old Test │ default           │
-│ TC-100│ Legacy   │ default           │
-│ ...                                   │
+│ Test Cases    [Actions ▼] [Upload]   │
+│                    ↓                  │
+│ [Filters: Org=default ✓]             │
+│                    Menu:              │
+│ [Filtered Table]   ┌─────────────┐   │
+│ ID   │ Title       │ Export      │   │
+│ TC-99│ Old         │ ─────       │   │
+│ TC-100│Legacy      │ 🗑️ Delete ✓ │   │ ← ENABLED (red)
+│ ...                └─────────────┘   │
 └───────────────────────────────────────┘
+
+Clean view, delete opt-in only ✅
 ```
 
 ### State 3: After Deletion (Success)

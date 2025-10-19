@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { List, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
+import { List, AlertTriangle, CheckCircle } from 'lucide-react';
 import { TestCaseUploadModal } from '../components/testcases/TestCaseUploadModal';
 import { TestCaseListTable } from '../components/testcases/TestCaseListTable';
 import { TestCaseCoverageCard } from '../components/testcases/TestCaseCoverageCard';
@@ -237,6 +237,15 @@ export const TestCasesView: React.FC = () => {
         pageSize={currentPageSize}
         onPageSizeChange={handlePageSizeChange}
         onUploadClick={() => setIsUploadModalOpen(true)}
+        onBulkDelete={handleBulkDelete}
+        hasActiveFilters={!!(
+          uiFilters.organization ||
+          uiFilters.teamId ||
+          uiFilters.priority ||
+          uiFilters.type ||
+          uiFilters.status ||
+          uiFilters.search
+        )}
       />
 
       {/* Coverage Stats Cards */}
@@ -292,32 +301,6 @@ export const TestCasesView: React.FC = () => {
               <p className="text-sm text-gray-600 dark:text-gray-400">View and manage all imported test cases</p>
             </div>
             
-            {/* Bulk Delete Section - Only visible when filters are active */}
-            {(uiFilters.organization || uiFilters.teamId || uiFilters.priority || 
-              uiFilters.type || uiFilters.status || uiFilters.search) && (
-              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-red-900 dark:text-red-200">
-                      ⚠️ Bulk Actions Available
-                    </p>
-                    <p className="text-xs text-red-700 dark:text-red-300 mt-1">
-                      {listPagination.totalPages * listPagination.pageSize} test cases match current filters
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleBulkDelete}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete All Filtered Test Cases
-                  </button>
-                </div>
-                <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                  ⚠️ Warning: This action is permanent and cannot be undone. Always export data before bulk deletion.
-                </p>
-              </div>
-            )}
             
             <TestCaseListTable
               testCases={testCases}
