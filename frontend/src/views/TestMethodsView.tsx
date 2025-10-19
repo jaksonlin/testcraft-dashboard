@@ -1,20 +1,31 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, ExternalLink, FileText, Target } from 'lucide-react';
 import { api, type TestMethodDetail } from '../lib/api';
 import PaginatedTable, { type ColumnDef } from '../components/shared/PaginatedTable';
 import { usePaginatedData } from '../hooks/usePaginatedData';
 import { isMethodAnnotated, getAnnotationStatusDisplayName } from '../utils/methodUtils';
 import TestMethodsHeader from '../components/test-methods/TestMethodsHeader';
+import { useSearchParams } from 'react-router-dom';
+import { HighlightedText } from '../components/shared/HighlightedText';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 const TestMethodsView: React.FC = () => {
-  const [filters, setFilters] = useState({
-    organization: '',
-    teamName: '',
-    repositoryName: '',
-    packageName: '',
-    className: '',
-    annotated: undefined as boolean | undefined
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Initialize filters from URL query parameters
+  const getInitialFilters = () => {
+    return {
+      organization: searchParams.get('org') || '',
+      teamName: searchParams.get('team') || '',
+      repositoryName: searchParams.get('repo') || '',
+      packageName: searchParams.get('package') || '',
+      className: searchParams.get('class') || '',
+      annotated: searchParams.get('annotated') === 'true' ? true : 
+                 searchParams.get('annotated') === 'false' ? false : undefined
+    };
+  };
+  
+  const [filters, setFilters] = useState(getInitialFilters);
   
   // Organizations for dropdown
   const [organizations, setOrganizations] = useState<string[]>([]);
@@ -98,6 +109,89 @@ const TestMethodsView: React.FC = () => {
     setFilters(updatedFilters);
     setDataFilters(updatedFilters);
   };
+  
+  // Clear all filters
+  const clearAllFilters = useCallback(() => {
+    const emptyFilters = {
+      organization: '',
+      teamName: '',
+      repositoryName: '',
+      packageName: '',
+      className: '',
+      annotated: undefined as boolean | undefined
+    };
+    setFilters(emptyFilters);
+    setDataFilters(emptyFilters);
+  }, [setDataFilters]);
+  
+  // Keyboard shortcuts for power users
+  useKeyboardShortcuts([
+    {
+      key: 'ArrowRight',
+      callback: () => {
+        const totalPages = Math.ceil(totalElements / pageSize);
+        if (currentPage < totalPages - 1) {
+          setPage(currentPage + 1);
+        }
+      },
+      description: 'Next page'
+    },
+    {
+      key: 'ArrowLeft',
+      callback: () => {
+        if (currentPage > 0) {
+          setPage(currentPage - 1);
+        }
+      },
+      description: 'Previous page'
+    },
+    {
+      key: 'PageDown',
+      callback: () => {
+        const totalPages = Math.ceil(totalElements / pageSize);
+        if (currentPage < totalPages - 1) {
+          setPage(currentPage + 1);
+        }
+      },
+      description: 'Next page'
+    },
+    {
+      key: 'PageUp',
+      callback: () => {
+        if (currentPage > 0) {
+          setPage(currentPage - 1);
+        }
+      },
+      description: 'Previous page'
+    },
+    {
+      key: '/',
+      ctrlKey: true,
+      callback: clearAllFilters,
+      description: 'Clear all filters'
+    },
+    {
+      key: 'r',
+      ctrlKey: true,
+      callback: refresh,
+      description: 'Refresh data'
+    }
+  ]);
+  
+  // Update URL when filters change (makes filters bookmarkable and shareable)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    
+    if (filters.organization) params.set('org', filters.organization);
+    if (filters.teamName) params.set('team', filters.teamName);
+    if (filters.repositoryName) params.set('repo', filters.repositoryName);
+    if (filters.packageName) params.set('package', filters.packageName);
+    if (filters.className) params.set('class', filters.className);
+    if (filters.annotated !== undefined) params.set('annotated', filters.annotated.toString());
+    
+    // Update URL without triggering navigation
+    setSearchParams(params, { replace: true });
+  }, [filters, setSearchParams]);
 
 
   const columns: ColumnDef<TestMethodDetail>[] = useMemo(() => [
@@ -106,9 +200,11 @@ const TestMethodsView: React.FC = () => {
       header: 'Repository',
       render: (method) => (
         <div className="flex items-center space-x-2">
-          <span className="font-medium text-gray-900 dark:text-gray-100">
-            {method.repository}
-          </span>
+          <HighlightedText
+            text={method.repository}
+            highlight={filters.repositoryName}
+            className="font-medium text-gray-900 dark:text-gray-100"
+          />
           <a
             href={method.gitUrl}
             target="_blank"
@@ -127,9 +223,11 @@ const TestMethodsView: React.FC = () => {
       key: 'testClass',
       header: 'Test Class',
       render: (method) => (
-        <span className="text-gray-900 dark:text-gray-100 font-mono text-sm">
-          {method.testClass}
-        </span>
+        <HighlightedText
+          text={method.testClass}
+          highlight={filters.className || filters.packageName}
+          className="text-gray-900 dark:text-gray-100 font-mono text-sm"
+        />
       ),
       sortable: true,
       width: '250px'
@@ -138,9 +236,11 @@ const TestMethodsView: React.FC = () => {
       key: 'testMethod',
       header: 'Test Method',
       render: (method) => (
-        <span className="text-gray-900 dark:text-gray-100 font-mono text-sm">
-          {method.testMethod}
-        </span>
+        <HighlightedText
+          text={method.testMethod}
+          highlight={filters.className}
+          className="text-gray-900 dark:text-gray-100 font-mono text-sm"
+        />
       ),
       sortable: true,
       width: '200px'
@@ -174,9 +274,11 @@ const TestMethodsView: React.FC = () => {
       key: 'title',
       header: 'Title',
       render: (method) => (
-        <span className="text-gray-900 dark:text-gray-100 truncate max-w-xs">
-          {method.title || 'No title'}
-        </span>
+        <HighlightedText
+          text={method.title || 'No title'}
+          highlight={filters.className || filters.packageName}
+          className="text-gray-900 dark:text-gray-100 truncate max-w-xs inline-block"
+        />
       ),
       sortable: true,
       width: '300px'
@@ -218,7 +320,7 @@ const TestMethodsView: React.FC = () => {
       sortable: true,
       width: '100px'
     }
-  ], []);
+  ], [filters.repositoryName, filters.className, filters.packageName]);
 
   if (error) {
     return (
@@ -381,19 +483,9 @@ const TestMethodsView: React.FC = () => {
                 </span>
               )}
               <button
-                onClick={() => {
-                  const clearedFilters = {
-                    organization: '',
-                    teamName: '',
-                    repositoryName: '',
-                    packageName: '',
-                    className: '',
-                    annotated: undefined as boolean | undefined
-                  };
-                  setFilters(clearedFilters);
-                  setDataFilters(clearedFilters);
-                }}
+                onClick={clearAllFilters}
                 className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:underline"
+                title="Clear all filters (Ctrl+/)"
               >
                 Clear all
               </button>
@@ -482,6 +574,16 @@ const TestMethodsView: React.FC = () => {
           searchable={false}
           className="shadow-lg"
         />
+        
+        {/* Keyboard Shortcuts Help */}
+        <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <p className="text-xs text-blue-900 dark:text-blue-100">
+            <strong>⌨️ Keyboard Shortcuts:</strong> 
+            <span className="ml-2">←/→ or PageUp/PageDown: Navigate pages</span>
+            <span className="ml-3">Ctrl+/: Clear filters</span>
+            <span className="ml-3">Ctrl+R: Refresh</span>
+          </p>
+        </div>
       </main>
     </div>
   );
