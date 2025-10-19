@@ -54,7 +54,8 @@ public class TestCaseService {
             int dataStartRow,
             boolean replaceExisting,
             String createdBy,
-            String organization) throws Exception {
+            String organization,
+            Long teamId) throws Exception {
         
         // Read upload into memory once so we can create fresh streams for each pass
         byte[] bytes;
@@ -98,16 +99,26 @@ public class TestCaseService {
         // Set metadata and resolve team names to team IDs
         for (TestCase testCase : validTestCases) {
             testCase.setCreatedBy(createdBy);
-            if (testCase.getOrganization() == null || testCase.getOrganization().trim().isEmpty()) {
+            
+            // Organization: UI selection always overrides Excel (if provided)
+            if (organization != null && !organization.trim().isEmpty()) {
                 testCase.setOrganization(organization);
             }
+            // Fallback to Excel organization if UI didn't specify
+            else if (testCase.getOrganization() == null || testCase.getOrganization().trim().isEmpty()) {
+                testCase.setOrganization("default");
+            }
             
-            // Look up team ID by team name if team name was provided in Excel
-            if (testCase.getTeamName() != null && !testCase.getTeamName().trim().isEmpty()) {
+            // Team: UI selection always overrides Excel (if provided)
+            if (teamId != null) {
+                testCase.setTeamId(teamId);
+            }
+            // Fallback to Excel team if UI didn't specify
+            else if (testCase.getTeamName() != null && !testCase.getTeamName().trim().isEmpty()) {
                 try {
-                    Long teamId = testCaseRepository.findTeamIdByName(testCase.getTeamName());
-                    if (teamId != null) {
-                        testCase.setTeamId(teamId);
+                    Long lookupTeamId = testCaseRepository.findTeamIdByName(testCase.getTeamName());
+                    if (lookupTeamId != null) {
+                        testCase.setTeamId(lookupTeamId);
                     }
                     // Note: teamName is kept for display purposes even if lookup fails
                 } catch (SQLException e) {
@@ -276,6 +287,13 @@ public class TestCaseService {
      */
     public List<String> getDistinctOrganizations() throws SQLException {
         return testCaseRepository.findDistinctOrganizations();
+    }
+    
+    /**
+     * Get all teams for filter dropdown
+     */
+    public List<Map<String, Object>> getAllTeams() throws SQLException {
+        return testCaseRepository.findAllTeams();
     }
     
     /**

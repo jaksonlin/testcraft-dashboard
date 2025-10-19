@@ -24,6 +24,11 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [importing, setImporting] = useState<boolean>(false);
   const [importResult, setImportResult] = useState<ImportResponse | null>(null);
+  
+  // Organization and Team selection
+  const [organization, setOrganization] = useState<string>('');
+  const [teamId, setTeamId] = useState<string>('');
+  const [createdBy, setCreatedBy] = useState<string>('system');
 
   /**
    * Handle file upload and initial preview
@@ -144,6 +149,12 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
     if (!file || !isValidMapping) {
       return;
     }
+    
+    // Validate organization is selected
+    if (!organization || organization.trim() === '') {
+      alert('Please select an organization before importing');
+      return;
+    }
 
     setImporting(true);
 
@@ -154,8 +165,9 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
         headerRow,
         dataStartRow,
         true, // replaceExisting
-        'system', // TODO: Get from user context
-        'default' // TODO: Get from organization context
+        createdBy || 'system',
+        organization,
+        teamId ? Number(teamId) : undefined
       );
 
       setImportResult(result);
@@ -204,6 +216,9 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
     suggestions,
     importing,
     importResult,
+    organization,
+    teamId,
+    createdBy,
     
     // Actions
     setCurrentStep,
@@ -213,5 +228,8 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
     handleAdvanceToPreview,
     handleImport,
     handleComplete,
+    setOrganization,
+    setTeamId,
+    setCreatedBy,
   };
 };

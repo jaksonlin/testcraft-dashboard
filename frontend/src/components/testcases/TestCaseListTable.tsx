@@ -1,10 +1,10 @@
 import React from 'react';
 import { CheckCircle, XCircle, Eye, Trash2, Filter } from 'lucide-react';
-import type { TestCase } from '../../lib/testCaseApi';
+import type { TestCase, Team } from '../../lib/testCaseApi';
 
 interface TestCaseFilters {
   organization: string;
-  team: string;
+  teamId: string; // Use string for select value, convert to number when sending to backend
   priority: string;
   type: string;
   status: string;
@@ -15,6 +15,7 @@ interface TestCaseListTableProps {
   testCases: TestCase[];
   filters: TestCaseFilters;
   organizations: string[];
+  teams: Team[];
   onFilterChange: (filters: TestCaseFilters) => void;
   onViewDetails?: (testCase: TestCase) => void;
   onDelete?: (internalId: number) => void;
@@ -24,6 +25,7 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
   testCases,
   filters,
   organizations,
+  teams,
   onFilterChange,
   onViewDetails,
   onDelete
@@ -36,8 +38,7 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
   const priorities = [...new Set(testCases.map(tc => tc.priority).filter(Boolean))];
   const types = [...new Set(testCases.map(tc => tc.type).filter(Boolean))];
   const statuses = [...new Set(testCases.map(tc => tc.status).filter(Boolean))];
-  // organizations loaded from API (not extracted from testCases)
-  const teamNames = [...new Set(testCases.map(tc => tc.teamName).filter(Boolean))];
+  // organizations and teams loaded from API (not extracted from testCases)
 
   const getPriorityBadgeColor = (priority?: string) => {
     switch (priority?.toLowerCase()) {
@@ -93,13 +94,13 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
 
           {/* Team Filter */}
           <select
-            value={filters.team}
-            onChange={(e) => handleFilterChange('team', e.target.value)}
+            value={filters.teamId}
+            onChange={(e) => handleFilterChange('teamId', e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Teams</option>
-            {teamNames.map(team => (
-              <option key={team} value={team}>{team}</option>
+            {teams.map(team => (
+              <option key={team.id} value={team.id}>{team.name}</option>
             ))}
           </select>
         </div>

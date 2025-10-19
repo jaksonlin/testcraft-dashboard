@@ -2,10 +2,12 @@
  * Preview Step Component - Preview data before import
  */
 
-import React from 'react';
-import { CheckCircle, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CheckCircle, ArrowLeft, Building, Users } from 'lucide-react';
 import type { PreviewStepProps } from './types';
 import { calculateEstimatedImportCount } from './utils';
+import { getOrganizations, getTeams } from '../../../lib/testCaseApi';
+import type { Team } from '../../../lib/testCaseApi';
 
 export const PreviewStep: React.FC<PreviewStepProps> = ({
   preview,
@@ -13,9 +15,35 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
   headerRow,
   dataStartRow,
   importing,
+  organization,
+  teamId,
+  onOrganizationChange,
+  onTeamIdChange,
   onImport,
   onBack
 }) => {
+  const [organizations, setOrganizations] = useState<string[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load organizations and teams on mount
+  useEffect(() => {
+    const loadFilterData = async () => {
+      try {
+        const [orgs, teamsData] = await Promise.all([
+          getOrganizations(),
+          getTeams()
+        ]);
+        setOrganizations(orgs);
+        setTeams(teamsData);
+      } catch (error) {
+        console.error('Failed to load organizations and teams:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadFilterData();
+  }, []);
   const estimatedImportCount = calculateEstimatedImportCount(preview.totalRows, dataStartRow);
   
   // Map preview data using user's mappings
@@ -38,8 +66,58 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
       <div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Preview Import</h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Review the mapped data before importing. Showing header row + first 9 data rows.
+          Select organization and team, then review the mapped data before importing.
         </p>
+      </div>
+
+      {/* Organization and Team Selection */}
+      <div className="bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Test Case Metadata</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {/* Organization Selection */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <Building className="w-4 h-4" />
+              Organization <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={organization}
+              onChange={(e) => onOrganizationChange(e.target.value)}
+              disabled={loading}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+            >
+              <option value="">Select Organization</option>
+              {organizations.map(org => (
+                <option key={org} value={org}>{org}</option>
+              ))}
+            </select>
+            {!organization && (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">Organization is required</p>
+            )}
+          </div>
+
+          {/* Team Selection */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <Users className="w-4 h-4" />
+              Team <span className="text-gray-400">(optional)</span>
+            </label>
+            <select
+              value={teamId}
+              onChange={(e) => onTeamIdChange(e.target.value)}
+              disabled={loading}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+            >
+              <option value="">No Team (or from Excel)</option>
+              {teams.map(team => (
+                <option key={team.id} value={team.id}>{team.name}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {teamId ? 'Selected team will override Excel team column' : 'Team can be specified in Excel or left unassigned'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Import Info */}
@@ -85,8 +163,9 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
         
         <button
           onClick={onImport}
-          disabled={importing}
-          className="px-10 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl text-base"
+          disabled={importing || !organization}
+          className="px-10 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl text-base"
+          title={!organization ? 'Please select an organization' : ''}
         >
           {importing ? (
             <>

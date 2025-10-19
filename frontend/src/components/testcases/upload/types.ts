@@ -2,6 +2,8 @@
  * Type definitions for Test Case Upload Wizard
  */
 
+import type { ExcelPreviewResponse, ImportResponse } from '../../../lib/testCaseApi';
+
 export type WizardStep = 'upload' | 'mapping' | 'preview' | 'complete';
 
 export interface TestCaseUploadWizardProps {
@@ -39,6 +41,10 @@ export interface PreviewStepProps {
   headerRow: number;
   dataStartRow: number;
   importing: boolean;
+  organization: string;
+  teamId: string;
+  onOrganizationChange: (value: string) => void;
+  onTeamIdChange: (value: string) => void;
   onImport: () => void;
   onBack: () => void;
 }
@@ -52,5 +58,5 @@ export interface ProgressStepsProps {
   currentStep: WizardStep;
 }
 
-// Re-export API types
-export type { ExcelPreviewResponse, ImportResponse } from '../../../lib/testCaseApi';
+// Re-export imported types
+export type { ExcelPreviewResponse, ImportResponse };

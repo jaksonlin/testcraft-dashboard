@@ -174,7 +174,8 @@ public class TestCaseController {
             @RequestParam("dataStartRow") int dataStartRow,
             @RequestParam(value = "replaceExisting", defaultValue = "true") boolean replaceExisting,
             @RequestParam(value = "createdBy", defaultValue = "system") String createdBy,
-            @RequestParam(value = "organization", defaultValue = "default") String organization) {
+            @RequestParam(value = "organization", defaultValue = "default") String organization,
+            @RequestParam(value = "teamId", required = false) Long teamId) {
         
         try {
             if (file.isEmpty()) {
@@ -196,7 +197,8 @@ public class TestCaseController {
                 dataStartRow,
                 replaceExisting,
                 createdBy,
-                organization
+                organization,
+                teamId
             );
             
             if (!result.isSuccess()) {
@@ -345,6 +347,22 @@ public class TestCaseController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Failed to get organizations: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Get all teams for filter dropdown
+     * 
+     * GET /api/testcases/teams
+     */
+    @GetMapping("/teams")
+    public ResponseEntity<?> getTeams() {
+        try {
+            List<Map<String, Object>> teams = testCaseService.getAllTeams();
+            return ResponseEntity.ok(teams);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to get teams: " + e.getMessage()));
         }
     }
     

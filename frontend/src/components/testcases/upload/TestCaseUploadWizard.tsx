@@ -31,6 +31,8 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
     suggestions,
     importing,
     importResult,
+    organization,
+    teamId,
     setCurrentStep,
     handleFileSelect,
     handleMappingChange,
@@ -38,6 +40,8 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
     handleAdvanceToPreview,
     handleImport,
     handleComplete,
+    setOrganization,
+    setTeamId,
   } = useTestCaseUpload(onComplete);
 
   return (
@@ -75,6 +79,10 @@ export const TestCaseUploadWizard: React.FC<TestCaseUploadWizardProps> = ({ onCo
             headerRow={headerRow}
             dataStartRow={dataStartRow}
             importing={importing}
+            organization={organization}
+            teamId={teamId}
+            onOrganizationChange={setOrganization}
+            onTeamIdChange={setTeamId}
             onImport={handleImport}
             onBack={() => setCurrentStep('mapping')}
           />

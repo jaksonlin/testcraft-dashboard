@@ -622,6 +622,28 @@ public class TestCaseRepository {
     }
     
     /**
+     * Get all teams for filter dropdown (returns id and name)
+     */
+    public List<Map<String, Object>> findAllTeams() throws SQLException {
+        String sql = "SELECT id, team_name FROM teams ORDER BY team_name";
+        List<Map<String, Object>> teams = new ArrayList<>();
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
+            while (rs.next()) {
+                Map<String, Object> team = new HashMap<>();
+                team.put("id", rs.getLong("id"));
+                team.put("name", rs.getString("team_name"));
+                teams.add(team);
+            }
+        }
+        
+        return teams;
+    }
+    
+    /**
      * Look up team ID by team name
      * Returns null if team not found
      */

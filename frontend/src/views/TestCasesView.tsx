@@ -11,8 +11,8 @@ import TestCasesHeader from '../components/testcases/TestCasesHeader';
 import Pagination from '../components/shared/Pagination';
 import { Toast } from '../components/shared/Toast';
 import { useTestCaseData, type TabType, type TestCaseFilters } from '../hooks/useTestCaseData';
-import type { TestCase } from '../lib/testCaseApi';
-import { getOrganizations } from '../lib/testCaseApi';
+import type { TestCase, Team } from '../lib/testCaseApi';
+import { getOrganizations, getTeams } from '../lib/testCaseApi';
 
 /**
  * Main Test Cases view with tabs for list, coverage, and gaps.
@@ -26,9 +26,10 @@ export const TestCasesView: React.FC = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const [organizations, setOrganizations] = useState<string[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [uiFilters, setUiFilters] = useState({
     organization: '',
-    team: '',
+    teamId: '',
     priority: '',
     type: '',
     status: '',
@@ -56,17 +57,21 @@ export const TestCasesView: React.FC = () => {
     clearError,
   } = useTestCaseData();
 
-  // Load organizations on mount
+  // Load organizations and teams on mount
   useEffect(() => {
-    const loadOrgs = async () => {
+    const loadFiltersData = async () => {
       try {
-        const orgs = await getOrganizations();
+        const [orgs, teamsData] = await Promise.all([
+          getOrganizations(),
+          getTeams()
+        ]);
         setOrganizations(orgs);
+        setTeams(teamsData);
       } catch (error) {
-        console.error('Failed to load organizations:', error);
+        console.error('Failed to load filter data:', error);
       }
     };
-    loadOrgs();
+    loadFiltersData();
   }, []);
 
   // Show error toast
@@ -126,12 +131,11 @@ export const TestCasesView: React.FC = () => {
     // Convert to backend filter format
     const backendFilters: TestCaseFilters = {};
     if (newFilters.organization) backendFilters.organization = newFilters.organization;
+    if (newFilters.teamId) backendFilters.teamId = Number(newFilters.teamId);
     if (newFilters.priority) backendFilters.priority = newFilters.priority;
     if (newFilters.type) backendFilters.type = newFilters.type;
     if (newFilters.status) backendFilters.status = newFilters.status;
     if (newFilters.search) backendFilters.search = newFilters.search;
-    // Note: team filtering by name needs team ID lookup
-    // For now, team filter options come from test case data (client-side)
     
     setFilters(backendFilters);
   };
@@ -209,6 +213,7 @@ export const TestCasesView: React.FC = () => {
               testCases={testCases}
               filters={uiFilters}
               organizations={organizations}
+              teams={teams}
               onFilterChange={handleFilterChange}
               onViewDetails={setSelectedTestCase}
               onDelete={handleDeleteWithToast}
@@ -263,6 +268,7 @@ export const TestCasesView: React.FC = () => {
                   testCases={untestedCases}
                   filters={uiFilters}
                   organizations={organizations}
+                  teams={teams}
                   onFilterChange={handleFilterChange}
                   onViewDetails={setSelectedTestCase}
                 />

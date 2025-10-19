@@ -126,7 +126,8 @@ export const importTestCases = async (
   dataStartRow: number,
   replaceExisting: boolean = true,
   createdBy: string = 'system',
-  organization: string = 'default'
+  organization: string = 'default',
+  teamId?: number
 ): Promise<ImportResponse> => {
   const formData = new FormData();
   formData.append('file', file);
@@ -136,6 +137,9 @@ export const importTestCases = async (
   formData.append('replaceExisting', replaceExisting.toString());
   formData.append('createdBy', createdBy);
   formData.append('organization', organization);
+  if (teamId) {
+    formData.append('teamId', teamId.toString());
+  }
 
   const response = await axios.post(
     `${API_BASE_URL}/testcases/upload/import`,
@@ -201,6 +205,22 @@ export const deleteTestCase = async (internalId: number): Promise<void> => {
  */
 export const getOrganizations = async (): Promise<string[]> => {
   const response = await axios.get(`${API_BASE_URL}/testcases/organizations`);
+  return response.data;
+};
+
+/**
+ * Team interface for filter dropdown
+ */
+export interface Team {
+  id: number;
+  name: string;
+}
+
+/**
+ * Get all teams for filter dropdown
+ */
+export const getTeams = async (): Promise<Team[]> => {
+  const response = await axios.get(`${API_BASE_URL}/testcases/teams`);
   return response.data;
 };
 
