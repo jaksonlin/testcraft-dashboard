@@ -174,7 +174,7 @@ public class TestCaseController {
             @RequestParam("dataStartRow") int dataStartRow,
             @RequestParam(value = "replaceExisting", defaultValue = "true") boolean replaceExisting,
             @RequestParam(value = "createdBy", defaultValue = "system") String createdBy,
-            @RequestParam(value = "organization", defaultValue = "default") String organization,
+            @RequestParam(value = "organization", required = false) String organization,
             @RequestParam(value = "teamId", required = false) Long teamId) {
         
         try {

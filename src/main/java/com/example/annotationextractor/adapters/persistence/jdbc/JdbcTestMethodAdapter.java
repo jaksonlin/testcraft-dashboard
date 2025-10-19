@@ -696,13 +696,13 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             params.add("%" + repositoryName + "%");
         }
         
-        // Package name filter (extract package from class_name)
+        // Package name filter (uses dedicated package_name column)
         if (packageName != null && !packageName.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
-            params.add(packageName + ".%");
+            sql.append(" AND LOWER(tc.package_name) LIKE LOWER(?)");
+            params.add("%" + packageName + "%");
         }
         
-        // Class name filter (simple class name, case-insensitive)
+        // Class name filter (uses class_name column - simple class name, case-insensitive)
         if (className != null && !className.trim().isEmpty()) {
             sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
             params.add("%" + className + "%");
@@ -826,8 +826,8 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
         }
         
         if (packageName != null && !packageName.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
-            params.add(packageName + ".%");
+            sql.append(" AND LOWER(tc.package_name) LIKE LOWER(?)");
+            params.add("%" + packageName + "%");
         }
         
         if (className != null && !className.trim().isEmpty()) {
@@ -917,11 +917,12 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
     
     /**
      * Get hierarchical summary by package within a team
+     * Uses the dedicated package_name column for accurate grouping
      */
     public List<Map<String, Object>> getHierarchyByPackage(Long scanSessionId, String teamName) {
         String sql = """
             SELECT 
-                SUBSTRING(tc.class_name FROM 1 FOR POSITION('.' IN REVERSE(tc.class_name || '.')) - 1) as package_name,
+                tc.package_name,
                 COUNT(DISTINCT tc.id) as class_count,
                 COUNT(tm.id) as method_count,
                 SUM(CASE WHEN tm.annotation_title IS NOT NULL AND tm.annotation_title != '' THEN 1 ELSE 0 END) as annotated_count
@@ -931,9 +932,10 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             LEFT JOIN teams t ON r.team_id = t.id
             WHERE tc.scan_session_id = ?
             AND LOWER(t.team_name) = LOWER(?)
-            AND tc.class_name LIKE '%.%'
-            GROUP BY package_name
-            ORDER BY package_name
+            AND tc.package_name IS NOT NULL
+            AND tc.package_name != ''
+            GROUP BY tc.package_name
+            ORDER BY tc.package_name
             """;
         
         List<Map<String, Object>> result = new ArrayList<>();
@@ -973,12 +975,14 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
     
     /**
      * Get hierarchical summary by class within a package
+     * Uses the dedicated package_name column for filtering
      */
     public List<Map<String, Object>> getHierarchyByClass(Long scanSessionId, String teamName, String packageName) {
         String sql = """
             SELECT 
                 tc.id as class_id,
                 tc.class_name,
+                tc.package_name,
                 COUNT(tm.id) as method_count,
                 SUM(CASE WHEN tm.annotation_title IS NOT NULL AND tm.annotation_title != '' THEN 1 ELSE 0 END) as annotated_count
             FROM test_methods tm
@@ -987,8 +991,8 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             LEFT JOIN teams t ON r.team_id = t.id
             WHERE tc.scan_session_id = ?
             AND LOWER(t.team_name) = LOWER(?)
-            AND LOWER(tc.class_name) LIKE LOWER(?)
-            GROUP BY tc.id, tc.class_name
+            AND LOWER(tc.package_name) = LOWER(?)
+            GROUP BY tc.id, tc.class_name, tc.package_name
             ORDER BY tc.class_name
             """;
         
@@ -998,7 +1002,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             
             stmt.setLong(1, scanSessionId);
             stmt.setString(2, teamName);
-            stmt.setString(3, packageName + ".%");
+            stmt.setString(3, packageName);
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -1006,16 +1010,17 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
                     long annotatedCount = rs.getLong("annotated_count");
                     double coverage = methodCount > 0 ? (annotatedCount * 100.0 / methodCount) : 0.0;
                     
-                    String fullClassName = rs.getString("class_name");
-                    String simpleClassName = fullClassName.contains(".") 
-                        ? fullClassName.substring(fullClassName.lastIndexOf(".") + 1)
-                        : fullClassName;
+                    String className = rs.getString("class_name");
+                    String pkgName = rs.getString("package_name");
+                    String fullName = pkgName != null && !pkgName.isEmpty() 
+                        ? pkgName + "." + className 
+                        : className;
                     
                     result.add(Map.of(
                         "type", "CLASS",
                         "id", rs.getLong("class_id"),
-                        "name", simpleClassName,
-                        "fullName", fullClassName,
+                        "name", className,  // Simple class name
+                        "fullName", fullName,  // Fully qualified name
                         "methodCount", methodCount,
                         "annotatedCount", annotatedCount,
                         "coverageRate", coverage

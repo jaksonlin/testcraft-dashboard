@@ -26,6 +26,10 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Check if organization/team are mapped in Excel
+  const hasOrganizationMapping = Object.values(mappings).includes('organization');
+  const hasTeamMapping = Object.values(mappings).includes('team');
+
   // Load organizations and teams on mount
   useEffect(() => {
     const loadFilterData = async () => {
@@ -44,6 +48,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
     };
     loadFilterData();
   }, []);
+
   const estimatedImportCount = calculateEstimatedImportCount(preview.totalRows, dataStartRow);
   
   // Map preview data using user's mappings
@@ -74,26 +79,47 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
       <div className="bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Test Case Metadata</h3>
         <div className="grid grid-cols-2 gap-4">
-          {/* Organization Selection */}
+          {/* Organization Selection/Input */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               <Building className="w-4 h-4" />
-              Organization <span className="text-red-500">*</span>
+              Organization {!hasOrganizationMapping && <span className="text-red-500">*</span>}
             </label>
-            <select
-              value={organization}
-              onChange={(e) => onOrganizationChange(e.target.value)}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-            >
-              <option value="">Select Organization</option>
-              {organizations.map(org => (
-                <option key={org} value={org}>{org}</option>
-              ))}
-            </select>
-            {!organization && (
-              <p className="mt-1 text-xs text-red-600 dark:text-red-400">Organization is required</p>
+            
+            {hasOrganizationMapping ? (
+              <div className="w-full px-3 py-2 border border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100 rounded-lg">
+                ✓ Using values from Excel
+              </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  list="organizations-list"
+                  value={organization}
+                  onChange={(e) => onOrganizationChange(e.target.value)}
+                  disabled={loading}
+                  placeholder={organizations.length > 0 ? "Select or type organization" : "Type organization name"}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                />
+                <datalist id="organizations-list">
+                  {organizations.map(org => (
+                    <option key={org} value={org} />
+                  ))}
+                </datalist>
+              </>
             )}
+            
+            {!hasOrganizationMapping && !organization ? (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">Organization is required</p>
+            ) : !hasOrganizationMapping && organizations.length === 0 && organization ? (
+              <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                New organization "{organization}" will be created
+              </p>
+            ) : hasOrganizationMapping ? (
+              <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+                Organization values will be taken from your Excel column mapping
+              </p>
+            ) : null}
           </div>
 
           {/* Team Selection */}
@@ -102,19 +128,32 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
               <Users className="w-4 h-4" />
               Team <span className="text-gray-400">(optional)</span>
             </label>
-            <select
-              value={teamId}
-              onChange={(e) => onTeamIdChange(e.target.value)}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-            >
-              <option value="">No Team (or from Excel)</option>
-              {teams.map(team => (
-                <option key={team.id} value={team.id}>{team.name}</option>
-              ))}
-            </select>
+            
+            {hasTeamMapping ? (
+              <div className="w-full px-3 py-2 border border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100 rounded-lg">
+                ✓ Using values from Excel
+              </div>
+            ) : (
+              <select
+                value={teamId}
+                onChange={(e) => onTeamIdChange(e.target.value)}
+                disabled={loading}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              >
+                <option value="">No Team (or from Excel)</option>
+                {teams.map(team => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+            )}
+            
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {teamId ? 'Selected team will override Excel team column' : 'Team can be specified in Excel or left unassigned'}
+              {hasTeamMapping 
+                ? 'Team values will be taken from your Excel column mapping'
+                : teamId 
+                  ? 'Selected team will override Excel team column' 
+                  : 'Team can be specified in Excel or left unassigned'
+              }
             </p>
           </div>
         </div>
@@ -131,6 +170,16 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
               Using Header Row {headerRow} (Excel Row {headerRow + 1}), Data from Row {dataStartRow} to {preview.totalRows - 1}
             </p>
+            {hasOrganizationMapping && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                ✓ Organizations will be taken from Excel column
+              </p>
+            )}
+            {hasTeamMapping && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                ✓ Teams will be taken from Excel column
+              </p>
+            )}
           </div>
           <CheckCircle className="w-8 h-8 text-blue-600 dark:text-blue-400" />
         </div>
@@ -142,6 +191,10 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
         mappings={mappings} 
         mappedPreview={mappedPreview}
         dataRows={dataRows}
+        hasOrganizationMapping={hasOrganizationMapping}
+        hasTeamMapping={hasTeamMapping}
+        organization={organization}
+        teamId={teamId}
       />
 
       {/* Preview Table */}
@@ -163,9 +216,9 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
         
         <button
           onClick={onImport}
-          disabled={importing || !organization}
+          disabled={importing || (!hasOrganizationMapping && !organization)}
           className="px-10 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl text-base"
-          title={!organization ? 'Please select an organization' : ''}
+          title={!hasOrganizationMapping && !organization ? 'Please select an organization' : ''}
         >
           {importing ? (
             <>
@@ -191,7 +244,11 @@ const DebugInfo: React.FC<{
   mappings: Record<string, string>;
   mappedPreview: Record<string, string>[];
   dataRows: Record<string, string>[];
-}> = ({ preview, mappings, mappedPreview, dataRows }) => (
+  hasOrganizationMapping: boolean;
+  hasTeamMapping: boolean;
+  organization: string;
+  teamId: string;
+}> = ({ preview, mappings, mappedPreview, dataRows, hasOrganizationMapping, hasTeamMapping, organization, teamId }) => (
   <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-4">
     <details className="cursor-pointer">
       <summary className="font-semibold text-gray-700 dark:text-gray-300 text-sm">🔍 Debug Info (Click to expand)</summary>
@@ -207,6 +264,20 @@ const DebugInfo: React.FC<{
         </div>
         <div>
           <span className="font-bold">Data Rows to Display:</span> {dataRows.length}
+        </div>
+        <div className="pt-2 border-t border-gray-300 dark:border-gray-600">
+          <span className="font-bold">Smart Logic Status:</span>
+          <div className="pl-4 mt-1 space-y-1">
+            <div>hasOrganizationMapping: <span className={hasOrganizationMapping ? "text-green-600" : "text-red-600"}>{String(hasOrganizationMapping)}</span></div>
+            <div>hasTeamMapping: <span className={hasTeamMapping ? "text-green-600" : "text-red-600"}>{String(hasTeamMapping)}</span></div>
+            <div>organization value: "{organization}"</div>
+            <div>teamId value: "{teamId}"</div>
+            <div className="pt-1 border-t border-gray-400">
+              Button enabled: <span className={hasOrganizationMapping || organization ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
+                {hasOrganizationMapping || organization ? "YES" : "NO (need org)"}
+              </span>
+            </div>
+          </div>
         </div>
         <div className="pt-2 border-t border-gray-300 dark:border-gray-600">
           <span className="font-bold">Current Mappings:</span>

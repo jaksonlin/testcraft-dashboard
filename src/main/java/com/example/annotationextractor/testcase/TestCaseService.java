@@ -100,13 +100,23 @@ public class TestCaseService {
         for (TestCase testCase : validTestCases) {
             testCase.setCreatedBy(createdBy);
             
-            // Organization: UI selection always overrides Excel (if provided)
+            // Organization hierarchy:
+            // 1. UI selection (highest priority)
+            // 2. Excel organization column (if present)
+            // 3. Derive from team (if team is specified)
+            // 4. Leave null (user must specify later)
+            
             if (organization != null && !organization.trim().isEmpty()) {
+                // UI selection always overrides
                 testCase.setOrganization(organization);
-            }
-            // Fallback to Excel organization if UI didn't specify
-            else if (testCase.getOrganization() == null || testCase.getOrganization().trim().isEmpty()) {
-                testCase.setOrganization("default");
+            } else if (testCase.getOrganization() != null && !testCase.getOrganization().trim().isEmpty()) {
+                // Keep Excel organization if present
+                // (already set from Excel)
+            } else {
+                // No organization specified - leave null
+                // User can filter/update later
+                // This is better than defaulting to "default" which creates orphaned data
+                testCase.setOrganization(null);
             }
             
             // Team: UI selection always overrides Excel (if provided)

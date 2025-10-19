@@ -150,8 +150,11 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
       return;
     }
     
-    // Validate organization is selected
-    if (!organization || organization.trim() === '') {
+    // Check if organization is mapped in Excel
+    const hasOrganizationMapping = Object.values(mappings).includes('organization');
+    
+    // Validate organization is selected (only if not mapped in Excel)
+    if (!hasOrganizationMapping && (!organization || organization.trim() === '')) {
       alert('Please select an organization before importing');
       return;
     }

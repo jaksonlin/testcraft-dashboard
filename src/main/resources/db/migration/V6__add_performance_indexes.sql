@@ -22,6 +22,10 @@ ON repositories(repository_name);
 CREATE INDEX IF NOT EXISTS idx_test_classes_name 
 ON test_classes(class_name);
 
+-- Index for package name filtering (critical for package-level filtering)
+CREATE INDEX IF NOT EXISTS idx_test_classes_package 
+ON test_classes(package_name);
+
 -- Index for class repository lookup
 CREATE INDEX IF NOT EXISTS idx_test_classes_repository 
 ON test_classes(repository_id);
