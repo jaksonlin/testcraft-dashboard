@@ -278,6 +278,18 @@ export interface ScanSession {
   overallCoverageRate: number;
 }
 
+export interface HierarchyNode {
+  type: 'TEAM' | 'PACKAGE' | 'CLASS';
+  id?: number;
+  name: string;
+  code?: string;
+  fullName?: string;
+  classCount?: number;
+  methodCount: number;
+  annotatedCount: number;
+  coverageRate: number;
+}
+
 // API Methods
 export const api = {
   // Dashboard endpoints
@@ -305,9 +317,28 @@ export const api = {
     getAllTestMethodDetails: (limit?: number): Promise<TestMethodDetail[]> =>
       apiClient.get(`/dashboard/test-methods/all${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
     
-    // Paginated test method details for better performance
-    getTestMethodDetailsPaginated: (page: number, size: number, teamName?: string, repositoryName?: string, annotated?: boolean): Promise<PagedResponse<TestMethodDetail>> =>
-      apiClient.get(`/dashboard/test-methods/paginated?page=${page}&size=${size}${teamName ? `&teamName=${teamName}` : ''}${repositoryName ? `&repositoryName=${repositoryName}` : ''}${annotated !== undefined ? `&annotated=${annotated}` : ''}`).then(res => res.data),
+    // Paginated test method details for better performance (enhanced with more filters)
+    getTestMethodDetailsPaginated: (
+      page: number, 
+      size: number, 
+      organization?: string,
+      teamName?: string, 
+      repositoryName?: string,
+      packageName?: string,
+      className?: string,
+      annotated?: boolean
+    ): Promise<PagedResponse<TestMethodDetail>> => {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('size', size.toString());
+      if (organization) params.append('organization', organization);
+      if (teamName) params.append('teamName', teamName);
+      if (repositoryName) params.append('repositoryName', repositoryName);
+      if (packageName) params.append('packageName', packageName);
+      if (className) params.append('className', className);
+      if (annotated !== undefined) params.append('annotated', annotated.toString());
+      return apiClient.get(`/dashboard/test-methods/paginated?${params.toString()}`).then(res => res.data);
+    },
     
     // Grouped test method details for hierarchical display
     getAllTestMethodDetailsGrouped: (limit?: number): Promise<GroupedTestMethodResponse> =>
@@ -327,6 +358,19 @@ export const api = {
       if (annotated !== undefined) params.append('annotated', annotated.toString());
       const queryString = params.toString();
       return apiClient.get(`/dashboard/test-methods/stats/global${queryString ? `?${queryString}` : ''}`).then(res => res.data);
+    },
+    
+    // Get distinct organizations for filter dropdown
+    getOrganizations: (): Promise<string[]> =>
+      apiClient.get('/dashboard/test-methods/organizations').then(res => res.data),
+    
+    // Get hierarchical data for progressive loading
+    getHierarchy: (level: 'TEAM' | 'PACKAGE' | 'CLASS', teamName?: string, packageName?: string): Promise<HierarchyNode[]> => {
+      const params = new URLSearchParams();
+      params.append('level', level);
+      if (teamName) params.append('teamName', teamName);
+      if (packageName) params.append('packageName', packageName);
+      return apiClient.get(`/dashboard/test-methods/hierarchy?${params.toString()}`).then(res => res.data);
     },
   },
 

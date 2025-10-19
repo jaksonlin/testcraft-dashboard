@@ -55,6 +55,20 @@ public class PersistenceReadFacade {
     public List<TestMethodDetailRecord> listTestMethodDetailsByScanSessionId(Long scanSessionId, Integer limit) { return testArtifactQueryService.listTestMethodDetailsByScanSessionId(scanSessionId, limit); }
     public long countTestMethodDetailsByScanSessionId(Long scanSessionId) { return testArtifactQueryService.countTestMethodDetailsByScanSessionId(scanSessionId); }
 
+    // list with filters (DATABASE-level filtering, no client-side filtering)
+    public List<TestMethodDetailRecord> listTestMethodDetailsWithFilters(
+            Long scanSessionId, String teamName, String repositoryName, 
+            String packageName, String className, Boolean annotated, Integer offset, Integer limit) {
+        return testArtifactQueryService.listTestMethodDetailsWithFilters(
+            scanSessionId, teamName, repositoryName, packageName, className, annotated, offset, limit);
+    }
+    public long countTestMethodDetailsWithFilters(
+            Long scanSessionId, String teamName, String repositoryName, 
+            String packageName, String className, Boolean annotated) {
+        return testArtifactQueryService.countTestMethodDetailsWithFilters(
+            scanSessionId, teamName, repositoryName, packageName, className, annotated);
+    }
+
     // list by team and scan session
     public List<TestMethodDetailRecord> listTestMethodDetailsByTeamIdAndScanSessionId(Long teamId, Long scanSessionId, Integer limit) { 
         return testArtifactQueryService.listTestMethodDetailsByTeamIdAndScanSessionId(teamId, scanSessionId, limit); 
@@ -78,6 +92,17 @@ public class PersistenceReadFacade {
     // Dashboard-specific detailed queries
     public List<RepositoryDetailRecord> listRepositoryDetails() { 
         return repositoryQueryService.listRepositoryDetails();  
+    }
+    
+    // Hierarchical queries for progressive loading (database-level aggregation)
+    public List<java.util.Map<String, Object>> getHierarchyByTeam(Long scanSessionId) {
+        return testArtifactQueryService.getHierarchyByTeam(scanSessionId);
+    }
+    public List<java.util.Map<String, Object>> getHierarchyByPackage(Long scanSessionId, String teamName) {
+        return testArtifactQueryService.getHierarchyByPackage(scanSessionId, teamName);
+    }
+    public List<java.util.Map<String, Object>> getHierarchyByClass(Long scanSessionId, String teamName, String packageName) {
+        return testArtifactQueryService.getHierarchyByClass(scanSessionId, teamName, packageName);
     }
     
 }

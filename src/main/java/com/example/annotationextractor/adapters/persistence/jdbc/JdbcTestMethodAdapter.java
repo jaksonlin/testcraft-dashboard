@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -634,6 +635,398 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             lastModified != null ? lastModified.toInstant() : null,
             scanSessionId
         );
+    }
+    
+    /**
+     * Find test method details with filtering at DATABASE level (no client-side filtering)
+     * All filtering is done via SQL WHERE clauses for maximum performance
+     */
+    public List<TestMethodDetailRecord> findTestMethodDetailsWithFilters(
+            Long scanSessionId,
+            String teamName,
+            String repositoryName,
+            String packageName,
+            String className,
+            Boolean annotated,
+            Integer offset,
+            Integer limit) {
+        
+        StringBuilder sql = new StringBuilder("""
+            SELECT 
+                tm.id,
+                r.repository_name,
+                tc.class_name,
+                tm.method_name,
+                tm.line_number,
+                tm.annotation_title,
+                tm.annotation_author,
+                tm.annotation_status,
+                tm.annotation_target_class,
+                tm.annotation_target_method,
+                tm.annotation_description,
+                tm.annotation_test_points,
+                tm.annotation_tags,
+                tm.annotation_requirements,
+                tm.annotation_testcases,
+                tm.annotation_defects,
+                tm.annotation_last_update_time,
+                tm.annotation_last_update_author,
+                t.team_name,
+                t.team_code,
+                r.git_url
+            FROM test_methods tm
+            JOIN test_classes tc ON tm.test_class_id = tc.id
+            JOIN repositories r ON tc.repository_id = r.id
+            LEFT JOIN teams t ON r.team_id = t.id
+            WHERE tc.scan_session_id = ?
+            """);
+        
+        List<Object> params = new ArrayList<>();
+        params.add(scanSessionId);
+        
+        // Team name filter (case-insensitive)
+        if (teamName != null && !teamName.trim().isEmpty()) {
+            sql.append(" AND LOWER(t.team_name) LIKE LOWER(?)");
+            params.add("%" + teamName + "%");
+        }
+        
+        // Repository name filter (case-insensitive)
+        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
+            sql.append(" AND LOWER(r.repository_name) LIKE LOWER(?)");
+            params.add("%" + repositoryName + "%");
+        }
+        
+        // Package name filter (extract package from class_name)
+        if (packageName != null && !packageName.trim().isEmpty()) {
+            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
+            params.add(packageName + ".%");
+        }
+        
+        // Class name filter (simple class name, case-insensitive)
+        if (className != null && !className.trim().isEmpty()) {
+            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
+            params.add("%" + className + "%");
+        }
+        
+        // Annotation status filter
+        if (annotated != null) {
+            if (annotated) {
+                sql.append(" AND tm.annotation_title IS NOT NULL AND tm.annotation_title != ''");
+            } else {
+                sql.append(" AND (tm.annotation_title IS NULL OR tm.annotation_title = '')");
+            }
+        }
+        
+        sql.append(" ORDER BY r.repository_name, tc.class_name, tm.method_name");
+        
+        // Pagination
+        if (limit != null && limit > 0) {
+            sql.append(" LIMIT ?");
+            params.add(limit);
+        }
+        if (offset != null && offset > 0) {
+            sql.append(" OFFSET ?");
+            params.add(offset);
+        }
+        
+        List<TestMethodDetailRecord> result = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+            
+            // Set parameters
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Long id = rs.getLong("id");
+                    String repoName = rs.getString("repository_name");
+                    String testClassName = rs.getString("class_name");
+                    String testMethodName = rs.getString("method_name");
+                    Integer lineNumber = rs.getInt("line_number");
+                    String annotationTitle = rs.getString("annotation_title");
+                    String annotationAuthor = rs.getString("annotation_author");
+                    String annotationStatus = rs.getString("annotation_status");
+                    String annotationTargetClass = rs.getString("annotation_target_class");
+                    String annotationTargetMethod = rs.getString("annotation_target_method");
+                    String annotationDescription = rs.getString("annotation_description");
+                    String annotationTestPoints = rs.getString("annotation_test_points");
+                    
+                    List<String> annotationTags = parseStringArray(rs.getString("annotation_tags"));
+                    List<String> annotationRequirements = parseStringArray(rs.getString("annotation_requirements"));
+                    List<String> annotationTestcases = parseStringArray(rs.getString("annotation_testcases"));
+                    List<String> annotationDefects = parseStringArray(rs.getString("annotation_defects"));
+                    
+                    String lastUpdateTime = rs.getString("annotation_last_update_time");
+                    LocalDateTime lastUpdateDateTime = null;
+                    if (lastUpdateTime != null && !lastUpdateTime.isEmpty()) {
+                        try {
+                            lastUpdateDateTime = LocalDateTime.parse(lastUpdateTime);
+                        } catch (Exception e) {
+                            // Ignore parse errors
+                        }
+                    }
+                    
+                    String annotationLastUpdateAuthor = rs.getString("annotation_last_update_author");
+                    String teamNameResult = rs.getString("team_name");
+                    String teamCode = rs.getString("team_code");
+                    String gitUrl = rs.getString("git_url");
+                    
+                    result.add(new TestMethodDetailRecord(
+                        id, repoName, testClassName, testMethodName, lineNumber,
+                        annotationTitle, annotationAuthor, annotationStatus,
+                        annotationTargetClass, annotationTargetMethod, annotationDescription,
+                        annotationTestPoints, annotationTags, annotationRequirements,
+                        annotationTestcases, annotationDefects, lastUpdateDateTime,
+                        annotationLastUpdateAuthor, teamNameResult, teamCode, gitUrl
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error during filtered query: " + e.getMessage(), e);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Count test method details with filters (for pagination)
+     * Uses same WHERE clauses as findTestMethodDetailsWithFilters
+     */
+    public long countTestMethodDetailsWithFilters(
+            Long scanSessionId,
+            String teamName,
+            String repositoryName,
+            String packageName,
+            String className,
+            Boolean annotated) {
+        
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*) 
+            FROM test_methods tm
+            JOIN test_classes tc ON tm.test_class_id = tc.id
+            JOIN repositories r ON tc.repository_id = r.id
+            LEFT JOIN teams t ON r.team_id = t.id
+            WHERE tc.scan_session_id = ?
+            """);
+        
+        List<Object> params = new ArrayList<>();
+        params.add(scanSessionId);
+        
+        // Apply same filters as in findTestMethodDetailsWithFilters
+        if (teamName != null && !teamName.trim().isEmpty()) {
+            sql.append(" AND LOWER(t.team_name) LIKE LOWER(?)");
+            params.add("%" + teamName + "%");
+        }
+        
+        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
+            sql.append(" AND LOWER(r.repository_name) LIKE LOWER(?)");
+            params.add("%" + repositoryName + "%");
+        }
+        
+        if (packageName != null && !packageName.trim().isEmpty()) {
+            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
+            params.add(packageName + ".%");
+        }
+        
+        if (className != null && !className.trim().isEmpty()) {
+            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
+            params.add("%" + className + "%");
+        }
+        
+        if (annotated != null) {
+            if (annotated) {
+                sql.append(" AND tm.annotation_title IS NOT NULL AND tm.annotation_title != ''");
+            } else {
+                sql.append(" AND (tm.annotation_title IS NULL OR tm.annotation_title = '')");
+            }
+        }
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+            
+            // Set parameters
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error during count query: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Get hierarchical summary by team (for progressive loading)
+     * Returns aggregated data grouped by team with counts and coverage
+     */
+    public List<Map<String, Object>> getHierarchyByTeam(Long scanSessionId) {
+        String sql = """
+            SELECT 
+                t.id as team_id,
+                t.team_name,
+                t.team_code,
+                COUNT(DISTINCT tc.id) as class_count,
+                COUNT(tm.id) as method_count,
+                SUM(CASE WHEN tm.annotation_title IS NOT NULL AND tm.annotation_title != '' THEN 1 ELSE 0 END) as annotated_count
+            FROM test_methods tm
+            JOIN test_classes tc ON tm.test_class_id = tc.id
+            JOIN repositories r ON tc.repository_id = r.id
+            LEFT JOIN teams t ON r.team_id = t.id
+            WHERE tc.scan_session_id = ?
+            GROUP BY t.id, t.team_name, t.team_code
+            ORDER BY t.team_name
+            """;
+        
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setLong(1, scanSessionId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    long methodCount = rs.getLong("method_count");
+                    long annotatedCount = rs.getLong("annotated_count");
+                    double coverage = methodCount > 0 ? (annotatedCount * 100.0 / methodCount) : 0.0;
+                    
+                    result.add(Map.of(
+                        "type", "TEAM",
+                        "id", rs.getObject("team_id") != null ? rs.getLong("team_id") : 0L,
+                        "name", rs.getString("team_name") != null ? rs.getString("team_name") : "Unknown",
+                        "code", rs.getString("team_code") != null ? rs.getString("team_code") : "",
+                        "classCount", rs.getLong("class_count"),
+                        "methodCount", methodCount,
+                        "annotatedCount", annotatedCount,
+                        "coverageRate", coverage
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error during hierarchy query: " + e.getMessage(), e);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Get hierarchical summary by package within a team
+     */
+    public List<Map<String, Object>> getHierarchyByPackage(Long scanSessionId, String teamName) {
+        String sql = """
+            SELECT 
+                SUBSTRING(tc.class_name FROM 1 FOR POSITION('.' IN REVERSE(tc.class_name || '.')) - 1) as package_name,
+                COUNT(DISTINCT tc.id) as class_count,
+                COUNT(tm.id) as method_count,
+                SUM(CASE WHEN tm.annotation_title IS NOT NULL AND tm.annotation_title != '' THEN 1 ELSE 0 END) as annotated_count
+            FROM test_methods tm
+            JOIN test_classes tc ON tm.test_class_id = tc.id
+            JOIN repositories r ON tc.repository_id = r.id
+            LEFT JOIN teams t ON r.team_id = t.id
+            WHERE tc.scan_session_id = ?
+            AND LOWER(t.team_name) = LOWER(?)
+            AND tc.class_name LIKE '%.%'
+            GROUP BY package_name
+            ORDER BY package_name
+            """;
+        
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setLong(1, scanSessionId);
+            stmt.setString(2, teamName);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String packageName = rs.getString("package_name");
+                    if (packageName == null || packageName.isEmpty()) {
+                        packageName = "(default package)";
+                    }
+                    
+                    long methodCount = rs.getLong("method_count");
+                    long annotatedCount = rs.getLong("annotated_count");
+                    double coverage = methodCount > 0 ? (annotatedCount * 100.0 / methodCount) : 0.0;
+                    
+                    result.add(Map.of(
+                        "type", "PACKAGE",
+                        "name", packageName,
+                        "classCount", rs.getLong("class_count"),
+                        "methodCount", methodCount,
+                        "annotatedCount", annotatedCount,
+                        "coverageRate", coverage
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error during package hierarchy query: " + e.getMessage(), e);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Get hierarchical summary by class within a package
+     */
+    public List<Map<String, Object>> getHierarchyByClass(Long scanSessionId, String teamName, String packageName) {
+        String sql = """
+            SELECT 
+                tc.id as class_id,
+                tc.class_name,
+                COUNT(tm.id) as method_count,
+                SUM(CASE WHEN tm.annotation_title IS NOT NULL AND tm.annotation_title != '' THEN 1 ELSE 0 END) as annotated_count
+            FROM test_methods tm
+            JOIN test_classes tc ON tm.test_class_id = tc.id
+            JOIN repositories r ON tc.repository_id = r.id
+            LEFT JOIN teams t ON r.team_id = t.id
+            WHERE tc.scan_session_id = ?
+            AND LOWER(t.team_name) = LOWER(?)
+            AND LOWER(tc.class_name) LIKE LOWER(?)
+            GROUP BY tc.id, tc.class_name
+            ORDER BY tc.class_name
+            """;
+        
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setLong(1, scanSessionId);
+            stmt.setString(2, teamName);
+            stmt.setString(3, packageName + ".%");
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    long methodCount = rs.getLong("method_count");
+                    long annotatedCount = rs.getLong("annotated_count");
+                    double coverage = methodCount > 0 ? (annotatedCount * 100.0 / methodCount) : 0.0;
+                    
+                    String fullClassName = rs.getString("class_name");
+                    String simpleClassName = fullClassName.contains(".") 
+                        ? fullClassName.substring(fullClassName.lastIndexOf(".") + 1)
+                        : fullClassName;
+                    
+                    result.add(Map.of(
+                        "type", "CLASS",
+                        "id", rs.getLong("class_id"),
+                        "name", simpleClassName,
+                        "fullName", fullClassName,
+                        "methodCount", methodCount,
+                        "annotatedCount", annotatedCount,
+                        "coverageRate", coverage
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error during class hierarchy query: " + e.getMessage(), e);
+        }
+        
+        return result;
     }
 }
 

@@ -760,6 +760,7 @@ public class RepositoryDataService {
 
     /**
      * Get global test method statistics (not limited to current page)
+     * ALL FILTERING IS DONE AT DATABASE LEVEL - NO CLIENT-SIDE FILTERING
      * Returns accurate totals for filtering/decision making
      */
     public Map<String, Object> getGlobalTestMethodStats(
@@ -780,54 +781,39 @@ public class RepositoryDataService {
                 
                 Long scanSessionId = latestScan.get().getId();
                 
-                // Get all records (apply filters)
-                List<TestMethodDetailRecord> allRecords = persistenceReadFacade.get()
-                    .listTestMethodDetailsByScanSessionId(scanSessionId, 100000); // Very large limit for stats
+                // Get total count with filters (from database)
+                long totalMethods = persistenceReadFacade.get()
+                    .countTestMethodDetailsWithFilters(
+                        scanSessionId, 
+                        null, // teamName (TODO: convert teamId to teamName if needed)
+                        repositoryName, 
+                        null, // packageName
+                        null, // className
+                        annotated
+                    );
                 
-                // Apply filters to get accurate counts
-                List<TestMethodDetailRecord> filteredRecords = allRecords.stream()
-                    .filter(record -> {
-                        // Organization filter (if implemented in future)
-                        // TODO: Add organization field to records when available
-                        
-                        // Team filter
-                        if (teamId != null) {
-                            // Note: TeamId isn't directly in records, filter by teamName for now
-                            // This is a limitation that should be fixed in the data model
-                        }
-                        
-                        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
-                            if (record.getRepositoryName() == null || 
-                                !record.getRepositoryName().toLowerCase().contains(repositoryName.toLowerCase())) {
-                                return false;
-                            }
-                        }
-                        
-                        if (annotated != null) {
-                            boolean isAnnotated = record.getAnnotationTitle() != null && 
-                                                 !record.getAnnotationTitle().trim().isEmpty();
-                            if (annotated != isAnnotated) {
-                                return false;
-                            }
-                        }
-                        
-                        return true;
-                    })
-                    .collect(Collectors.toList());
+                // Get annotated count with filters (from database)
+                long totalAnnotated = persistenceReadFacade.get()
+                    .countTestMethodDetailsWithFilters(
+                        scanSessionId, 
+                        null, // teamName
+                        repositoryName, 
+                        null, // packageName
+                        null, // className
+                        true  // annotated only
+                    );
                 
-                int totalMethods = filteredRecords.size();
-                int totalAnnotated = (int) filteredRecords.stream()
-                    .filter(record -> record.getAnnotationTitle() != null && 
-                                     !record.getAnnotationTitle().trim().isEmpty())
-                    .count();
-                int totalNotAnnotated = totalMethods - totalAnnotated;
+                long totalNotAnnotated = totalMethods - totalAnnotated;
                 double coverageRate = totalMethods > 0 ? 
                     (double) totalAnnotated / totalMethods * 100.0 : 0.0;
                 
+                System.err.println("Database-level stats: " + totalMethods + " total, " + 
+                    totalAnnotated + " annotated (" + String.format("%.1f", coverageRate) + "% coverage)");
+                
                 return Map.of(
-                    "totalMethods", totalMethods,
-                    "totalAnnotated", totalAnnotated,
-                    "totalNotAnnotated", totalNotAnnotated,
+                    "totalMethods", (int) totalMethods,
+                    "totalAnnotated", (int) totalAnnotated,
+                    "totalNotAnnotated", (int) totalNotAnnotated,
                     "coverageRate", coverageRate
                 );
                 
@@ -852,11 +838,13 @@ public class RepositoryDataService {
     }
 
     /**
-     * Get test method details with pagination and filtering for better performance
-     * Note: This implementation uses client-side pagination due to current PersistenceReadFacade limitations
+     * Get test method details with pagination and filtering
+     * ALL FILTERING IS DONE AT DATABASE LEVEL - NO CLIENT-SIDE FILTERING
+     * This ensures optimal performance even with 200,000+ test methods
      */
     public PagedResponse<TestMethodDetailDto> getTestMethodDetailsPaginated(
-            int page, int size, String teamName, String repositoryName, Boolean annotated) {
+            int page, int size, String organization, String teamName, String repositoryName, 
+            String packageName, String className, Boolean annotated) {
         
         if (persistenceReadFacade.isPresent()) {
             try {
@@ -867,52 +855,41 @@ public class RepositoryDataService {
                 }
                 
                 Long scanSessionId = latestScan.get().getId();
-                System.err.println("Using scan session ID: " + scanSessionId + " for paginated test methods");
+                int offset = page * size;
                 
-                // Get all records first (this is a limitation of current implementation)
-                // TODO: Implement proper database-level pagination in PersistenceReadFacade
-                List<TestMethodDetailRecord> allRecords = persistenceReadFacade.get()
-                    .listTestMethodDetailsByScanSessionId(scanSessionId, 10000); // Large limit for now
+                // Get filtered data directly from database (NO client-side filtering)
+                List<TestMethodDetailRecord> records = persistenceReadFacade.get()
+                    .listTestMethodDetailsWithFilters(
+                        scanSessionId, 
+                        teamName, 
+                        repositoryName, 
+                        packageName, 
+                        className, 
+                        annotated, 
+                        offset, 
+                        size
+                    );
                 
-                // Apply filters
-                List<TestMethodDetailRecord> filteredRecords = allRecords.stream()
-                    .filter(record -> {
-                        if (teamName != null && !teamName.trim().isEmpty()) {
-                            if (record.getTeamName() == null || 
-                                !record.getTeamName().toLowerCase().contains(teamName.toLowerCase())) {
-                                return false;
-                            }
-                        }
-                        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
-                            if (record.getRepositoryName() == null || 
-                                !record.getRepositoryName().toLowerCase().contains(repositoryName.toLowerCase())) {
-                                return false;
-                            }
-                        }
-                        if (annotated != null) {
-                            boolean isAnnotated = record.getAnnotationTitle() != null && 
-                                                 !record.getAnnotationTitle().trim().isEmpty();
-                            if (annotated != isAnnotated) {
-                                return false;
-                            }
-                        }
-                        return true;
-                    })
-                    .collect(Collectors.toList());
-                
-                // Apply pagination
-                int totalCount = filteredRecords.size();
-                int startIndex = page * size;
-                int endIndex = Math.min(startIndex + size, totalCount);
-                
-                List<TestMethodDetailRecord> paginatedRecords = filteredRecords.subList(startIndex, endIndex);
+                // Get accurate count of filtered results (from database, not memory)
+                long totalCount = persistenceReadFacade.get()
+                    .countTestMethodDetailsWithFilters(
+                        scanSessionId, 
+                        teamName, 
+                        repositoryName, 
+                        packageName, 
+                        className, 
+                        annotated
+                    );
                 
                 // Convert to DTOs
-                List<TestMethodDetailDto> methodDtos = paginatedRecords.stream()
+                List<TestMethodDetailDto> methodDtos = records.stream()
                     .map(this::convertToTestMethodDetailDto)
                     .collect(Collectors.toList());
                 
-                return new PagedResponse<>(methodDtos, page, size, totalCount);
+                System.err.println("Database-level filtering: returned " + records.size() + 
+                    " records (page " + page + " of " + (totalCount / size) + ")");
+                
+                return new PagedResponse<>(methodDtos, page, size, (int) totalCount);
                 
             } catch (Exception e) {
                 System.err.println("Error fetching paginated test method details: " + e.getMessage());
@@ -923,5 +900,40 @@ public class RepositoryDataService {
             System.err.println("PersistenceReadFacade is not available - database may not be configured");
             return new PagedResponse<>(List.of(), page, size, 0);
         }
+    }
+    
+    /**
+     * Get hierarchical data for progressive loading
+     * Supports drill-down: Team → Package → Class
+     */
+    public List<Map<String, Object>> getHierarchy(String level, String teamName, String packageName) {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
+                if (latestScan.isEmpty()) {
+                    System.err.println("No completed scan session found");
+                    return List.of();
+                }
+                
+                Long scanSessionId = latestScan.get().getId();
+                
+                // Return aggregated data based on hierarchy level
+                if ("TEAM".equalsIgnoreCase(level)) {
+                    return persistenceReadFacade.get().getHierarchyByTeam(scanSessionId);
+                } else if ("PACKAGE".equalsIgnoreCase(level) && teamName != null) {
+                    return persistenceReadFacade.get().getHierarchyByPackage(scanSessionId, teamName);
+                } else if ("CLASS".equalsIgnoreCase(level) && teamName != null && packageName != null) {
+                    return persistenceReadFacade.get().getHierarchyByClass(scanSessionId, teamName, packageName);
+                }
+                
+                return List.of();
+                
+            } catch (Exception e) {
+                System.err.println("Error fetching hierarchy: " + e.getMessage());
+                e.printStackTrace();
+                return List.of();
+            }
+        }
+        return List.of();
     }
 }

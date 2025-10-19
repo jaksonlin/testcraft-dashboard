@@ -8,10 +8,16 @@ import TestMethodsHeader from '../components/test-methods/TestMethodsHeader';
 
 const TestMethodsView: React.FC = () => {
   const [filters, setFilters] = useState({
+    organization: '',
     teamName: '',
     repositoryName: '',
+    packageName: '',
+    className: '',
     annotated: undefined as boolean | undefined
   });
+  
+  // Organizations for dropdown
+  const [organizations, setOrganizations] = useState<string[]>([]);
   
   // Global statistics (not per-page)
   const [globalStats, setGlobalStats] = useState({
@@ -37,8 +43,11 @@ const TestMethodsView: React.FC = () => {
       const response = await api.dashboard.getTestMethodDetailsPaginated(
         page,
         size,
+        currentFilters.organization || undefined,
         currentFilters.teamName || undefined,
         currentFilters.repositoryName || undefined,
+        currentFilters.packageName || undefined,
+        currentFilters.className || undefined,
         currentFilters.annotated
       );
       return {
@@ -52,6 +61,19 @@ const TestMethodsView: React.FC = () => {
     initialPageSize: 50,
     initialFilters: filters
   });
+  
+  // Load organizations on mount
+  React.useEffect(() => {
+    const loadOrganizations = async () => {
+      try {
+        const orgs = await api.dashboard.getOrganizations();
+        setOrganizations(orgs);
+      } catch (error) {
+        console.error('Failed to load organizations:', error);
+      }
+    };
+    loadOrganizations();
+  }, []);
   
   // Load global statistics
   React.useEffect(() => {
@@ -232,10 +254,28 @@ const TestMethodsView: React.FC = () => {
 
         {/* Filters */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
+          
+          {/* Primary Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Team Filter
+                Organization
+              </label>
+              <select
+                value={filters.organization}
+                onChange={(e) => handleFilterChange({ organization: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Organizations</option>
+                {organizations.map(org => (
+                  <option key={org} value={org}>{org}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Team
               </label>
               <input
                 type="text"
@@ -247,13 +287,41 @@ const TestMethodsView: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Repository Filter
+                Repository
               </label>
               <input
                 type="text"
-                placeholder="Filter by repository name..."
+                placeholder="Filter by repository..."
                 value={filters.repositoryName}
                 onChange={(e) => handleFilterChange({ repositoryName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Secondary Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Package
+              </label>
+              <input
+                type="text"
+                placeholder="com.acme.tests..."
+                value={filters.packageName}
+                onChange={(e) => handleFilterChange({ packageName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Class Name
+              </label>
+              <input
+                type="text"
+                placeholder="UserService..."
+                value={filters.className}
+                onChange={(e) => handleFilterChange({ className: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -277,6 +345,60 @@ const TestMethodsView: React.FC = () => {
               </select>
             </div>
           </div>
+          
+          {/* Active Filters Display */}
+          {(filters.organization || filters.teamName || filters.repositoryName || filters.packageName || filters.className || filters.annotated !== undefined) && (
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+              {filters.organization && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Org: {filters.organization}
+                </span>
+              )}
+              {filters.teamName && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Team: {filters.teamName}
+                </span>
+              )}
+              {filters.repositoryName && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Repo: {filters.repositoryName}
+                </span>
+              )}
+              {filters.packageName && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Package: {filters.packageName}
+                </span>
+              )}
+              {filters.className && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Class: {filters.className}
+                </span>
+              )}
+              {filters.annotated !== undefined && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  {filters.annotated ? 'Annotated' : 'Not Annotated'}
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  const clearedFilters = {
+                    organization: '',
+                    teamName: '',
+                    repositoryName: '',
+                    packageName: '',
+                    className: '',
+                    annotated: undefined as boolean | undefined
+                  };
+                  setFilters(clearedFilters);
+                  setDataFilters(clearedFilters);
+                }}
+                className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:underline"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Stats */}

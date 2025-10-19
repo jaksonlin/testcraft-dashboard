@@ -10,6 +10,7 @@ import AnalyticsView from '../views/AnalyticsView';
 import SettingsView from '../views/SettingsView';
 import TestMethodGroupedView from '../views/TestMethodGroupedView';
 import TestMethodsView from '../views/TestMethodsView';
+import TestMethodHierarchicalView from '../views/TestMethodHierarchicalView';
 import { TestCasesView } from '../views/TestCasesView';
 
 const router = createBrowserRouter([
@@ -51,11 +52,15 @@ const router = createBrowserRouter([
               },
               {
                 path: 'test-methods',
+                element: <TestMethodsView />
+              },
+              {
+                path: 'test-methods-grouped',
                 element: <TestMethodGroupedView />
               },
               {
-                path: 'test-methods-paginated',
-                element: <TestMethodsView />
+                path: 'test-methods-hierarchy',
+                element: <TestMethodHierarchicalView />
               }
     ]
   }

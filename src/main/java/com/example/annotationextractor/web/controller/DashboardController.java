@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * REST Controller for dashboard data
@@ -116,17 +118,21 @@ public class DashboardController {
 
     /**
      * Get all test method details with pagination for better performance
+     * Enhanced with organization, package, and class filters
      */
     @GetMapping("/test-methods/paginated")
     public ResponseEntity<PagedResponse<TestMethodDetailDto>> getTestMethodDetailsPaginated(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String organization,
             @RequestParam(required = false) String teamName,
             @RequestParam(required = false) String repositoryName,
+            @RequestParam(required = false) String packageName,
+            @RequestParam(required = false) String className,
             @RequestParam(required = false) Boolean annotated) {
         if (repositoryDataService != null) {
             PagedResponse<TestMethodDetailDto> result = repositoryDataService.getTestMethodDetailsPaginated(
-                page, size, teamName, repositoryName, annotated);
+                page, size, organization, teamName, repositoryName, packageName, className, annotated);
             return ResponseEntity.ok(result);
         } else {
             PagedResponse<TestMethodDetailDto> emptyResponse = new PagedResponse<>(List.of(), page, size, 0);
@@ -148,6 +154,39 @@ public class DashboardController {
             GroupedTestMethodResponse emptyResponse = new GroupedTestMethodResponse(List.of(), null);
             return ResponseEntity.ok(emptyResponse);
         }
+    }
+
+    /**
+     * Get distinct organizations from teams
+     * Used for organization filter dropdown
+     */
+    @GetMapping("/test-methods/organizations")
+    public ResponseEntity<List<String>> getOrganizations() {
+        if (teamDataService != null) {
+            try {
+                List<TeamMetricsDto> teams = teamDataService.getTeamMetrics();
+                // Extract distinct organizations from team codes or names
+                // For now, return distinct team names as organizations
+                // TODO: Add proper organization field to teams table
+                List<String> organizations = teams.stream()
+                    .map(team -> {
+                        // Try to derive organization from team code (e.g., "ACME-ENG" -> "ACME")
+                        String teamCode = team.getTeamCode();
+                        if (teamCode != null && teamCode.contains("-")) {
+                            return teamCode.substring(0, teamCode.indexOf("-"));
+                        }
+                        return "Default Organization";
+                    })
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.toList());
+                return ResponseEntity.ok(organizations);
+            } catch (Exception e) {
+                System.err.println("Error fetching organizations: " + e.getMessage());
+                return ResponseEntity.ok(List.of("Default Organization"));
+            }
+        }
+        return ResponseEntity.ok(List.of("Default Organization"));
     }
 
     /**
@@ -183,6 +222,33 @@ public class DashboardController {
                 "coverageRate", 0.0
             ));
         }
+    }
+
+    /**
+     * Get hierarchical data for progressive loading and drill-down navigation
+     * Supports: TEAM → PACKAGE → CLASS hierarchy
+     * 
+     * Examples:
+     * - GET /hierarchy?level=TEAM → Returns all teams with aggregated stats
+     * - GET /hierarchy?level=PACKAGE&teamName=Engineering → Returns packages within Engineering team
+     * - GET /hierarchy?level=CLASS&teamName=Engineering&packageName=com.acme.tests → Returns classes within package
+     */
+    @GetMapping("/test-methods/hierarchy")
+    public ResponseEntity<List<Map<String, Object>>> getHierarchy(
+            @RequestParam String level,
+            @RequestParam(required = false) String teamName,
+            @RequestParam(required = false) String packageName) {
+        if (repositoryDataService != null) {
+            try {
+                List<Map<String, Object>> hierarchy = repositoryDataService.getHierarchy(level, teamName, packageName);
+                return ResponseEntity.ok(hierarchy);
+            } catch (Exception e) {
+                System.err.println("Error fetching hierarchy: " + e.getMessage());
+                e.printStackTrace();
+                return ResponseEntity.ok(List.of());
+            }
+        }
+        return ResponseEntity.ok(List.of());
     }
 
     /**
