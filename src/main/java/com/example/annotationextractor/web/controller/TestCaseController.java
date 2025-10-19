@@ -389,6 +389,61 @@ public class TestCaseController {
     }
     
     /**
+     * Delete all test cases matching filters (bulk deletion)
+     * 
+     * DELETE /api/testcases?organization=ACME&teamId=5&status=inactive
+     * 
+     * WARNING: This is a destructive operation!
+     * Requires 'confirm=true' parameter to execute.
+     */
+    @DeleteMapping
+    public ResponseEntity<?> deleteAllTestCases(
+            @RequestParam(required = false) String organization,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) Long teamId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = true) boolean confirm) {
+        
+        try {
+            // Safety check: require explicit confirmation
+            if (!confirm) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Bulk deletion requires confirmation",
+                    "message", "Add parameter 'confirm=true' to execute bulk deletion"
+                ));
+            }
+            
+            // Prevent accidental deletion of all data (require at least one filter)
+            if (organization == null && type == null && priority == null && 
+                teamId == null && status == null && search == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Bulk deletion requires at least one filter",
+                    "message", "Specify organization, team, type, priority, status, or search filter to prevent accidental deletion of all test cases"
+                ));
+            }
+            
+            // Log the deletion attempt for audit
+            System.out.println("BULK DELETE requested: org=" + organization + ", team=" + teamId + 
+                ", type=" + type + ", priority=" + priority + ", status=" + status + ", search=" + search);
+            
+            int deleted = testCaseService.deleteAllTestCasesWithFilters(
+                organization, type, priority, teamId, status, search);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "deleted", deleted,
+                "message", "Successfully deleted " + deleted + " test case(s)"
+            ));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to delete test cases: " + e.getMessage()));
+        }
+    }
+    
+    /**
      * Helper: Check if file is Excel
      */
     private boolean isExcelFile(String filename) {

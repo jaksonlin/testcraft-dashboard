@@ -201,6 +201,40 @@ export const deleteTestCase = async (internalId: number): Promise<void> => {
 };
 
 /**
+ * Delete all test cases matching filters (bulk deletion)
+ * WARNING: This is a destructive operation!
+ * Requires at least one filter and explicit confirmation.
+ * 
+ * @param filters - Filter criteria (organization, teamId, type, priority, status, search)
+ * @param confirm - Must be true to execute (safety check)
+ * @returns Number of deleted test cases
+ */
+export const deleteAllTestCases = async (
+  filters: {
+    organization?: string;
+    teamId?: number;
+    type?: string;
+    priority?: string;
+    status?: string;
+    search?: string;
+  },
+  confirm: boolean = false
+): Promise<{ success: boolean; deleted: number; message: string }> => {
+  const params = new URLSearchParams();
+  
+  if (filters.organization) params.append('organization', filters.organization);
+  if (filters.teamId) params.append('teamId', filters.teamId.toString());
+  if (filters.type) params.append('type', filters.type);
+  if (filters.priority) params.append('priority', filters.priority);
+  if (filters.status) params.append('status', filters.status);
+  if (filters.search) params.append('search', filters.search);
+  params.append('confirm', confirm.toString());
+  
+  const response = await axios.delete(`${API_BASE_URL}/testcases?${params.toString()}`);
+  return response.data;
+};
+
+/**
  * Get distinct organizations for filter dropdown
  */
 export const getOrganizations = async (): Promise<string[]> => {

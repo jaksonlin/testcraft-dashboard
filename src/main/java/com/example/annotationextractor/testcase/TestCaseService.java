@@ -293,6 +293,16 @@ public class TestCaseService {
     }
     
     /**
+     * Delete all test cases matching filters (bulk deletion)
+     * WARNING: This is a destructive operation!
+     * Returns the number of deleted test cases.
+     */
+    public int deleteAllTestCasesWithFilters(String organization, String type, String priority, 
+                                             Long teamId, String status, String search) throws SQLException {
+        return testCaseRepository.deleteAllWithFilters(organization, type, priority, teamId, status, search);
+    }
+    
+    /**
      * Get distinct organizations for filter dropdown
      */
     public List<String> getDistinctOrganizations() throws SQLException {

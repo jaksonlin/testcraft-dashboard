@@ -600,6 +600,65 @@ public class TestCaseRepository {
     }
     
     /**
+     * Delete all test cases matching filters (for bulk operations)
+     * WARNING: This performs bulk deletion - use with caution!
+     * Returns the number of deleted records.
+     */
+    public int deleteAllWithFilters(String organization, String type, String priority, 
+                                    Long teamId, String status, String search) throws SQLException {
+        StringBuilder sql = new StringBuilder("DELETE FROM test_cases WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+        
+        // Apply filters (same logic as findAll)
+        if (organization != null && !organization.trim().isEmpty()) {
+            sql.append(" AND organization = ?");
+            params.add(organization);
+        }
+        
+        if (type != null && !type.trim().isEmpty()) {
+            sql.append(" AND type = ?");
+            params.add(type);
+        }
+        
+        if (priority != null && !priority.trim().isEmpty()) {
+            sql.append(" AND priority = ?");
+            params.add(priority);
+        }
+        
+        if (teamId != null) {
+            sql.append(" AND team_id = ?");
+            params.add(teamId);
+        }
+        
+        if (status != null && !status.trim().isEmpty()) {
+            sql.append(" AND status = ?");
+            params.add(status);
+        }
+        
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (LOWER(external_id) LIKE LOWER(?) OR LOWER(title) LIKE LOWER(?))");
+            String searchPattern = "%" + search + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
+        }
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+            
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+            
+            int deleted = stmt.executeUpdate();
+            System.out.println("Bulk delete: removed " + deleted + " test cases with filters: " + 
+                "org=" + organization + ", team=" + teamId + ", type=" + type + 
+                ", priority=" + priority + ", status=" + status + ", search=" + search);
+            
+            return deleted;
+        }
+    }
+    
+    /**
      * Get distinct organization values from test cases
      */
     public List<String> findDistinctOrganizations() throws SQLException {

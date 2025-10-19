@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { List, AlertTriangle, CheckCircle } from 'lucide-react';
+import { List, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
 import { TestCaseUploadModal } from '../components/testcases/TestCaseUploadModal';
 import { TestCaseListTable } from '../components/testcases/TestCaseListTable';
 import { TestCaseCoverageCard } from '../components/testcases/TestCaseCoverageCard';
@@ -12,7 +12,7 @@ import Pagination from '../components/shared/Pagination';
 import { Toast } from '../components/shared/Toast';
 import { useTestCaseData, type TabType, type TestCaseFilters } from '../hooks/useTestCaseData';
 import type { TestCase, Team } from '../lib/testCaseApi';
-import { getOrganizations, getTeams } from '../lib/testCaseApi';
+import { getOrganizations, getTeams, deleteAllTestCases } from '../lib/testCaseApi';
 
 /**
  * Main Test Cases view with tabs for list, coverage, and gaps.
@@ -114,6 +114,88 @@ export const TestCasesView: React.FC = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    // Check if any filters are active
+    const hasActiveFilters = !!(
+      uiFilters.organization ||
+      uiFilters.teamId ||
+      uiFilters.priority ||
+      uiFilters.type ||
+      uiFilters.status ||
+      uiFilters.search
+    );
+
+    if (!hasActiveFilters) {
+      setToastMessage('Please apply at least one filter before bulk delete');
+      setToastType('error');
+      setShowToast(true);
+      return;
+    }
+
+    // Get count of filtered results
+    const count = activeTab === 'list' 
+      ? listPagination.totalPages * listPagination.pageSize 
+      : coverageStats?.total || 0;
+
+    // First confirmation
+    const filterSummary = [
+      uiFilters.organization && `Organization: ${uiFilters.organization}`,
+      uiFilters.teamId && `Team ID: ${uiFilters.teamId}`,
+      uiFilters.type && `Type: ${uiFilters.type}`,
+      uiFilters.priority && `Priority: ${uiFilters.priority}`,
+      uiFilters.status && `Status: ${uiFilters.status}`,
+      uiFilters.search && `Search: ${uiFilters.search}`,
+    ].filter(Boolean).join('\n');
+
+    const confirmed = window.confirm(
+      `⚠️ WARNING: PERMANENT DELETION\n\n` +
+      `You are about to DELETE approximately ${count} test cases matching:\n\n` +
+      `${filterSummary}\n\n` +
+      `THIS CANNOT BE UNDONE!\n\n` +
+      `Click OK to continue, or Cancel to abort.`
+    );
+
+    if (!confirmed) return;
+
+    // Second confirmation (safety)
+    const doubleConfirmed = window.confirm(
+      `🚨 FINAL CONFIRMATION\n\n` +
+      `This will PERMANENTLY DELETE test cases from the database.\n\n` +
+      `Are you ABSOLUTELY SURE?\n\n` +
+      `Click OK to DELETE, or Cancel to abort.`
+    );
+
+    if (!doubleConfirmed) return;
+
+    try {
+      // Execute bulk delete
+      const result = await deleteAllTestCases(
+        {
+          organization: uiFilters.organization || undefined,
+          teamId: uiFilters.teamId ? Number(uiFilters.teamId) : undefined,
+          type: uiFilters.type || undefined,
+          priority: uiFilters.priority || undefined,
+          status: uiFilters.status || undefined,
+          search: uiFilters.search || undefined,
+        },
+        true // confirm
+      );
+
+      setToastMessage(`Successfully deleted ${result.deleted} test case(s)`);
+      setToastType('success');
+      setShowToast(true);
+      
+      // Reload data
+      loadData();
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to delete test cases';
+      setToastMessage(`Error: ${errorMsg}`);
+      setToastType('error');
+      setShowToast(true);
+    }
+  };
+
   const handlePageSizeChange = (size: number) => {
     if (activeTab === 'gaps') {
       setGapsPageSize(size);
@@ -209,6 +291,34 @@ export const TestCasesView: React.FC = () => {
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">All Test Cases</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">View and manage all imported test cases</p>
             </div>
+            
+            {/* Bulk Delete Section - Only visible when filters are active */}
+            {(uiFilters.organization || uiFilters.teamId || uiFilters.priority || 
+              uiFilters.type || uiFilters.status || uiFilters.search) && (
+              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-red-900 dark:text-red-200">
+                      ⚠️ Bulk Actions Available
+                    </p>
+                    <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                      {listPagination.totalPages * listPagination.pageSize} test cases match current filters
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete All Filtered Test Cases
+                  </button>
+                </div>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                  ⚠️ Warning: This action is permanent and cannot be undone. Always export data before bulk deletion.
+                </p>
+              </div>
+            )}
+            
             <TestCaseListTable
               testCases={testCases}
               filters={uiFilters}
