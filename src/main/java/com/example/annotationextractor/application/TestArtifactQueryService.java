@@ -81,7 +81,87 @@ public class TestArtifactQueryService {
     public long countTestMethodDetailsByScanSessionId(Long scanSessionId) {
         return testMethodPort.countByScanSessionId(scanSessionId);
     }
-
+    
+    /**
+     * List test method details with DATABASE-level filtering (no client-side filtering)
+     * All filters are applied via SQL WHERE clauses for optimal performance
+     */
+    public List<TestMethodDetailRecord> listTestMethodDetailsWithFilters(
+            Long scanSessionId,
+            String teamName,
+            String repositoryName,
+            String packageName,
+            String className,
+            Boolean annotated,
+            Integer offset,
+            Integer limit) {
+        // Cast to concrete implementation to access new method
+        if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
+                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            return adapter.findTestMethodDetailsWithFilters(
+                scanSessionId, teamName, repositoryName, packageName, className, annotated, offset, limit);
+        }
+        // Fallback for other implementations (shouldn't happen)
+        return List.of();
+    }
+    
+    /**
+     * Count test method details with filters for pagination
+     */
+    public long countTestMethodDetailsWithFilters(
+            Long scanSessionId,
+            String teamName,
+            String repositoryName,
+            String packageName,
+            String className,
+            Boolean annotated) {
+        // Cast to concrete implementation to access new method
+        if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
+                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            return adapter.countTestMethodDetailsWithFilters(
+                scanSessionId, teamName, repositoryName, packageName, className, annotated);
+        }
+        // Fallback for other implementations (shouldn't happen)
+        return 0;
+    }
+    
+    /**
+     * Get hierarchical summary grouped by teams
+     */
+    public List<java.util.Map<String, Object>> getHierarchyByTeam(Long scanSessionId) {
+        if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
+                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            return adapter.getHierarchyByTeam(scanSessionId);
+        }
+        return java.util.List.of();
+    }
+    
+    /**
+     * Get hierarchical summary grouped by packages within a team
+     */
+    public List<java.util.Map<String, Object>> getHierarchyByPackage(Long scanSessionId, String teamName) {
+        if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
+                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            return adapter.getHierarchyByPackage(scanSessionId, teamName);
+        }
+        return java.util.List.of();
+    }
+    
+    /**
+     * Get hierarchical summary grouped by classes within a package
+     */
+    public List<java.util.Map<String, Object>> getHierarchyByClass(Long scanSessionId, String teamName, String packageName) {
+        if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
+                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            return adapter.getHierarchyByClass(scanSessionId, teamName, packageName);
+        }
+        return java.util.List.of();
+    }
 
 }
 

@@ -43,6 +43,10 @@ public class TestCase {
     private String createdBy;
     private String organization;
     
+    // Team association
+    private Long teamId;           // Foreign key to teams table
+    private String teamName;        // Team name (denormalized for convenience)
+    
     public TestCase() {
         this.customFields = new HashMap<>();
         this.tags = new String[0];
@@ -217,6 +221,22 @@ public class TestCase {
     
     public void setOrganization(String organization) {
         this.organization = organization;
+    }
+    
+    public Long getTeamId() {
+        return teamId;
+    }
+    
+    public void setTeamId(Long teamId) {
+        this.teamId = teamId;
+    }
+    
+    public String getTeamName() {
+        return teamName;
+    }
+    
+    public void setTeamName(String teamName) {
+        this.teamName = teamName;
     }
     
     @Override

@@ -29,7 +29,9 @@ public class ExcelParserService {
         Map.entry("expected_result", List.of("expected", "expected_result", "expectedresult", "result", "verification", "then", "should")),
         Map.entry("priority", List.of("priority", "importance", "severity", "criticality")),
         Map.entry("type", List.of("type", "category", "test_type", "testtype", "kind")),
-        Map.entry("status", List.of("status", "state", "condition"))
+        Map.entry("status", List.of("status", "state", "condition")),
+        Map.entry("organization", List.of("organization", "organisation", "org", "company", "department", "dept")),
+        Map.entry("team", List.of("team", "team_name", "teamname", "owner", "owned_by", "squad", "group"))
     );
     
     /**
@@ -372,6 +374,13 @@ public class ExcelParserService {
         testCase.setPriority(getCellValue(row, columnIndexes.get("priority")));
         testCase.setType(getCellValue(row, columnIndexes.get("type")));
         testCase.setStatus(getCellValue(row, columnIndexes.get("status")));
+        testCase.setOrganization(getCellValue(row, columnIndexes.get("organization")));
+        
+        // Team name (will be looked up to team_id in service layer if needed)
+        String teamName = getCellValue(row, columnIndexes.get("team"));
+        if (teamName != null && !teamName.trim().isEmpty()) {
+            testCase.setTeamName(teamName.trim());
+        }
         
         // Extract custom fields (unmapped columns)
         Map<String, Object> customFields = new HashMap<>();

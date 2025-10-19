@@ -1,16 +1,41 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, ExternalLink, FileText, Target } from 'lucide-react';
 import { api, type TestMethodDetail } from '../lib/api';
 import PaginatedTable, { type ColumnDef } from '../components/shared/PaginatedTable';
 import { usePaginatedData } from '../hooks/usePaginatedData';
 import { isMethodAnnotated, getAnnotationStatusDisplayName } from '../utils/methodUtils';
 import TestMethodsHeader from '../components/test-methods/TestMethodsHeader';
+import { useSearchParams } from 'react-router-dom';
+import { HighlightedText } from '../components/shared/HighlightedText';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 const TestMethodsView: React.FC = () => {
-  const [filters, setFilters] = useState({
-    teamName: '',
-    repositoryName: '',
-    annotated: undefined as boolean | undefined
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Initialize filters from URL query parameters
+  const getInitialFilters = () => {
+    return {
+      organization: searchParams.get('org') || '',
+      teamName: searchParams.get('team') || '',
+      repositoryName: searchParams.get('repo') || '',
+      packageName: searchParams.get('package') || '',
+      className: searchParams.get('class') || '',
+      annotated: searchParams.get('annotated') === 'true' ? true : 
+                 searchParams.get('annotated') === 'false' ? false : undefined
+    };
+  };
+  
+  const [filters, setFilters] = useState(getInitialFilters);
+  
+  // Organizations for dropdown
+  const [organizations, setOrganizations] = useState<string[]>([]);
+  
+  // Global statistics (not per-page)
+  const [globalStats, setGlobalStats] = useState({
+    totalMethods: 0,
+    totalAnnotated: 0,
+    totalNotAnnotated: 0,
+    coverageRate: 0
   });
 
   const {
@@ -29,8 +54,11 @@ const TestMethodsView: React.FC = () => {
       const response = await api.dashboard.getTestMethodDetailsPaginated(
         page,
         size,
+        currentFilters.organization || undefined,
         currentFilters.teamName || undefined,
         currentFilters.repositoryName || undefined,
+        currentFilters.packageName || undefined,
+        currentFilters.className || undefined,
         currentFilters.annotated
       );
       return {
@@ -44,12 +72,126 @@ const TestMethodsView: React.FC = () => {
     initialPageSize: 50,
     initialFilters: filters
   });
+  
+  // Load organizations on mount
+  React.useEffect(() => {
+    const loadOrganizations = async () => {
+      try {
+        const orgs = await api.dashboard.getOrganizations();
+        setOrganizations(orgs);
+      } catch (error) {
+        console.error('Failed to load organizations:', error);
+      }
+    };
+    loadOrganizations();
+  }, []);
+  
+  // Load global statistics
+  React.useEffect(() => {
+    const loadGlobalStats = async () => {
+      try {
+        const stats = await api.dashboard.getGlobalTestMethodStats(
+          undefined,
+          undefined,
+          filters.repositoryName || undefined,
+          filters.annotated
+        );
+        setGlobalStats(stats);
+      } catch (error) {
+        console.error('Failed to load global stats:', error);
+      }
+    };
+    loadGlobalStats();
+  }, [filters]);
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     const updatedFilters = { ...filters, ...newFilters };
     setFilters(updatedFilters);
     setDataFilters(updatedFilters);
   };
+  
+  // Clear all filters
+  const clearAllFilters = useCallback(() => {
+    const emptyFilters = {
+      organization: '',
+      teamName: '',
+      repositoryName: '',
+      packageName: '',
+      className: '',
+      annotated: undefined as boolean | undefined
+    };
+    setFilters(emptyFilters);
+    setDataFilters(emptyFilters);
+  }, [setDataFilters]);
+  
+  // Keyboard shortcuts for power users
+  useKeyboardShortcuts([
+    {
+      key: 'ArrowRight',
+      callback: () => {
+        const totalPages = Math.ceil(totalElements / pageSize);
+        if (currentPage < totalPages - 1) {
+          setPage(currentPage + 1);
+        }
+      },
+      description: 'Next page'
+    },
+    {
+      key: 'ArrowLeft',
+      callback: () => {
+        if (currentPage > 0) {
+          setPage(currentPage - 1);
+        }
+      },
+      description: 'Previous page'
+    },
+    {
+      key: 'PageDown',
+      callback: () => {
+        const totalPages = Math.ceil(totalElements / pageSize);
+        if (currentPage < totalPages - 1) {
+          setPage(currentPage + 1);
+        }
+      },
+      description: 'Next page'
+    },
+    {
+      key: 'PageUp',
+      callback: () => {
+        if (currentPage > 0) {
+          setPage(currentPage - 1);
+        }
+      },
+      description: 'Previous page'
+    },
+    {
+      key: '/',
+      ctrlKey: true,
+      callback: clearAllFilters,
+      description: 'Clear all filters'
+    },
+    {
+      key: 'r',
+      ctrlKey: true,
+      callback: refresh,
+      description: 'Refresh data'
+    }
+  ]);
+  
+  // Update URL when filters change (makes filters bookmarkable and shareable)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    
+    if (filters.organization) params.set('org', filters.organization);
+    if (filters.teamName) params.set('team', filters.teamName);
+    if (filters.repositoryName) params.set('repo', filters.repositoryName);
+    if (filters.packageName) params.set('package', filters.packageName);
+    if (filters.className) params.set('class', filters.className);
+    if (filters.annotated !== undefined) params.set('annotated', filters.annotated.toString());
+    
+    // Update URL without triggering navigation
+    setSearchParams(params, { replace: true });
+  }, [filters, setSearchParams]);
 
 
   const columns: ColumnDef<TestMethodDetail>[] = useMemo(() => [
@@ -58,9 +200,11 @@ const TestMethodsView: React.FC = () => {
       header: 'Repository',
       render: (method) => (
         <div className="flex items-center space-x-2">
-          <span className="font-medium text-gray-900 dark:text-gray-100">
-            {method.repository}
-          </span>
+          <HighlightedText
+            text={method.repository}
+            highlight={filters.repositoryName}
+            className="font-medium text-gray-900 dark:text-gray-100"
+          />
           <a
             href={method.gitUrl}
             target="_blank"
@@ -79,9 +223,11 @@ const TestMethodsView: React.FC = () => {
       key: 'testClass',
       header: 'Test Class',
       render: (method) => (
-        <span className="text-gray-900 dark:text-gray-100 font-mono text-sm">
-          {method.testClass}
-        </span>
+        <HighlightedText
+          text={method.testClass}
+          highlight={filters.className || filters.packageName}
+          className="text-gray-900 dark:text-gray-100 font-mono text-sm"
+        />
       ),
       sortable: true,
       width: '250px'
@@ -90,9 +236,11 @@ const TestMethodsView: React.FC = () => {
       key: 'testMethod',
       header: 'Test Method',
       render: (method) => (
-        <span className="text-gray-900 dark:text-gray-100 font-mono text-sm">
-          {method.testMethod}
-        </span>
+        <HighlightedText
+          text={method.testMethod}
+          highlight={filters.className}
+          className="text-gray-900 dark:text-gray-100 font-mono text-sm"
+        />
       ),
       sortable: true,
       width: '200px'
@@ -126,9 +274,11 @@ const TestMethodsView: React.FC = () => {
       key: 'title',
       header: 'Title',
       render: (method) => (
-        <span className="text-gray-900 dark:text-gray-100 truncate max-w-xs">
-          {method.title || 'No title'}
-        </span>
+        <HighlightedText
+          text={method.title || 'No title'}
+          highlight={filters.className || filters.packageName}
+          className="text-gray-900 dark:text-gray-100 truncate max-w-xs inline-block"
+        />
       ),
       sortable: true,
       width: '300px'
@@ -170,7 +320,7 @@ const TestMethodsView: React.FC = () => {
       sortable: true,
       width: '100px'
     }
-  ], []);
+  ], [filters.repositoryName, filters.className, filters.packageName]);
 
   if (error) {
     return (
@@ -206,10 +356,28 @@ const TestMethodsView: React.FC = () => {
 
         {/* Filters */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
+          
+          {/* Primary Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Team Filter
+                Organization
+              </label>
+              <select
+                value={filters.organization}
+                onChange={(e) => handleFilterChange({ organization: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Organizations</option>
+                {organizations.map(org => (
+                  <option key={org} value={org}>{org}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Team
               </label>
               <input
                 type="text"
@@ -221,13 +389,41 @@ const TestMethodsView: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Repository Filter
+                Repository
               </label>
               <input
                 type="text"
-                placeholder="Filter by repository name..."
+                placeholder="Filter by repository..."
                 value={filters.repositoryName}
                 onChange={(e) => handleFilterChange({ repositoryName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Secondary Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Package
+              </label>
+              <input
+                type="text"
+                placeholder="com.acme.tests..."
+                value={filters.packageName}
+                onChange={(e) => handleFilterChange({ packageName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Class Name
+              </label>
+              <input
+                type="text"
+                placeholder="UserService..."
+                value={filters.className}
+                onChange={(e) => handleFilterChange({ className: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -251,6 +447,50 @@ const TestMethodsView: React.FC = () => {
               </select>
             </div>
           </div>
+          
+          {/* Active Filters Display */}
+          {(filters.organization || filters.teamName || filters.repositoryName || filters.packageName || filters.className || filters.annotated !== undefined) && (
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+              {filters.organization && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Org: {filters.organization}
+                </span>
+              )}
+              {filters.teamName && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Team: {filters.teamName}
+                </span>
+              )}
+              {filters.repositoryName && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Repo: {filters.repositoryName}
+                </span>
+              )}
+              {filters.packageName && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Package: {filters.packageName}
+                </span>
+              )}
+              {filters.className && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Class: {filters.className}
+                </span>
+              )}
+              {filters.annotated !== undefined && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  {filters.annotated ? 'Annotated' : 'Not Annotated'}
+                </span>
+              )}
+              <button
+                onClick={clearAllFilters}
+                className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:underline"
+                title="Clear all filters (Ctrl+/)"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Stats */}
@@ -263,7 +503,10 @@ const TestMethodsView: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Methods</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {totalElements.toLocaleString()}
+                  {globalStats.totalMethods.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  Showing {testMethods.length} on page
                 </p>
               </div>
             </div>
@@ -276,7 +519,10 @@ const TestMethodsView: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Annotated</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {testMethods.filter(isMethodAnnotated).length.toLocaleString()}
+                  {globalStats.totalAnnotated.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  {testMethods.filter(isMethodAnnotated).length} on page
                 </p>
               </div>
             </div>
@@ -289,7 +535,10 @@ const TestMethodsView: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Not Annotated</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {testMethods.filter(m => !isMethodAnnotated(m)).length.toLocaleString()}
+                  {globalStats.totalNotAnnotated.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  {testMethods.filter(m => !isMethodAnnotated(m)).length} on page
                 </p>
               </div>
             </div>
@@ -302,10 +551,10 @@ const TestMethodsView: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Coverage Rate</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {testMethods.length > 0 
-                    ? ((testMethods.filter(isMethodAnnotated).length / testMethods.length) * 100).toFixed(1)
-                    : '0.0'
-                  }%
+                  {globalStats.coverageRate.toFixed(1)}%
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  Global coverage
                 </p>
               </div>
             </div>
@@ -325,6 +574,16 @@ const TestMethodsView: React.FC = () => {
           searchable={false}
           className="shadow-lg"
         />
+        
+        {/* Keyboard Shortcuts Help */}
+        <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <p className="text-xs text-blue-900 dark:text-blue-100">
+            <strong>⌨️ Keyboard Shortcuts:</strong> 
+            <span className="ml-2">←/→ or PageUp/PageDown: Navigate pages</span>
+            <span className="ml-3">Ctrl+/: Clear filters</span>
+            <span className="ml-3">Ctrl+R: Refresh</span>
+          </p>
+        </div>
       </main>
     </div>
   );

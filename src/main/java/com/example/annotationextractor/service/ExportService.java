@@ -88,16 +88,15 @@ public class ExportService {
             }
 
             // Process export based on data type
-            String filePath = null;
             switch (request.getDataType()) {
                 case "test-methods":
-                    filePath = exportTestMethodDetails(jobId, request, totalRecords);
+                    exportTestMethodDetails(jobId, request, totalRecords);
                     break;
                 case "repositories":
-                    filePath = exportRepositories(jobId, request, totalRecords);
+                    exportRepositories(jobId, request, totalRecords);
                     break;
                 case "teams":
-                    filePath = exportTeams(jobId, request, totalRecords);
+                    exportTeams(jobId, request, totalRecords);
                     break;
                 default:
                     throw new IllegalArgumentException("Unsupported data type: " + request.getDataType());
@@ -143,8 +142,11 @@ public class ExportService {
 
         // Extract filters
         Map<String, Object> filters = request.getFilters() != null ? request.getFilters() : new HashMap<>();
+        String organization = (String) filters.get("organization");
         String teamName = (String) filters.get("teamName");
         String repositoryName = (String) filters.get("repositoryName");
+        String packageName = (String) filters.get("packageName");
+        String className = (String) filters.get("className");
         Boolean annotated = (Boolean) filters.get("annotated");
 
         try (FileWriter writer = new FileWriter(filePath);
@@ -163,8 +165,10 @@ public class ExportService {
                     30 + (int) ((processedRecords * 60.0) / totalRecords), 
                     "Processing records " + processedRecords + " to " + Math.min(processedRecords + pageSize, totalRecords));
 
-                // Fetch chunk of data
-                var chunkData = repositoryDataService.getTestMethodDetailsPaginated(page, pageSize, teamName, repositoryName, annotated);
+                // Fetch chunk of data with all filter parameters
+                com.example.annotationextractor.web.dto.PagedResponse<TestMethodDetailDto> chunkData = 
+                    repositoryDataService.getTestMethodDetailsPaginated(
+                        page, pageSize, organization, teamName, repositoryName, packageName, className, annotated);
                 
                 if (chunkData.getContent().isEmpty()) {
                     break; // No more data
@@ -333,12 +337,17 @@ public class ExportService {
             switch (request.getDataType()) {
                 case "test-methods":
                     Map<String, Object> filters = request.getFilters() != null ? request.getFilters() : new HashMap<>();
+                    String organization = (String) filters.get("organization");
                     String teamName = (String) filters.get("teamName");
                     String repositoryName = (String) filters.get("repositoryName");
+                    String packageName = (String) filters.get("packageName");
+                    String className = (String) filters.get("className");
                     Boolean annotated = (Boolean) filters.get("annotated");
 
                     // Get a small sample to determine total count
-                    var sample = repositoryDataService.getTestMethodDetailsPaginated(0, 1, teamName, repositoryName, annotated);
+                    com.example.annotationextractor.web.dto.PagedResponse<TestMethodDetailDto> sample = 
+                        repositoryDataService.getTestMethodDetailsPaginated(
+                            0, 1, organization, teamName, repositoryName, packageName, className, annotated);
                     return sample.getTotalElements();
                     
                 case "repositories":

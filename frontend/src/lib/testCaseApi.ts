@@ -53,6 +53,10 @@ export interface TestCase {
   createdBy?: string;
   organization?: string;
   
+  // Team association
+  teamId?: number;
+  teamName?: string;
+  
   // Legacy field for backward compatibility (returns externalId)
   id?: string;
 }
@@ -122,7 +126,8 @@ export const importTestCases = async (
   dataStartRow: number,
   replaceExisting: boolean = true,
   createdBy: string = 'system',
-  organization: string = 'default'
+  organization: string = 'default',
+  teamId?: number
 ): Promise<ImportResponse> => {
   const formData = new FormData();
   formData.append('file', file);
@@ -132,6 +137,9 @@ export const importTestCases = async (
   formData.append('replaceExisting', replaceExisting.toString());
   formData.append('createdBy', createdBy);
   formData.append('organization', organization);
+  if (teamId) {
+    formData.append('teamId', teamId.toString());
+  }
 
   const response = await axios.post(
     `${API_BASE_URL}/testcases/upload/import`,
@@ -156,7 +164,7 @@ export interface PageResponse<T> {
   total: number;
 }
 
-export const getAllTestCases = async (params?: { page?: number; size?: number; organization?: string; type?: string; priority?: string }): Promise<PageResponse<TestCase>> => {
+export const getAllTestCases = async (params?: { page?: number; size?: number; organization?: string; type?: string; priority?: string; teamId?: number; status?: string; search?: string }): Promise<PageResponse<TestCase>> => {
   const response = await axios.get(`${API_BASE_URL}/testcases`, { params });
   return response.data as PageResponse<TestCase>;
 };
@@ -190,5 +198,63 @@ export const getUntestedCases = async (params?: { page?: number; size?: number }
  */
 export const deleteTestCase = async (internalId: number): Promise<void> => {
   await axios.delete(`${API_BASE_URL}/testcases/${internalId}`);
+};
+
+/**
+ * Delete all test cases matching filters (bulk deletion)
+ * WARNING: This is a destructive operation!
+ * Requires at least one filter and explicit confirmation.
+ * 
+ * @param filters - Filter criteria (organization, teamId, type, priority, status, search)
+ * @param confirm - Must be true to execute (safety check)
+ * @returns Number of deleted test cases
+ */
+export const deleteAllTestCases = async (
+  filters: {
+    organization?: string;
+    teamId?: number;
+    type?: string;
+    priority?: string;
+    status?: string;
+    search?: string;
+  },
+  confirm: boolean = false
+): Promise<{ success: boolean; deleted: number; message: string }> => {
+  const params = new URLSearchParams();
+  
+  if (filters.organization) params.append('organization', filters.organization);
+  if (filters.teamId) params.append('teamId', filters.teamId.toString());
+  if (filters.type) params.append('type', filters.type);
+  if (filters.priority) params.append('priority', filters.priority);
+  if (filters.status) params.append('status', filters.status);
+  if (filters.search) params.append('search', filters.search);
+  params.append('confirm', confirm.toString());
+  
+  const response = await axios.delete(`${API_BASE_URL}/testcases?${params.toString()}`);
+  return response.data;
+};
+
+/**
+ * Get distinct organizations for filter dropdown
+ */
+export const getOrganizations = async (): Promise<string[]> => {
+  const response = await axios.get(`${API_BASE_URL}/testcases/organizations`);
+  return response.data;
+};
+
+/**
+ * Team interface for filter dropdown
+ */
+export interface Team {
+  id: number;
+  name: string;
+}
+
+/**
+ * Get all teams for filter dropdown
+ */
+export const getTeams = async (): Promise<Team[]> => {
+  const response = await axios.get(`${API_BASE_URL}/testcases/teams`);
+  return response.data;
 };
 

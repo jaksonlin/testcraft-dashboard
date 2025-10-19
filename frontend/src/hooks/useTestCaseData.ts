@@ -15,12 +15,22 @@ interface PaginationState {
   totalPages: number;
 }
 
+export interface TestCaseFilters {
+  organization?: string;
+  teamId?: number;
+  type?: string;
+  priority?: string;
+  status?: string;
+  search?: string;
+}
+
 interface TestCaseDataState {
   testCases: TestCase[];
   untestedCases: TestCase[];
   coverageStats: CoverageStats | null;
   listPagination: PaginationState;
   gapsPagination: PaginationState;
+  filters: TestCaseFilters;
   loading: boolean;
   error: string | null;
 }
@@ -34,6 +44,7 @@ interface UseTestCaseDataReturn extends TestCaseDataState {
   setListPageSize: (size: number) => void;
   setGapsPage: (page: number) => void;
   setGapsPageSize: (size: number) => void;
+  setFilters: (filters: TestCaseFilters) => void;
   clearError: () => void;
 }
 
@@ -47,16 +58,18 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
     coverageStats: null,
     listPagination: { page: 0, pageSize: 20, totalPages: 0 },
     gapsPagination: { page: 0, pageSize: 20, totalPages: 0 },
+    filters: {},
     loading: true,
     error: null,
   });
 
-  // Load test cases with pagination
+  // Load test cases with pagination and filters
   const loadTestCases = useCallback(async () => {
     try {
       const testCasesData = await getAllTestCases({
         page: state.listPagination.page,
-        size: state.listPagination.pageSize
+        size: state.listPagination.pageSize,
+        ...state.filters
       });
       
       setState(prev => ({
@@ -75,7 +88,7 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
         error: 'Failed to load test cases'
       }));
     }
-  }, [state.listPagination.page, state.listPagination.pageSize]);
+  }, [state.listPagination.page, state.listPagination.pageSize, state.filters]);
 
   // Load gaps with pagination
   const loadGaps = useCallback(async () => {
@@ -111,7 +124,8 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
       const [testCasesData, stats, gaps] = await Promise.all([
         getAllTestCases({
           page: state.listPagination.page,
-          size: state.listPagination.pageSize
+          size: state.listPagination.pageSize,
+          ...state.filters
         }),
         getCoverageStats(),
         getUntestedCases({
@@ -144,7 +158,7 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
         error: 'Failed to load test case data'
       }));
     }
-  }, [state.listPagination.page, state.listPagination.pageSize, state.gapsPagination.page, state.gapsPagination.pageSize]);
+  }, [state.listPagination.page, state.listPagination.pageSize, state.gapsPagination.page, state.gapsPagination.pageSize, state.filters]);
 
   // Delete test case
   const handleDelete = useCallback(async (internalId: number) => {
@@ -160,6 +174,15 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
       throw error; // Re-throw for component to handle
     }
   }, [loadData]);
+
+  // Filter setter
+  const setFilters = useCallback((filters: TestCaseFilters) => {
+    setState(prev => ({
+      ...prev,
+      filters,
+      listPagination: { ...prev.listPagination, page: 0 } // Reset to first page when filters change
+    }));
+  }, []);
 
   // Pagination setters
   const setListPage = useCallback((page: number) => {
@@ -194,10 +217,22 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
     setState(prev => ({ ...prev, error: null }));
   }, []);
 
-  // Load data on mount
+  // Load data on mount only
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount
+
+  // Reload when filters or pagination change (but not on mount)
+  useEffect(() => {
+    // Skip if this is initial load (loading is true)
+    if (state.loading) {
+      return;
+    }
+    
+    loadTestCases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.filters, state.listPagination.page, state.listPagination.pageSize]); // Don't include loadTestCases to avoid recreation cycles
 
   return {
     ...state,
@@ -209,6 +244,7 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
     setListPageSize,
     setGapsPage,
     setGapsPageSize,
+    setFilters,
     clearError,
   };
 };

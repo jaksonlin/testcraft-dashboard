@@ -54,7 +54,8 @@ public class TestCaseService {
             int dataStartRow,
             boolean replaceExisting,
             String createdBy,
-            String organization) throws Exception {
+            String organization,
+            Long teamId) throws Exception {
         
         // Read upload into memory once so we can create fresh streams for each pass
         byte[] bytes;
@@ -95,10 +96,46 @@ public class TestCaseService {
             .filter(TestCase::isValid)
             .collect(Collectors.toList());
         
-        // Set metadata
+        // Set metadata and resolve team names to team IDs
         for (TestCase testCase : validTestCases) {
             testCase.setCreatedBy(createdBy);
-            testCase.setOrganization(organization);
+            
+            // Organization hierarchy:
+            // 1. UI selection (highest priority)
+            // 2. Excel organization column (if present)
+            // 3. Derive from team (if team is specified)
+            // 4. Leave null (user must specify later)
+            
+            if (organization != null && !organization.trim().isEmpty()) {
+                // UI selection always overrides
+                testCase.setOrganization(organization);
+            } else if (testCase.getOrganization() != null && !testCase.getOrganization().trim().isEmpty()) {
+                // Keep Excel organization if present
+                // (already set from Excel)
+            } else {
+                // No organization specified - leave null
+                // User can filter/update later
+                // This is better than defaulting to "default" which creates orphaned data
+                testCase.setOrganization(null);
+            }
+            
+            // Team: UI selection always overrides Excel (if provided)
+            if (teamId != null) {
+                testCase.setTeamId(teamId);
+            }
+            // Fallback to Excel team if UI didn't specify
+            else if (testCase.getTeamName() != null && !testCase.getTeamName().trim().isEmpty()) {
+                try {
+                    Long lookupTeamId = testCaseRepository.findTeamIdByName(testCase.getTeamName());
+                    if (lookupTeamId != null) {
+                        testCase.setTeamId(lookupTeamId);
+                    }
+                    // Note: teamName is kept for display purposes even if lookup fails
+                } catch (SQLException e) {
+                    // Log warning but don't fail import - team assignment can be done later
+                    System.err.println("Warning: Could not lookup team '" + testCase.getTeamName() + "': " + e.getMessage());
+                }
+            }
         }
         
         // Import to database
@@ -174,11 +211,18 @@ public class TestCaseService {
         return testCaseRepository.findAll();
     }
 
-    public List<TestCase> getAllTestCasesPaged(Integer page, Integer size, String organization, String type, String priority) throws SQLException {
+    public List<TestCase> getAllTestCasesPaged(Integer page, Integer size, String organization, String type, String priority, Long teamId, String status, String search) throws SQLException {
         int pageNum = page != null && page >= 0 ? page : 0;
         int pageSize = size != null && size > 0 ? size : 20;
         int offset = pageNum * pageSize;
-        return testCaseRepository.findAllPaged(organization, type, priority, offset, pageSize);
+        return testCaseRepository.findAllPaged(organization, type, priority, teamId, status, search, offset, pageSize);
+    }
+    
+    /**
+     * Count test cases with filters (for pagination)
+     */
+    public int countTestCases(String organization, String type, String priority, Long teamId, String status, String search) throws SQLException {
+        return testCaseRepository.countAll(organization, type, priority, teamId, status, search);
     }
     
     /**
@@ -246,6 +290,30 @@ public class TestCaseService {
      */
     public boolean deleteTestCaseByExternalId(String externalId, String organization) throws SQLException {
         return testCaseRepository.deleteByExternalId(externalId, organization);
+    }
+    
+    /**
+     * Delete all test cases matching filters (bulk deletion)
+     * WARNING: This is a destructive operation!
+     * Returns the number of deleted test cases.
+     */
+    public int deleteAllTestCasesWithFilters(String organization, String type, String priority, 
+                                             Long teamId, String status, String search) throws SQLException {
+        return testCaseRepository.deleteAllWithFilters(organization, type, priority, teamId, status, search);
+    }
+    
+    /**
+     * Get distinct organizations for filter dropdown
+     */
+    public List<String> getDistinctOrganizations() throws SQLException {
+        return testCaseRepository.findDistinctOrganizations();
+    }
+    
+    /**
+     * Get all teams for filter dropdown
+     */
+    public List<Map<String, Object>> getAllTeams() throws SQLException {
+        return testCaseRepository.findAllTeams();
     }
     
     /**

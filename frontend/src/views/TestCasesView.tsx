@@ -10,8 +10,9 @@ import { CoverageBreakdown } from '../components/testcases/CoverageBreakdown';
 import TestCasesHeader from '../components/testcases/TestCasesHeader';
 import Pagination from '../components/shared/Pagination';
 import { Toast } from '../components/shared/Toast';
-import { useTestCaseData, type TabType } from '../hooks/useTestCaseData';
-import type { TestCase } from '../lib/testCaseApi';
+import { useTestCaseData, type TabType, type TestCaseFilters } from '../hooks/useTestCaseData';
+import type { TestCase, Team } from '../lib/testCaseApi';
+import { getOrganizations, getTeams, deleteAllTestCases } from '../lib/testCaseApi';
 
 /**
  * Main Test Cases view with tabs for list, coverage, and gaps.
@@ -24,6 +25,16 @@ export const TestCasesView: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [organizations, setOrganizations] = useState<string[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [uiFilters, setUiFilters] = useState({
+    organization: '',
+    teamId: '',
+    priority: '',
+    type: '',
+    status: '',
+    search: ''
+  });
 
   // Use the custom hook for data management
   const {
@@ -42,8 +53,26 @@ export const TestCasesView: React.FC = () => {
     setListPageSize,
     setGapsPage,
     setGapsPageSize,
+    setFilters,
     clearError,
   } = useTestCaseData();
+
+  // Load organizations and teams on mount
+  useEffect(() => {
+    const loadFiltersData = async () => {
+      try {
+        const [orgs, teamsData] = await Promise.all([
+          getOrganizations(),
+          getTeams()
+        ]);
+        setOrganizations(orgs);
+        setTeams(teamsData);
+      } catch (error) {
+        console.error('Failed to load filter data:', error);
+      }
+    };
+    loadFiltersData();
+  }, []);
 
   // Show error toast
   useEffect(() => {
@@ -55,14 +84,15 @@ export const TestCasesView: React.FC = () => {
     }
   }, [error, clearError]);
 
-  // Reload data when tab changes
+  // Reload data when tab changes (not when functions are recreated)
   useEffect(() => {
     if (activeTab === 'list') {
       loadTestCases();
     } else if (activeTab === 'gaps') {
       loadGaps();
     }
-  }, [activeTab, loadTestCases, loadGaps]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]); // Only depend on activeTab, not the functions themselves
 
   const handleUploadComplete = () => {
     loadData();
@@ -84,6 +114,88 @@ export const TestCasesView: React.FC = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    // Check if any filters are active
+    const hasActiveFilters = !!(
+      uiFilters.organization ||
+      uiFilters.teamId ||
+      uiFilters.priority ||
+      uiFilters.type ||
+      uiFilters.status ||
+      uiFilters.search
+    );
+
+    if (!hasActiveFilters) {
+      setToastMessage('Please apply at least one filter before bulk delete');
+      setToastType('error');
+      setShowToast(true);
+      return;
+    }
+
+    // Get count of filtered results
+    const count = activeTab === 'list' 
+      ? listPagination.totalPages * listPagination.pageSize 
+      : coverageStats?.total || 0;
+
+    // First confirmation
+    const filterSummary = [
+      uiFilters.organization && `Organization: ${uiFilters.organization}`,
+      uiFilters.teamId && `Team ID: ${uiFilters.teamId}`,
+      uiFilters.type && `Type: ${uiFilters.type}`,
+      uiFilters.priority && `Priority: ${uiFilters.priority}`,
+      uiFilters.status && `Status: ${uiFilters.status}`,
+      uiFilters.search && `Search: ${uiFilters.search}`,
+    ].filter(Boolean).join('\n');
+
+    const confirmed = window.confirm(
+      `⚠️ WARNING: PERMANENT DELETION\n\n` +
+      `You are about to DELETE approximately ${count} test cases matching:\n\n` +
+      `${filterSummary}\n\n` +
+      `THIS CANNOT BE UNDONE!\n\n` +
+      `Click OK to continue, or Cancel to abort.`
+    );
+
+    if (!confirmed) return;
+
+    // Second confirmation (safety)
+    const doubleConfirmed = window.confirm(
+      `🚨 FINAL CONFIRMATION\n\n` +
+      `This will PERMANENTLY DELETE test cases from the database.\n\n` +
+      `Are you ABSOLUTELY SURE?\n\n` +
+      `Click OK to DELETE, or Cancel to abort.`
+    );
+
+    if (!doubleConfirmed) return;
+
+    try {
+      // Execute bulk delete
+      const result = await deleteAllTestCases(
+        {
+          organization: uiFilters.organization || undefined,
+          teamId: uiFilters.teamId ? Number(uiFilters.teamId) : undefined,
+          type: uiFilters.type || undefined,
+          priority: uiFilters.priority || undefined,
+          status: uiFilters.status || undefined,
+          search: uiFilters.search || undefined,
+        },
+        true // confirm
+      );
+
+      setToastMessage(`Successfully deleted ${result.deleted} test case(s)`);
+      setToastType('success');
+      setShowToast(true);
+      
+      // Reload data
+      loadData();
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to delete test cases';
+      setToastMessage(`Error: ${errorMsg}`);
+      setToastType('error');
+      setShowToast(true);
+    }
+  };
+
   const handlePageSizeChange = (size: number) => {
     if (activeTab === 'gaps') {
       setGapsPageSize(size);
@@ -93,6 +205,22 @@ export const TestCasesView: React.FC = () => {
   };
 
   const currentPageSize = activeTab === 'gaps' ? gapsPagination.pageSize : listPagination.pageSize;
+
+  // Handle filter changes - convert UI filters to backend filters
+  const handleFilterChange = (newFilters: typeof uiFilters) => {
+    setUiFilters(newFilters);
+    
+    // Convert to backend filter format
+    const backendFilters: TestCaseFilters = {};
+    if (newFilters.organization) backendFilters.organization = newFilters.organization;
+    if (newFilters.teamId) backendFilters.teamId = Number(newFilters.teamId);
+    if (newFilters.priority) backendFilters.priority = newFilters.priority;
+    if (newFilters.type) backendFilters.type = newFilters.type;
+    if (newFilters.status) backendFilters.status = newFilters.status;
+    if (newFilters.search) backendFilters.search = newFilters.search;
+    
+    setFilters(backendFilters);
+  };
 
   if (loading) {
     return (
@@ -109,6 +237,15 @@ export const TestCasesView: React.FC = () => {
         pageSize={currentPageSize}
         onPageSizeChange={handlePageSizeChange}
         onUploadClick={() => setIsUploadModalOpen(true)}
+        onBulkDelete={handleBulkDelete}
+        hasActiveFilters={!!(
+          uiFilters.organization ||
+          uiFilters.teamId ||
+          uiFilters.priority ||
+          uiFilters.type ||
+          uiFilters.status ||
+          uiFilters.search
+        )}
       />
 
       {/* Coverage Stats Cards */}
@@ -163,8 +300,14 @@ export const TestCasesView: React.FC = () => {
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">All Test Cases</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">View and manage all imported test cases</p>
             </div>
+            
+            
             <TestCaseListTable
               testCases={testCases}
+              filters={uiFilters}
+              organizations={organizations}
+              teams={teams}
+              onFilterChange={handleFilterChange}
               onViewDetails={setSelectedTestCase}
               onDelete={handleDeleteWithToast}
             />
@@ -216,6 +359,10 @@ export const TestCasesView: React.FC = () => {
               <>
                 <TestCaseListTable
                   testCases={untestedCases}
+                  filters={uiFilters}
+                  organizations={organizations}
+                  teams={teams}
+                  onFilterChange={handleFilterChange}
                   onViewDetails={setSelectedTestCase}
                 />
                 <Pagination
