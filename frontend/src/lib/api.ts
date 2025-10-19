@@ -312,6 +312,22 @@ export const api = {
     // Grouped test method details for hierarchical display
     getAllTestMethodDetailsGrouped: (limit?: number): Promise<GroupedTestMethodResponse> =>
       apiClient.get(`/dashboard/test-methods/grouped${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
+    
+    // Get global test method statistics (not limited to current page)
+    getGlobalTestMethodStats: (organization?: string, teamId?: number, repositoryName?: string, annotated?: boolean): Promise<{
+      totalMethods: number;
+      totalAnnotated: number;
+      totalNotAnnotated: number;
+      coverageRate: number;
+    }> => {
+      const params = new URLSearchParams();
+      if (organization) params.append('organization', organization);
+      if (teamId) params.append('teamId', teamId.toString());
+      if (repositoryName) params.append('repositoryName', repositoryName);
+      if (annotated !== undefined) params.append('annotated', annotated.toString());
+      const queryString = params.toString();
+      return apiClient.get(`/dashboard/test-methods/stats/global${queryString ? `?${queryString}` : ''}`).then(res => res.data);
+    },
   },
 
   // Repository endpoints

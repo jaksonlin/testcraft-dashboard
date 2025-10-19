@@ -759,6 +759,99 @@ public class RepositoryDataService {
     }
 
     /**
+     * Get global test method statistics (not limited to current page)
+     * Returns accurate totals for filtering/decision making
+     */
+    public Map<String, Object> getGlobalTestMethodStats(
+            String organization, Long teamId, String repositoryName, Boolean annotated) {
+        
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
+                if (latestScan.isEmpty()) {
+                    System.err.println("No completed scan session found");
+                    return Map.of(
+                        "totalMethods", 0,
+                        "totalAnnotated", 0,
+                        "totalNotAnnotated", 0,
+                        "coverageRate", 0.0
+                    );
+                }
+                
+                Long scanSessionId = latestScan.get().getId();
+                
+                // Get all records (apply filters)
+                List<TestMethodDetailRecord> allRecords = persistenceReadFacade.get()
+                    .listTestMethodDetailsByScanSessionId(scanSessionId, 100000); // Very large limit for stats
+                
+                // Apply filters to get accurate counts
+                List<TestMethodDetailRecord> filteredRecords = allRecords.stream()
+                    .filter(record -> {
+                        // Organization filter (if implemented in future)
+                        // TODO: Add organization field to records when available
+                        
+                        // Team filter
+                        if (teamId != null) {
+                            // Note: TeamId isn't directly in records, filter by teamName for now
+                            // This is a limitation that should be fixed in the data model
+                        }
+                        
+                        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
+                            if (record.getRepositoryName() == null || 
+                                !record.getRepositoryName().toLowerCase().contains(repositoryName.toLowerCase())) {
+                                return false;
+                            }
+                        }
+                        
+                        if (annotated != null) {
+                            boolean isAnnotated = record.getAnnotationTitle() != null && 
+                                                 !record.getAnnotationTitle().trim().isEmpty();
+                            if (annotated != isAnnotated) {
+                                return false;
+                            }
+                        }
+                        
+                        return true;
+                    })
+                    .collect(Collectors.toList());
+                
+                int totalMethods = filteredRecords.size();
+                int totalAnnotated = (int) filteredRecords.stream()
+                    .filter(record -> record.getAnnotationTitle() != null && 
+                                     !record.getAnnotationTitle().trim().isEmpty())
+                    .count();
+                int totalNotAnnotated = totalMethods - totalAnnotated;
+                double coverageRate = totalMethods > 0 ? 
+                    (double) totalAnnotated / totalMethods * 100.0 : 0.0;
+                
+                return Map.of(
+                    "totalMethods", totalMethods,
+                    "totalAnnotated", totalAnnotated,
+                    "totalNotAnnotated", totalNotAnnotated,
+                    "coverageRate", coverageRate
+                );
+                
+            } catch (Exception e) {
+                System.err.println("Error calculating global test method stats: " + e.getMessage());
+                e.printStackTrace();
+                return Map.of(
+                    "totalMethods", 0,
+                    "totalAnnotated", 0,
+                    "totalNotAnnotated", 0,
+                    "coverageRate", 0.0
+                );
+            }
+        } else {
+            return Map.of(
+                "totalMethods", 0,
+                "totalAnnotated", 0,
+                "totalNotAnnotated", 0,
+                "coverageRate", 0.0
+            );
+        }
+    }
+
+    /**
      * Get test method details with pagination and filtering for better performance
      * Note: This implementation uses client-side pagination due to current PersistenceReadFacade limitations
      */

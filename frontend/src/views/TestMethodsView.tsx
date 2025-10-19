@@ -12,6 +12,14 @@ const TestMethodsView: React.FC = () => {
     repositoryName: '',
     annotated: undefined as boolean | undefined
   });
+  
+  // Global statistics (not per-page)
+  const [globalStats, setGlobalStats] = useState({
+    totalMethods: 0,
+    totalAnnotated: 0,
+    totalNotAnnotated: 0,
+    coverageRate: 0
+  });
 
   const {
     data: testMethods,
@@ -44,6 +52,24 @@ const TestMethodsView: React.FC = () => {
     initialPageSize: 50,
     initialFilters: filters
   });
+  
+  // Load global statistics
+  React.useEffect(() => {
+    const loadGlobalStats = async () => {
+      try {
+        const stats = await api.dashboard.getGlobalTestMethodStats(
+          undefined,
+          undefined,
+          filters.repositoryName || undefined,
+          filters.annotated
+        );
+        setGlobalStats(stats);
+      } catch (error) {
+        console.error('Failed to load global stats:', error);
+      }
+    };
+    loadGlobalStats();
+  }, [filters]);
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     const updatedFilters = { ...filters, ...newFilters };
@@ -263,7 +289,10 @@ const TestMethodsView: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Methods</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {totalElements.toLocaleString()}
+                  {globalStats.totalMethods.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  Showing {testMethods.length} on page
                 </p>
               </div>
             </div>
@@ -276,7 +305,10 @@ const TestMethodsView: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Annotated</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {testMethods.filter(isMethodAnnotated).length.toLocaleString()}
+                  {globalStats.totalAnnotated.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  {testMethods.filter(isMethodAnnotated).length} on page
                 </p>
               </div>
             </div>
@@ -289,7 +321,10 @@ const TestMethodsView: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Not Annotated</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {testMethods.filter(m => !isMethodAnnotated(m)).length.toLocaleString()}
+                  {globalStats.totalNotAnnotated.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  {testMethods.filter(m => !isMethodAnnotated(m)).length} on page
                 </p>
               </div>
             </div>
@@ -302,10 +337,10 @@ const TestMethodsView: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Coverage Rate</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {testMethods.length > 0 
-                    ? ((testMethods.filter(isMethodAnnotated).length / testMethods.length) * 100).toFixed(1)
-                    : '0.0'
-                  }%
+                  {globalStats.coverageRate.toFixed(1)}%
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  Global coverage
                 </p>
               </div>
             </div>

@@ -151,6 +151,41 @@ public class DashboardController {
     }
 
     /**
+     * Get global test method statistics (not limited to current page)
+     * Returns accurate totals for all test methods across all teams/repositories
+     */
+    @GetMapping("/test-methods/stats/global")
+    public ResponseEntity<?> getGlobalTestMethodStats(
+            @RequestParam(required = false) String organization,
+            @RequestParam(required = false) Long teamId,
+            @RequestParam(required = false) String repositoryName,
+            @RequestParam(required = false) Boolean annotated) {
+        if (repositoryDataService != null) {
+            try {
+                Map<String, Object> stats = repositoryDataService.getGlobalTestMethodStats(
+                    organization, teamId, repositoryName, annotated);
+                return ResponseEntity.ok(stats);
+            } catch (Exception e) {
+                System.err.println("Error fetching global test method stats: " + e.getMessage());
+                e.printStackTrace();
+                return ResponseEntity.ok(Map.of(
+                    "totalMethods", 0,
+                    "totalAnnotated", 0,
+                    "totalNotAnnotated", 0,
+                    "coverageRate", 0.0
+                ));
+            }
+        } else {
+            return ResponseEntity.ok(Map.of(
+                "totalMethods", 0,
+                "totalAnnotated", 0,
+                "totalNotAnnotated", 0,
+                "coverageRate", 0.0
+            ));
+        }
+    }
+
+    /**
      * Get health status of the dashboard
      */
     @GetMapping("/health")

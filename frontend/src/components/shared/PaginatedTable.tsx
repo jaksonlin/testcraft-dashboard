@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, Filter } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from 'lucide-react';
 
 interface PaginatedTableProps<T> {
   data: T[];
@@ -41,6 +41,7 @@ const PaginatedTable = <T,>({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [jumpToPage, setJumpToPage] = useState('');
 
   const totalPages = Math.ceil(totalItems / pageSize);
   const startItem = currentPage * pageSize + 1;
@@ -65,6 +66,20 @@ const PaginatedTable = <T,>({
       onPageChange(page);
     }
   }, [onPageChange, totalPages]);
+  
+  const handleJumpToPage = useCallback(() => {
+    const pageNum = parseInt(jumpToPage) - 1; // User enters 1-based, we use 0-based
+    if (!isNaN(pageNum) && pageNum >= 0 && pageNum < totalPages) {
+      goToPage(pageNum);
+      setJumpToPage('');
+    }
+  }, [jumpToPage, totalPages, goToPage]);
+  
+  const handleJumpKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleJumpToPage();
+    }
+  }, [handleJumpToPage]);
 
   const pageNumbers = useMemo(() => {
     const pages: (number | string)[] = [];
@@ -143,6 +158,7 @@ const PaginatedTable = <T,>({
                 <option value={50}>50</option>
                 <option value={100}>100</option>
                 <option value={200}>200</option>
+                <option value={500}>500</option>
               </select>
               <span className="text-sm text-gray-700 dark:text-gray-300">per page</span>
             </div>
@@ -248,6 +264,29 @@ const PaginatedTable = <T,>({
             >
               <ChevronsRight className="h-4 w-4" />
             </button>
+            
+            {/* Jump to Page */}
+            {totalPages > 10 && (
+              <div className="flex items-center space-x-2 ml-4">
+                <span className="text-sm text-gray-700 dark:text-gray-300">Go to:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={totalPages}
+                  value={jumpToPage}
+                  onChange={(e) => setJumpToPage(e.target.value)}
+                  onKeyPress={handleJumpKeyPress}
+                  placeholder={`1-${totalPages}`}
+                  className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+                <button
+                  onClick={handleJumpToPage}
+                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  Go
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
