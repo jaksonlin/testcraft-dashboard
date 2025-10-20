@@ -266,16 +266,16 @@ export interface ExportStatus {
 
 export interface ScanSession {
   id: number;
-  startTime: string;
-  endTime: string;
-  status: string;
+  scanDate: string;
+  scanDirectory: string;
   totalRepositories: number;
-  successfulRepositories: number;
-  failedRepositories: number;
   totalTestClasses: number;
   totalTestMethods: number;
   totalAnnotatedMethods: number;
-  overallCoverageRate: number;
+  scanDurationMs: number;
+  scanStatus: string;
+  errorLog?: string | null;
+  metadata?: any;
 }
 
 export interface HierarchyNode {
