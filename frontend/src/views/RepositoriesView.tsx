@@ -30,7 +30,7 @@ const RepositoriesView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [sortBy, setSortBy] = useState<string>('name');
-  const [sortOrder, setSortOrder] = useState<string>('asc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Advanced filtering
   const [searchTerm, setSearchTerm] = useState('');

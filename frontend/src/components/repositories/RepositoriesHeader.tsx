@@ -9,11 +9,11 @@ interface RepositoriesHeaderProps {
   sortBy: string;
   onSortByChange: (field: string) => void;
   sortOptions: SortOption[];
-  sortOrder: string;
+  sortOrder: 'asc' | 'desc';
   onSortOrderChange: (order: 'asc' | 'desc') => void;
   repositories: any[];
   selectedItems: Set<number>;
-  onExport: (option: ExportOption) => void;
+  onExport: (option: ExportOption) => Promise<void>;
   onColumnManagerOpen: () => void;
 }
 

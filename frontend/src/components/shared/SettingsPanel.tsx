@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Palette, Layout, Columns, Bell, RotateCcw, X, Monitor, Sun, Moon } from 'lucide-react';
+import { Settings, Palette, Columns, Bell, RotateCcw, X, Monitor, Sun, Moon } from 'lucide-react';
 import { usePreferences, type Theme, type Density } from '../../contexts/PreferencesContext';
 
 interface SettingsPanelProps {

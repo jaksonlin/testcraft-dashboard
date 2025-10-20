@@ -9,7 +9,7 @@ interface MethodsTableProps {
   className?: string;
 }
 
-const MethodsTable: React.FC<MethodsTableProps> = ({ methods, className }) => {
+const MethodsTable: React.FC<MethodsTableProps> = ({ methods }) => {
   if (methods.length === 0) {
     return (
       <div className="text-center py-12">

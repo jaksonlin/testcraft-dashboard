@@ -10,7 +10,7 @@ interface UseScanConfigReturn {
   clearMessages: () => void;
 }
 
-export const useScanConfig = (scanConfig: ScanConfig | null, onConfigUpdated: () => void): UseScanConfigReturn => {
+export const useScanConfig = (_scanConfig: ScanConfig | null, onConfigUpdated: () => void): UseScanConfigReturn => {
   const [configLoading, setConfigLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
   const [configSuccess, setConfigSuccess] = useState<string | null>(null);

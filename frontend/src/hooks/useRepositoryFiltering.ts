@@ -1,19 +1,11 @@
 import { useState, useMemo } from 'react';
+import { type RepositorySummary } from '../lib/api';
 
 export type RepositorySortBy = 'name' | 'coverage' | 'methods' | 'classes';
 export type SortOrder = 'asc' | 'desc';
 
-interface Repository {
-  repositoryName: string;
-  gitUrl: string;
-  coverageRate: number;
-  testMethodCount: number;
-  testClassCount: number;
-  [key: string]: any;
-}
-
 interface UseRepositoryFilteringOptions {
-  repositories: Repository[];
+  repositories: RepositorySummary[];
   itemsPerPage?: number;
 }
 

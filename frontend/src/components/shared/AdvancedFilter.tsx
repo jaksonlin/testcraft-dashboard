@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Search, Filter, X, ChevronDown, ChevronUp, Calendar, Users, GitBranch, BarChart3 } from 'lucide-react';
 
 export interface FilterOption {

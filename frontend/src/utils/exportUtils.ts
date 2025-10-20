@@ -11,6 +11,9 @@ export interface ExportData {
   methods?: TestMethodDetail[];
   groupedMethods?: GroupedTestMethodResponse;
   classes?: TestClassSummary[];
+  scanHistory?: any[];
+  dashboardOverview?: any;
+  exportDate?: Date;
   metadata: {
     exportDate: string;
     totalItems: number;

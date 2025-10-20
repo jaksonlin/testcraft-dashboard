@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Columns, Eye, EyeOff, GripVertical, X, Check } from 'lucide-react';
-import { useTablePreferences, type ColumnPreference } from '../../contexts/PreferencesContext';
+import { useTablePreferences } from '../../contexts/PreferencesContext';
 
 interface Column {
   id: string;

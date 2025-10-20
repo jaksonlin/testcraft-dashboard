@@ -1,18 +1,9 @@
 import React from 'react';
 import GitUrlLink from '../shared/GitUrlLink';
-
-interface Repository {
-  repositoryId: number;
-  repositoryName: string;
-  gitUrl: string;
-  testClassCount: number;
-  testMethodCount: number;
-  coverageRate: number;
-  lastScanDate?: string;
-}
+import { type RepositorySummary } from '../../lib/api';
 
 interface RepositoryTableProps {
-  repositories: Repository[];
+  repositories: RepositorySummary[];
 }
 
 const RepositoryTable: React.FC<RepositoryTableProps> = ({ repositories }) => {
