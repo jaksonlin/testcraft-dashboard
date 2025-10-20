@@ -19,19 +19,40 @@ FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
-# Install curl for healthcheck
-RUN apk add --no-cache curl
+# Install curl for healthcheck, bash for startup script, and netcat for db wait
+RUN apk add --no-cache curl bash netcat-openbsd
 
 # Copy the built JAR from build stage
 COPY --from=build /app/target/annotation-extractor-*.jar app.jar
+
+# Create a startup script to wait for database
+RUN echo '#!/bin/bash' > /app/wait-for-db.sh && \
+    echo 'set -e' >> /app/wait-for-db.sh && \
+    echo 'host="$(echo $SPRING_DATASOURCE_URL | sed -n "s/.*:\/\/\([^:]*\).*/\1/p")"' >> /app/wait-for-db.sh && \
+    echo 'port="$(echo $SPRING_DATASOURCE_URL | sed -n "s/.*:\([0-9]*\)\/.*/\1/p")"' >> /app/wait-for-db.sh && \
+    echo 'echo "Waiting for database at $host:$port..."' >> /app/wait-for-db.sh && \
+    echo 'max_tries=30' >> /app/wait-for-db.sh && \
+    echo 'tries=0' >> /app/wait-for-db.sh && \
+    echo 'while ! nc -z $host $port; do' >> /app/wait-for-db.sh && \
+    echo '  tries=$((tries+1))' >> /app/wait-for-db.sh && \
+    echo '  if [ $tries -ge $max_tries ]; then' >> /app/wait-for-db.sh && \
+    echo '    echo "Database not available after $max_tries attempts"' >> /app/wait-for-db.sh && \
+    echo '    exit 1' >> /app/wait-for-db.sh && \
+    echo '  fi' >> /app/wait-for-db.sh && \
+    echo '  echo "Database not ready, waiting... ($tries/$max_tries)"' >> /app/wait-for-db.sh && \
+    echo '  sleep 2' >> /app/wait-for-db.sh && \
+    echo 'done' >> /app/wait-for-db.sh && \
+    echo 'echo "Database is ready!"' >> /app/wait-for-db.sh && \
+    echo 'exec java $JAVA_OPTS -jar /app/app.jar "$@"' >> /app/wait-for-db.sh && \
+    chmod +x /app/wait-for-db.sh
 
 # Expose port
 EXPOSE 8090
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=90s --retries=5 \
   CMD curl -f http://localhost:8090/api/actuator/health || exit 1
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run the application with wait script
+ENTRYPOINT ["/app/wait-for-db.sh"]
 
