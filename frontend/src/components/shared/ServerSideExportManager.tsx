@@ -33,7 +33,7 @@ const ServerSideExportManager: React.FC<ServerSideExportManagerProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
   const [exportJobs, setExportJobs] = useState<Map<string, ExportStatus>>(new Map());
-  const [pollingInterval, setPollingInterval] = useState<number | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   const getExportOptions = (): ExportOption[] => {
     const baseOptions: ExportOption[] = [

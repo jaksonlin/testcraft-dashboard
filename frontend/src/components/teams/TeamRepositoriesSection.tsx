@@ -50,7 +50,7 @@ const TeamRepositoriesSection: React.FC<TeamRepositoriesSectionProps> = ({ team 
 
       {currentRepos.length > 0 ? (
         <>
-          <RepositoryTable repositories={currentRepos} />
+          <RepositoryTable repositories={currentRepos as any} />
           <RepositoryPagination
             currentPage={currentPage}
             totalPages={totalPages}

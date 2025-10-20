@@ -8,8 +8,8 @@ import StatsOverview from '../components/dashboard/StatsOverview';
 import TeamPerformanceChart from '../components/dashboard/TeamPerformanceChart';
 import CoverageChart from '../components/dashboard/CoverageChart';
 import RepositoriesTable from '../components/dashboard/RepositoriesTable';
-import ReportsSection from '../components/reports/ReportsSection';
-import RepositoryDetailModal from '../components/reports/RepositoryDetailModal';
+// import ReportsSection from '../components/reports/ReportsSection';
+// import RepositoryDetailModal from '../components/reports/RepositoryDetailModal';
 import ScanConfigModal from '../components/config/ScanConfigModal';
 
 // Import custom hooks
@@ -19,9 +19,9 @@ import { useModal } from '../hooks/useModal';
 
 const DashboardView: React.FC = () => {
   const configModal = useModal();
-  const repositoryDetailModal = useModal();
+  // const repositoryDetailModal = useModal();
   const [scanning, setScanning] = useState(false);
-  const [selectedRepository, setSelectedRepository] = useState<RepositorySummary | null>(null);
+  // const [selectedRepository, setSelectedRepository] = useState<RepositorySummary | null>(null);
 
   const {
     overview,
@@ -69,14 +69,14 @@ const DashboardView: React.FC = () => {
   };
 
   const handleRepositoryClick = (repository: RepositorySummary) => {
-    setSelectedRepository(repository);
-    repositoryDetailModal.open();
+    // Navigate to repository detail page instead
+    window.location.href = `/repositories/${repository.repositoryId}`;
   };
 
-  const handleCloseRepositoryDetail = () => {
-    repositoryDetailModal.close();
-    setSelectedRepository(null);
-  };
+  // const handleCloseRepositoryDetail = () => {
+  //   repositoryDetailModal.close();
+  //   setSelectedRepository(null);
+  // };
 
   if (loading) {
     return (
@@ -136,18 +136,18 @@ const DashboardView: React.FC = () => {
         />
 
         {/* Reports & Analytics Section */}
-        <ReportsSection 
+        {/* <ReportsSection 
           repositories={overview?.topRepositories || []} 
           dashboardOverview={overview || undefined}
-        />
+        /> */}
       </main>
 
       {/* Repository Detail Modal */}
-      <RepositoryDetailModal
+      {/* <RepositoryDetailModal
         isOpen={repositoryDetailModal.isOpen}
         onClose={handleCloseRepositoryDetail}
         repository={selectedRepository}
-      />
+      /> */}
 
       {/* Configuration Modal */}
       <ScanConfigModal

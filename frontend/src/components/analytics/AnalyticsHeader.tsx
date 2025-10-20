@@ -6,7 +6,7 @@ interface AnalyticsHeaderProps {
   timeRange: '7' | '30' | '90' | '365';
   onTimeRangeChange: (range: '7' | '30' | '90' | '365') => void;
   onRefresh: () => void;
-  onExport: (option: ExportOption) => void;
+  onExport: (option: ExportOption) => Promise<void>;
   dailyMetrics: any[];
 }
 
