@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
 interface PaginatedTableProps<T> {
   data: T[];
@@ -7,7 +7,7 @@ interface PaginatedTableProps<T> {
   currentPage: number;
   pageSize: number;
   onPageChange: (page: number) => void;
-  onPageSizeChange: (size: number) => void;
+  onPageSizeChange?: (size: number) => void;
   columns: ColumnDef<T>[];
   loading?: boolean;
   searchable?: boolean;
@@ -30,7 +30,6 @@ const PaginatedTable = <T,>({
   currentPage,
   pageSize,
   onPageChange,
-  onPageSizeChange,
   columns,
   loading = false,
   searchable = false,
@@ -41,8 +40,8 @@ const PaginatedTable = <T,>({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [jumpToPage, setJumpToPage] = useState('');
 
+  const shouldScroll = data.length > 10;
   const totalPages = Math.ceil(totalItems / pageSize);
   const startItem = currentPage * pageSize + 1;
   const endItem = Math.min((currentPage + 1) * pageSize, totalItems);
@@ -66,50 +65,6 @@ const PaginatedTable = <T,>({
       onPageChange(page);
     }
   }, [onPageChange, totalPages]);
-  
-  const handleJumpToPage = useCallback(() => {
-    const pageNum = parseInt(jumpToPage) - 1; // User enters 1-based, we use 0-based
-    if (!isNaN(pageNum) && pageNum >= 0 && pageNum < totalPages) {
-      goToPage(pageNum);
-      setJumpToPage('');
-    }
-  }, [jumpToPage, totalPages, goToPage]);
-  
-  const handleJumpKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleJumpToPage();
-    }
-  }, [handleJumpToPage]);
-
-  const pageNumbers = useMemo(() => {
-    const pages: (number | string)[] = [];
-    const maxVisible = 5;
-    
-    if (totalPages <= maxVisible) {
-      for (let i = 0; i < totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      const start = Math.max(0, currentPage - 2);
-      const end = Math.min(totalPages - 1, currentPage + 2);
-      
-      if (start > 0) {
-        pages.push(0);
-        if (start > 1) pages.push('...');
-      }
-      
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-      
-      if (end < totalPages - 1) {
-        if (end < totalPages - 2) pages.push('...');
-        pages.push(totalPages - 1);
-      }
-    }
-    
-    return pages;
-  }, [currentPage, totalPages]);
 
   if (loading) {
     return (
@@ -130,45 +85,30 @@ const PaginatedTable = <T,>({
 
   return (
     <div className={`bg-white dark:bg-gray-900 rounded-lg shadow ${className}`}>
-      {/* Search and Controls */}
-      {(searchable || pageSize !== 50) && (
+      {/* Search */}
+      {searchable && (
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            {searchable && (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder={searchPlaceholder}
-                  value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            )}
-            
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Show:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => onPageSizeChange(parseInt(e.target.value))}
-                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={200}>200</option>
-                <option value={500}>500</option>
-              </select>
-              <span className="text-sm text-gray-700 dark:text-gray-300">per page</span>
+          <div className="flex items-center justify-end">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
           </div>
         </div>
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <div
+        className={`overflow-x-auto ${shouldScroll ? 'overflow-y-auto' : ''}`}
+        style={shouldScroll ? { maxHeight: '480px' } : undefined}
+      >
+        <table className="divide-y divide-gray-200 dark:divide-gray-700 min-w-full" style={{ tableLayout: 'auto' }}>
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
               {columns.map((column) => (
@@ -196,7 +136,7 @@ const PaginatedTable = <T,>({
             {data.map((item, index) => (
               <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                 {columns.map((column) => (
-                  <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                  <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 overflow-hidden text-ellipsis" style={{ width: column.width }}>
                     {column.render(item)}
                   </td>
                 ))}
@@ -213,80 +153,42 @@ const PaginatedTable = <T,>({
             Showing {startItem} to {endItem} of {totalItems} results
           </div>
           
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => goToPage(0)}
-              disabled={currentPage === 0}
-              className="p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </button>
-            
+          <div className="flex items-center space-x-3">
             <button
               onClick={() => goToPage(currentPage - 1)}
               disabled={currentPage === 0}
-              className="p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`
+                inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                ${currentPage === 0
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+                }
+              `}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Previous
             </button>
-            
-            <div className="flex space-x-1">
-              {pageNumbers.map((page, index) => (
-                <button
-                  key={index}
-                  onClick={() => typeof page === 'number' && goToPage(page)}
-                  disabled={typeof page !== 'number'}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    typeof page === 'number' && page === currentPage
-                      ? 'bg-blue-600 text-white'
-                      : typeof page === 'number'
-                      ? 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
-                      : 'text-gray-400 cursor-default'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+
+            <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Page {currentPage + 1} of {totalPages}
+              </span>
             </div>
-            
+
             <button
               onClick={() => goToPage(currentPage + 1)}
               disabled={currentPage >= totalPages - 1}
-              className="p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`
+                inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                ${currentPage >= totalPages - 1
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+                }
+              `}
             >
-              <ChevronRight className="h-4 w-4" />
+              Next
+              <ChevronRight className="h-4 w-4 ml-2" />
             </button>
-            
-            <button
-              onClick={() => goToPage(totalPages - 1)}
-              disabled={currentPage >= totalPages - 1}
-              className="p-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronsRight className="h-4 w-4" />
-            </button>
-            
-            {/* Jump to Page */}
-            {totalPages > 10 && (
-              <div className="flex items-center space-x-2 ml-4">
-                <span className="text-sm text-gray-700 dark:text-gray-300">Go to:</span>
-                <input
-                  type="number"
-                  min="1"
-                  max={totalPages}
-                  value={jumpToPage}
-                  onChange={(e) => setJumpToPage(e.target.value)}
-                  onKeyPress={handleJumpKeyPress}
-                  placeholder={`1-${totalPages}`}
-                  className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-                <button
-                  onClick={handleJumpToPage}
-                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                  Go
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>

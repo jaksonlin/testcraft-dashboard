@@ -1,112 +1,181 @@
-# Docker Compose Configuration for TestCraft Dashboard
-# Run from deployment directory or use wrapper at project root
-#
-# From deployment directory:
-#   cd deployment && docker-compose up -d
-#
-# From project root (recommended):
-#   docker-compose -f deployment/docker-compose.yml up -d
-#   OR use the wrapper: ./docker-start.sh
-
-version: '3.8'
+# Production Docker Compose Configuration
 
 services:
-  # PostgreSQL Database
+  # PostgreSQL Primary Database
   postgres:
     image: postgres:16-alpine
     container_name: testcraft-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-test_analytics_v2}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: test_analytics
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_analytics"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - testcraft-network
-    restart: unless-stopped
+      testcraft-network:
+        ipv4_address: 172.20.0.10
 
-  # Spring Boot Backend
+  # PostgreSQL Shadow Database (optional, for dual-write pattern)
+  postgres-shadow:
+    image: postgres:16-alpine
+    container_name: testcraft-postgres-shadow
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: test_analytics_shadow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${SHADOW_DB_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_shadow_data:/var/lib/postgresql/data
+      - ./init-db-shadow.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_analytics_shadow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      testcraft-network:
+        ipv4_address: 172.20.0.11
+    profiles:
+      - shadow  # Only start with --profile shadow
+
+  # Backend Spring Boot Application
   backend:
     build:
       context: ..
-      dockerfile: deployment/Dockerfile.backend
+      dockerfile: ./deployment/Dockerfile.backend
+      target: production
     container_name: testcraft-backend
+    restart: unless-stopped
+    user: root  # Run as root initially to fix SSH permissions
     environment:
-      # Database connection
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-test_analytics_v2}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # Spring Boot Configuration
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-docker}
+      SERVER_PORT: 8090
       
-      # Spring configuration
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES:-prod}
+      # Primary Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: test_analytics
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
       
-      # Java options
-      JAVA_OPTS: ${JAVA_OPTS:--Xmx512m -Xms256m -Djava.security.egd=file:/dev/./urandom}
+      # Shadow Database Configuration (optional)
+      SHADOW_DB_HOST: postgres-shadow
+      SHADOW_DB_PORT: 5432
+      SHADOW_DB_NAME: test_analytics_shadow
+      SHADOW_DB_USERNAME: postgres
+      SHADOW_DB_PASSWORD: ${SHADOW_DB_PASSWORD:-postgres}
       
-      # Flyway configuration
-      FLYWAY_ENABLED: ${FLYWAY_ENABLED:-true}
+      # Connection Pool Settings
+      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-10}
+      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-5}
       
-      # Connection pool settings
-      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-5}
-      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-2}
-      DB_POOL_IDLE_TIMEOUT: ${DB_POOL_IDLE_TIMEOUT:-300000}
-      DB_POOL_MAX_LIFETIME: ${DB_POOL_MAX_LIFETIME:-1800000}
-      DB_POOL_CONNECTION_TIMEOUT: ${DB_POOL_CONNECTION_TIMEOUT:-30000}
+      # Application Settings
+      JAVA_OPTS: "-Xms256m -Xmx1g -XX:+UseG1GC"
+      
+      # Git Authentication Settings
+      GIT_USERNAME: ${GIT_USERNAME:-}
+      GIT_PASSWORD: ${GIT_PASSWORD:-}
+      GIT_SSH_KEY_PATH: ${GIT_SSH_KEY_PATH:-/home/spring/.ssh/id_rsa}
+      # REPOSITORY_HUB_PATH: ${REPOSITORY_HUB_PATH:-/app/repos}
+    ports:
+      - "8090:8090"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
-      - testcraft-network
-    restart: unless-stopped
-    # Uncomment to expose backend directly (for debugging)
-    # ports:
-    #   - "8090:8090"
+      testcraft-network:
+        ipv4_address: 172.20.0.20
+    volumes:
+      - ../reports:/app/reports
+      - backend_logs:/app/logs
+      # Git repository storage
+      - git_repos:/app/repos
+      # SSH keys for Git authentication (optional, mounted read-only)
+      - ${SSH_KEY_PATH:-./ssh-keys}:/app/ssh-keys:ro
 
-  # React Frontend
+  # Frontend Application
   frontend:
     build:
       context: ..
-      dockerfile: deployment/Dockerfile.frontend
+      dockerfile: ./deployment/Dockerfile.frontend
+      target: production
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
     container_name: testcraft-frontend
-    networks:
-      - testcraft-network
     restart: unless-stopped
-    # Uncomment to expose frontend directly (for debugging)
-    # ports:
-    #   - "5173:80"
+    networks:
+      testcraft-network:
+        ipv4_address: 172.20.0.30
 
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
     container_name: testcraft-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    ports:
-      - "${NGINX_PORT:-80}:80"
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - nginx_logs:/var/log/nginx
     depends_on:
       - backend
       - frontend
-    networks:
-      - testcraft-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
-      timeout: 3s
+      timeout: 10s
       retries: 3
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-    driver: local
+    networks:
+      testcraft-network:
+        ipv4_address: 172.20.0.40
 
 networks:
   testcraft-network:
     driver: bridge
+    name: testcraft-network
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+    driver_opts:
+      com.docker.network.bridge.name: testcraft-br
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
+      com.docker.network.driver.mtu: "1500"
+
+volumes:
+  postgres_data:
+    name: testcraft_postgres_data
+  postgres_shadow_data:
+    name: testcraft_postgres_shadow_data
+  backend_logs:
+    name: testcraft_backend_logs
+  nginx_logs:
+    name: testcraft_nginx_logs
+  git_repos:
+    name: testcraft_git_repos
+

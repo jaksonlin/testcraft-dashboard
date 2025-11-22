@@ -2,10 +2,14 @@ package com.example.annotationextractor.testcase;
 
 import com.example.annotationextractor.casemodel.TestMethodInfo;
 import org.springframework.stereotype.Service;
+import com.example.annotationextractor.database.DatabaseConfig;
 
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 import java.sql.SQLException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -100,24 +104,9 @@ public class TestCaseService {
         for (TestCase testCase : validTestCases) {
             testCase.setCreatedBy(createdBy);
             
-            // Organization hierarchy:
-            // 1. UI selection (highest priority)
-            // 2. Excel organization column (if present)
-            // 3. Derive from team (if team is specified)
-            // 4. Leave null (user must specify later)
-            
-            if (organization != null && !organization.trim().isEmpty()) {
-                // UI selection always overrides
-                testCase.setOrganization(organization);
-            } else if (testCase.getOrganization() != null && !testCase.getOrganization().trim().isEmpty()) {
-                // Keep Excel organization if present
-                // (already set from Excel)
-            } else {
-                // No organization specified - leave null
-                // User can filter/update later
-                // This is better than defaulting to "default" which creates orphaned data
-                testCase.setOrganization(null);
-            }
+            // Organization: always use instance organization from system settings
+            String instanceOrg = deriveOrganizationFromSystemSetting();
+            testCase.setOrganization(instanceOrg);
             
             // Team: UI selection always overrides Excel (if provided)
             if (teamId != null) {
@@ -139,14 +128,11 @@ public class TestCaseService {
         }
         
         // Import to database
-        int skipped = testCases.size() - validTestCases.size();
-        TestCaseRepository.SaveResult saveResult;
+        int skippedFromValidation = testCases.size() - validTestCases.size();
+        int skippedFromParseErrors = parseResult.getRowErrors() != null ? parseResult.getRowErrors().size() : 0;
+        TestCaseRepository.SaveResult saveResult = new TestCaseRepository.SaveResult(0, 0, 0);
         
         try {
-            if (!parseResult.getRowErrors().isEmpty()) {
-                // If any row errors exist, fail the import and report them
-                return new ImportResult(false, 0, 0, testCases.size(), parseResult.getRowErrors(), List.of());
-            }
             saveResult = testCaseRepository.saveAll(validTestCases);
         } catch (SQLException e) {
             return new ImportResult(
@@ -159,12 +145,15 @@ public class TestCaseService {
             );
         }
         
+        int totalSkipped = skippedFromValidation + skippedFromParseErrors + saveResult.getSkipped();
+        List<String> rowErrors = parseResult.getRowErrors() != null ? parseResult.getRowErrors() : List.of();
+        
         return new ImportResult(
             true, 
             saveResult.getCreated(), 
             saveResult.getUpdated(), 
-            skipped, 
-            List.of(), 
+            totalSkipped, 
+            rowErrors, 
             List.of()
         );
     }
@@ -174,15 +163,35 @@ public class TestCaseService {
      * Note: TestMethodInfo contains external test case IDs, we need to look up internal IDs for linkage
      */
     public int linkTestMethodsToCases(List<TestMethodInfo> testMethods, String repositoryName) throws SQLException {
+        return linkTestMethodsToCases(testMethods, repositoryName, null);
+    }
+    
+    /**
+     * Link test methods to test cases using external IDs and organization scope for multi-tenant safety.
+     * If organization is not provided, it is derived from the repository's team (department or team_name).
+     */
+    public int linkTestMethodsToCases(List<TestMethodInfo> testMethods, String repositoryName, String organization) throws SQLException {
         int linked = 0;
+        String effectiveOrganization = (organization != null && !organization.trim().isEmpty())
+            ? organization.trim()
+            : deriveOrganizationFromSystemSetting();
         
         for (TestMethodInfo method : testMethods) {
             String[] testCaseIds = method.getTestCaseIds();
             
             if (testCaseIds != null && testCaseIds.length > 0) {
                 for (String externalTestCaseId : testCaseIds) {
-                    // Look up test case by external ID (first try without organization filter for simplicity)
-                    TestCase testCase = testCaseRepository.findByIdLegacy(externalTestCaseId);
+                    TestCase testCase = null;
+                    
+                    if (effectiveOrganization != null && !effectiveOrganization.isEmpty()) {
+                        // Prefer org-aware lookup to avoid cross-tenant linking
+                        testCase = testCaseRepository.findByExternalId(externalTestCaseId, effectiveOrganization);
+                    }
+                    
+                    if (testCase == null) {
+                        // Fallback to legacy lookup when org cannot be determined
+                        testCase = testCaseRepository.findByIdLegacy(externalTestCaseId);
+                    }
                     
                     if (testCase != null && testCase.getInternalId() != null) {
                         // Link using internal ID
@@ -202,6 +211,26 @@ public class TestCaseService {
         }
         
         return linked;
+    }
+    
+    /**
+     * Read instance organization from scan_settings table.
+     */
+    private String deriveOrganizationFromSystemSetting() {
+        String sql = "SELECT organization FROM scan_settings ORDER BY id LIMIT 1";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String org = rs.getString("organization");
+                    if (org != null && !org.trim().isEmpty()) return org.trim();
+                }
+            }
+        } catch (SQLException e) {
+            // Swallow and return null; caller will fallback to legacy behavior
+        }
+        return null;
     }
     
     /**

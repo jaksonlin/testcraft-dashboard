@@ -20,6 +20,11 @@ public final class TestClass {
     private final Instant firstSeenDate;
     private final Instant lastModifiedDate;
     private final Long scanSessionId;
+    private final Integer classLineNumber;
+    private final String testClassContent;
+    private final String helperClassesLineNumbers;
+    private final String importedTypes;
+    private final String referencedTypes;
 
     public TestClass(Long id,
                      Long repositoryId,
@@ -32,7 +37,12 @@ public final class TestClass {
                      double coverageRate,
                      Instant firstSeenDate,
                      Instant lastModifiedDate,
-                     Long scanSessionId) {
+                     Long scanSessionId,
+                     Integer classLineNumber,
+                     String testClassContent,
+                     String helperClassesLineNumbers,
+                     String importedTypes,
+                     String referencedTypes) {
         this.id = id;
         this.repositoryId = repositoryId;
         this.className = className;
@@ -45,6 +55,11 @@ public final class TestClass {
         this.firstSeenDate = firstSeenDate;
         this.lastModifiedDate = lastModifiedDate;
         this.scanSessionId = scanSessionId;
+        this.classLineNumber = classLineNumber;
+        this.testClassContent = testClassContent;
+        this.helperClassesLineNumbers = helperClassesLineNumbers;
+        this.importedTypes = importedTypes;
+        this.referencedTypes = referencedTypes;
     }
 
     public Long getId() { return id; }
@@ -59,6 +74,11 @@ public final class TestClass {
     public Instant getFirstSeenDate() { return firstSeenDate; }
     public Instant getLastModifiedDate() { return lastModifiedDate; }
     public Long getScanSessionId() { return scanSessionId; }
+    public Integer getClassLineNumber() { return classLineNumber; }
+    public String getTestClassContent() { return testClassContent; }
+    public String getHelperClassesLineNumbers() { return helperClassesLineNumbers; }
+    public String getImportedTypes() { return importedTypes; }
+    public String getReferencedTypes() { return referencedTypes; }
 
     @Override
     public boolean equals(Object o) {

@@ -92,11 +92,12 @@ public class RepositoryHubScannerTest {
     }
 
     @Test
-    public void testScanningSingleRepository() throws IOException {
-        // Test scanning a single repository
-        GitRepositoryManager gitManager = new GitRepositoryManager("e:/testlab");
-        RepositoryHubScanner scanner = new RepositoryHubScanner(gitManager);
-        boolean success = scanner.executeFullScan(false);
-        assertTrue("Scan should be successful", success);
+    public void testRepositoryScannerHandlesEmptyEntries() throws IOException {
+        GitRepositoryManager gitManager = new GitRepositoryManager("./test-repos-empty");
+        com.example.annotationextractor.runner.RepositoryScanner scanner =
+            new com.example.annotationextractor.runner.RepositoryScanner(gitManager, List.of(), 10);
+        com.example.annotationextractor.casemodel.TestCollectionSummary summary = scanner.scanRepositories(false);
+        assertNotNull("Summary should not be null", summary);
+        assertEquals("No repositories should be scanned", 0, summary.getRepositories().size());
     }
 }

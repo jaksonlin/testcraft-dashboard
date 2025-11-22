@@ -1,11 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, AlertCircle, FileText } from 'lucide-react';
 import { api, type GroupedTestMethodResponse } from '../lib/api';
-import { 
-  isMethodAnnotated, 
-  calculateCoverageRate, 
-  countAnnotatedMethods
-} from '../utils/methodUtils';
 import { type ExportOption } from '../components/shared/ExportManager';
 import { 
   prepareGroupedTestMethodExportData, 
@@ -44,7 +39,13 @@ const TestMethodGroupedView: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await api.dashboard.getAllTestMethodDetailsGrouped(500); // Increased limit for better overview
+      // Apply filters at backend level - NO client-side filtering
+      const annotatedFilter = filterAnnotated === 'all' ? undefined : filterAnnotated === 'annotated';
+      const data = await api.dashboard.getAllTestMethodDetailsGrouped(
+        500, // Increased limit for better overview
+        debouncedSearchTerm || undefined, // Backend search filter
+        annotatedFilter // Backend annotation filter
+      );
       setGroupedData(data);
     } catch (err) {
       console.error('Error fetching grouped test method data:', err);
@@ -52,82 +53,14 @@ const TestMethodGroupedView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearchTerm, filterAnnotated]);
 
   useEffect(() => {
     fetchGroupedData();
   }, [fetchGroupedData]);
 
-  // Filter and search logic with debounced search
-  const filteredData = useMemo(() => {
-    if (!groupedData) return null;
-
-    const filteredTeams = groupedData.teams.map(team => {
-      const filteredClasses = team.classes.map(classGroup => {
-        const filteredMethods = classGroup.methods.filter(method => {
-          // Search filter (using debounced term)
-          const matchesSearch = !debouncedSearchTerm || 
-            method.testMethod.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-            method.testClass.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-            method.repository.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-            (method.title && method.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
-
-          // Annotation filter
-          const matchesAnnotation = filterAnnotated === 'all' ||
-            (filterAnnotated === 'annotated' && isMethodAnnotated(method)) ||
-            (filterAnnotated === 'not-annotated' && !isMethodAnnotated(method));
-
-          return matchesSearch && matchesAnnotation;
-        });
-
-        return {
-          ...classGroup,
-          methods: filteredMethods,
-          summary: {
-            ...classGroup.summary,
-            totalMethods: filteredMethods.length,
-            annotatedMethods: countAnnotatedMethods(filteredMethods),
-            coverageRate: calculateCoverageRate(filteredMethods)
-          }
-        };
-      }).filter(classGroup => classGroup.methods.length > 0);
-
-      // Recalculate team summary
-      const totalMethods = filteredClasses.reduce((sum, c) => sum + c.summary.totalMethods, 0);
-      const annotatedMethods = filteredClasses.reduce((sum, c) => sum + c.summary.annotatedMethods, 0);
-
-      return {
-        ...team,
-        classes: filteredClasses,
-        summary: {
-          ...team.summary,
-          totalClasses: filteredClasses.length,
-          totalMethods,
-          annotatedMethods,
-          coverageRate: totalMethods > 0 ? (annotatedMethods / totalMethods) * 100 : 0
-        }
-      };
-    }).filter(team => team.classes.length > 0);
-
-    // Recalculate overall summary
-    const totalTeams = filteredTeams.length;
-    const totalClasses = filteredTeams.reduce((sum, t) => sum + t.summary.totalClasses, 0);
-    const totalMethods = filteredTeams.reduce((sum, t) => sum + t.summary.totalMethods, 0);
-    const totalAnnotatedMethods = filteredTeams.reduce((sum, t) => sum + t.summary.annotatedMethods, 0);
-
-    return {
-      ...groupedData,
-      teams: filteredTeams,
-      summary: {
-        ...groupedData.summary,
-        totalTeams,
-        totalClasses,
-        totalMethods,
-        totalAnnotatedMethods,
-        overallCoverageRate: totalMethods > 0 ? (totalAnnotatedMethods / totalMethods) * 100 : 0
-      }
-    };
-  }, [groupedData, debouncedSearchTerm, filterAnnotated]);
+  // Data is already filtered at backend level - just use it directly
+  const filteredData = groupedData;
 
   const handleExport = async (option: ExportOption) => {
     if (!filteredData) return;

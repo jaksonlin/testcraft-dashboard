@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Folder, FolderOpen, FileCode, Package, Users, RefreshCw, AlertCircle } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FolderOpen, FileCode, Users, RefreshCw, AlertCircle } from 'lucide-react';
 import { api, type HierarchyNode, type TestMethodDetail } from '../lib/api';
 
 interface BreadcrumbItem {
@@ -15,7 +15,6 @@ const TestMethodHierarchicalView: React.FC = () => {
   ]);
   const [currentNodes, setCurrentNodes] = useState<HierarchyNode[]>([]);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-  const [childrenCache, setChildrenCache] = useState<Map<string, HierarchyNode[]>>(new Map());
   const [methodsCache, setMethodsCache] = useState<Map<number, TestMethodDetail[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -1,10 +1,34 @@
-node_modules
-dist
-.vite
-.git
-.gitignore
-*.log
+# Frontend specific Docker ignore
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+
+# Testing
+coverage/
+
+# Misc
 .DS_Store
-README.md
-.env*
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local env files
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation
+*.md
 

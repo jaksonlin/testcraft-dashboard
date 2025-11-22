@@ -1,0 +1,112 @@
+# Development Profile Configuration
+# Activated with: -Dspring.profiles.active=dev
+
+server:
+  port: 8090
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: testcraft-dashboard
+  
+  # Database configuration - Development database
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:test_analytics_dev}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+  
+  # DevTools Configuration for Hot Reload
+  devtools:
+    restart:
+      enabled: true
+      # Files to exclude from triggering restart
+      exclude: static/**,public/**,templates/**,**/*.html
+      # Additional paths to watch (besides classpath)
+      additional-paths: src/main/java
+      # Poll interval for file changes (milliseconds)
+      poll-interval: 1000
+      # Quiet period before restart (milliseconds)
+      quiet-period: 500
+      # Log condition evaluation delta
+      log-condition-evaluation-delta: false
+    livereload:
+      enabled: true
+      port: 35729
+  
+  # Disable JPA auto-configuration since we're using direct JDBC
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    
+  # Flyway configuration - enabled for migrations
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    # Clean disabled for safety
+    clean-disabled: true
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,configprops
+  endpoint:
+    health:
+      show-details: always
+
+# Application specific configuration
+testcraft:
+  dashboard:
+    title: "TestCraft Dashboard [DEV]"
+    description: "Development Environment - Continuous Git Repository Monitoring"
+    version: "1.0.0-dev"
+  
+  # Database configuration
+  database:
+    enabled: true
+  
+  # Scheduling configuration - Disabled in dev to prevent automatic scans
+  scheduler:
+    enabled: false
+    cron:
+      daily-scan: "0 0 2 * * ?"
+    
+  # Repository scanning configuration
+  scanning:
+    temp-clone-mode: false
+    max-repositories-per-scan: 100
+    
+  # Scanner configuration
+  scanner:
+    repository-hub-path: ${REPOSITORY_HUB_PATH:/tmp/repositories}
+    repository-list-file: ${REPOSITORY_LIST_FILE:/tmp/testScan.txt}
+    temp-clone-mode: ${TEMP_CLONE_MODE:false}
+    
+# Logging configuration - More verbose for development
+logging:
+  level:
+    root: INFO
+    com.example.annotationextractor: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.boot.devtools: INFO
+    org.hibernate.SQL: DEBUG
+    org.flywaydb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/testcraft-dev.log
+    max-size: 10MB
+    max-history: 7
+

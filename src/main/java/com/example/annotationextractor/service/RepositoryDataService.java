@@ -16,6 +16,7 @@ import com.example.annotationextractor.domain.model.RepositoryRecord;
 import com.example.annotationextractor.domain.model.Team;
 import com.example.annotationextractor.domain.model.TestMethodDetailRecord;
 import com.example.annotationextractor.domain.model.TestClass;
+import com.example.annotationextractor.domain.model.TestMethod;
 import com.example.annotationextractor.domain.model.ScanSession;
 import com.example.annotationextractor.web.dto.PagedResponse;
 import com.example.annotationextractor.web.dto.RepositoryDetailDto;
@@ -24,6 +25,7 @@ import com.example.annotationextractor.web.dto.RepositorySummaryDto;
 import com.example.annotationextractor.web.dto.TestMethodDetailDto;
 import com.example.annotationextractor.web.dto.TestClassSummaryDto;
 import com.example.annotationextractor.web.dto.GroupedTestMethodResponse;
+import com.example.annotationextractor.web.dto.TestMethodSourceDto;
 
 @Service
 public class RepositoryDataService {
@@ -32,6 +34,57 @@ public class RepositoryDataService {
 
     public RepositoryDataService(Optional<PersistenceReadFacade> persistenceReadFacade) {
         this.persistenceReadFacade = persistenceReadFacade;
+    }
+
+    /**
+     * Retrieve the source code for the class that owns a specific test method.
+     */
+    public Optional<TestMethodSourceDto> getTestMethodSource(Long testMethodId) {
+        if (persistenceReadFacade.isEmpty() || testMethodId == null) {
+            return Optional.empty();
+        }
+
+        try {
+            PersistenceReadFacade facade = persistenceReadFacade.get();
+
+            Optional<TestMethod> maybeMethod = facade.getTestMethodById(testMethodId);
+            if (maybeMethod.isEmpty()) {
+                return Optional.empty();
+            }
+
+            TestMethod method = maybeMethod.get();
+            if (method.getTestClassId() == null) {
+                return Optional.empty();
+            }
+
+            Optional<TestClass> maybeClass = facade.getTestClassById(method.getTestClassId());
+            if (maybeClass.isEmpty()) {
+                return Optional.empty();
+            }
+
+            TestClass testClass = maybeClass.get();
+            if (testClass.getTestClassContent() == null || testClass.getTestClassContent().isBlank()) {
+                return Optional.empty();
+            }
+
+            TestMethodSourceDto dto = new TestMethodSourceDto();
+            dto.setTestMethodId(method.getId());
+            dto.setTestMethodName(method.getMethodName());
+            dto.setMethodLine(method.getLineNumber());
+
+            dto.setTestClassId(testClass.getId());
+            dto.setTestClassName(testClass.getClassName());
+            dto.setPackageName(testClass.getPackageName());
+            dto.setFilePath(testClass.getFilePath());
+            dto.setClassLineNumber(testClass.getClassLineNumber());
+            dto.setClassContent(testClass.getTestClassContent());
+
+            return Optional.of(dto);
+        } catch (Exception ex) {
+            System.err.println("Error fetching test method source: " + ex.getMessage());
+            ex.printStackTrace();
+            return Optional.empty();
+        }
     }
 
     /**
@@ -479,9 +532,10 @@ public class RepositoryDataService {
         dto.setDefects(record.getAnnotationDefects());
         dto.setLastModified(record.getAnnotationLastUpdateTime());
         dto.setLastUpdateAuthor(record.getAnnotationLastUpdateAuthor());
-        dto.setTeamName(record.getTeamName());
-        dto.setTeamCode(record.getTeamCode());
-        dto.setGitUrl(record.getGitUrl());
+        // Ensure team fields are never null to maintain consistent column structure
+        dto.setTeamName(record.getTeamName() != null ? record.getTeamName() : "");
+        dto.setTeamCode(record.getTeamCode() != null ? record.getTeamCode() : "");
+        dto.setGitUrl(record.getGitUrl() != null ? record.getGitUrl() : "");
         return dto;
     }
 
@@ -637,8 +691,9 @@ public class RepositoryDataService {
     /**
      * Get all test method details grouped by team and class for hierarchical display
      * This method provides pre-grouped data to avoid performance issues on the frontend
+     * Filters are applied at database level for optimal performance
      */
-    public GroupedTestMethodResponse getAllTestMethodDetailsGrouped(Integer limit) {
+    public GroupedTestMethodResponse getAllTestMethodDetailsGrouped(Integer limit, String searchTerm, Boolean annotated) {
         if (persistenceReadFacade.isPresent()) {
             try {
                 Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
@@ -650,8 +705,23 @@ public class RepositoryDataService {
                 
                 Long scanSessionId = latestScan.get().getId();
                 System.err.println("Using scan session ID: " + scanSessionId + " for grouped test methods");
-                List<TestMethodDetailRecord> records = persistenceReadFacade.get().listTestMethodDetailsByScanSessionId(scanSessionId, limit);
-                System.err.println("Found " + records.size() + " total test method records for grouping");
+                
+                // Apply filters at database level (NO client-side filtering)
+                List<TestMethodDetailRecord> records = persistenceReadFacade.get()
+                    .listTestMethodDetailsWithFilters(
+                        scanSessionId, 
+                        null, // teamName
+                        null, // repositoryName
+                        null, // packageName
+                        null, // className
+                        annotated, 
+                        searchTerm,
+                        null, // codePattern
+                        null, // offset
+                        limit
+                    );
+                
+                System.err.println("Found " + records.size() + " filtered test method records for grouping");
                 
                 return groupTestMethodDetails(records);
                 
@@ -789,7 +859,9 @@ public class RepositoryDataService {
                         repositoryName, 
                         null, // packageName
                         null, // className
-                        annotated
+                        annotated,
+                        null,  // searchTerm
+                        null   // codePattern
                     );
                 
                 // Get annotated count with filters (from database)
@@ -800,7 +872,9 @@ public class RepositoryDataService {
                         repositoryName, 
                         null, // packageName
                         null, // className
-                        true  // annotated only
+                        true,  // annotated only
+                        null,  // searchTerm
+                        null   // codePattern
                     );
                 
                 long totalNotAnnotated = totalMethods - totalAnnotated;
@@ -844,7 +918,7 @@ public class RepositoryDataService {
      */
     public PagedResponse<TestMethodDetailDto> getTestMethodDetailsPaginated(
             int page, int size, String organization, String teamName, String repositoryName, 
-            String packageName, String className, Boolean annotated) {
+            String packageName, String className, Boolean annotated, String codePattern) {
         
         if (persistenceReadFacade.isPresent()) {
             try {
@@ -866,6 +940,8 @@ public class RepositoryDataService {
                         packageName, 
                         className, 
                         annotated, 
+                        null, // searchTerm not used in paginated endpoint yet
+                        codePattern, // codePattern for filtering by target class/method
                         offset, 
                         size
                     );
@@ -878,7 +954,9 @@ public class RepositoryDataService {
                         repositoryName, 
                         packageName, 
                         className, 
-                        annotated
+                        annotated,
+                        null, // searchTerm not used in paginated endpoint yet
+                        codePattern // codePattern for filtering by target class/method
                     );
                 
                 // Convert to DTOs

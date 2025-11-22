@@ -4,9 +4,17 @@ import com.example.annotationextractor.service.ScheduledScanService;
 import com.example.annotationextractor.application.PersistenceReadFacade;
 import com.example.annotationextractor.domain.model.ScanSession;
 import com.example.annotationextractor.web.dto.ScanConfigDto;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -83,6 +91,8 @@ public class ScanController {
         response.put("repositoryHubPath", status.getRepositoryHubPath());
         response.put("repositoryListFile", status.getRepositoryListFile());
         response.put("tempCloneMode", status.isTempCloneMode());
+        response.put("scanBranch", status.getScanBranch());
+        response.put("organization", status.getOrganization());
         response.put("timestamp", System.currentTimeMillis());
         
         return ResponseEntity.ok(response);
@@ -102,6 +112,9 @@ public class ScanController {
         config.put("maxRepositoriesPerScan", status.getMaxRepositoriesPerScan());
         config.put("schedulerEnabled", status.isSchedulerEnabled());
         config.put("dailyScanCron", status.getDailyScanCron());
+        config.put("repositoryConfigContent", status.getRepositoryConfigContent());
+        config.put("organization", status.getOrganization());
+        config.put("scanBranch", status.getScanBranch());
         config.put("timestamp", System.currentTimeMillis());
         
         return ResponseEntity.ok(config);
@@ -131,6 +144,12 @@ public class ScanController {
             if (configDto.getMaxRepositoriesPerScan() != null && configDto.getMaxRepositoriesPerScan() <= 0) {
                 response.put("success", false);
                 response.put("message", "Max repositories per scan must be greater than 0");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            if (configDto.getScanBranch() != null && configDto.getScanBranch().trim().isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Scan branch cannot be empty");
                 return ResponseEntity.badRequest().body(response);
             }
             
@@ -186,5 +205,79 @@ public class ScanController {
         health.put("databaseAvailable", persistenceReadFacade.isPresent());
         
         return ResponseEntity.ok(health);
+    }
+
+    /**
+     * Download the Excel report for a specific scan session
+     * This downloads the report file generated after the scan was completed
+     */
+    @GetMapping("/{scanId}/report")
+    public ResponseEntity<Resource> downloadScanReport(@PathVariable Long scanId) {
+        try {
+            // Get scan session details
+            if (!persistenceReadFacade.isPresent()) {
+                return ResponseEntity.status(500).build();
+            }
+            
+            Optional<ScanSession> scanSession = persistenceReadFacade.get().recentScanSessions(100)
+                .stream()
+                .filter(s -> s.getId().equals(scanId))
+                .findFirst();
+            
+            if (scanSession.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            ScanSession session = scanSession.get();
+            
+            // Use the report file path stored in the database
+            String reportFilePath = session.getReportFilePath();
+            File reportFile = null;
+            
+            if (reportFilePath != null && !reportFilePath.isEmpty()) {
+                // Use the stored absolute path
+                reportFile = new File(reportFilePath);
+            } else {
+                // Fallback: Find the most recent report file
+                // Reports are named: weekly_report_yyyyMMdd_HHmmss.xlsx
+                Path reportsDir = Paths.get("reports");
+                if (!Files.exists(reportsDir)) {
+                    return ResponseEntity.notFound().build();
+                }
+                
+                File[] reportFiles = reportsDir.toFile().listFiles((dir, name) -> 
+                    name.startsWith("weekly_report_") && name.endsWith(".xlsx")
+                );
+                
+                if (reportFiles != null && reportFiles.length > 0) {
+                    // Get the most recent report
+                    long latestTime = 0;
+                    for (File file : reportFiles) {
+                        if (file.lastModified() > latestTime) {
+                            latestTime = file.lastModified();
+                            reportFile = file;
+                        }
+                    }
+                }
+            }
+            
+            if (reportFile == null || !reportFile.exists()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            Resource resource = new FileSystemResource(reportFile);
+            
+            return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, 
+                    "attachment; filename=\"" + reportFile.getName() + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(reportFile.length())
+                .body(resource);
+                
+        } catch (Exception e) {
+            System.err.println("Error downloading scan report: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
     }
 }

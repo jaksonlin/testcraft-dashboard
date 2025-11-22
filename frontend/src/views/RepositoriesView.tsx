@@ -30,7 +30,7 @@ const RepositoriesView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [sortBy, setSortBy] = useState<string>('name');
-  const [sortOrder, setSortOrder] = useState<'asc'|'desc'>('asc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Advanced filtering
   const [searchTerm, setSearchTerm] = useState('');
@@ -116,19 +116,26 @@ const RepositoriesView: React.FC = () => {
       
       setPagination(response);
       setRepositories(response.content);
-      
-      // Update team filter options from all available teams
-      const uniqueTeams = Array.from(new Set(response.content.map(repo => repo.teamName)))
-        .sort()
-        .map(team => ({ value: team, label: team }));
-      
-      setTeamOptions(uniqueTeams);
     } catch (err) {
       console.error('Error fetching repositories:', err);
     } finally {
       setLoading(false);
     }
   }, [currentPage, pageSize, searchTerm, filters, sortBy, sortOrder]);
+
+  // Load team options on mount
+  useEffect(() => {
+    const loadTeamOptions = async () => {
+      try {
+        const teams = await api.teams.getAll();
+        const teamOptionsList = teams.map(team => ({ value: team.teamName, label: team.teamName }));
+        setTeamOptions(teamOptionsList);
+      } catch (err) {
+        console.error('Error loading team options:', err);
+      }
+    };
+    loadTeamOptions();
+  }, []);
 
   // Initialize repositories data
   useEffect(() => {
@@ -159,7 +166,7 @@ const RepositoriesView: React.FC = () => {
   // Bulk operations
   const bulkOps = useBulkOperations({
     items: repositories,
-    getId: (repo) => repo.repositoryId
+    getId: (repo) => repo.id
   });
 
   const handleBulkScan = async (repositoryIds: number[]) => {
@@ -209,15 +216,7 @@ const RepositoriesView: React.FC = () => {
   const handleBulkDelete = async (repositoryIds: number[]) => {
     try {
       // Remove selected repositories from the local state
-      setRepositories(prev => prev.filter(repo => !repositoryIds.includes(repo.repositoryId)));
-      
-      // Update team filter options
-      const remainingRepos = repositories.filter(repo => !repositoryIds.includes(repo.repositoryId));
-      const uniqueTeams = Array.from(new Set(remainingRepos.map(repo => repo.teamName)))
-        .sort()
-        .map(team => ({ value: team, label: team }));
-      
-      setTeamOptions(uniqueTeams);
+      setRepositories(prev => prev.filter(repo => !repositoryIds.includes(repo.id)));
     } catch (err) {
       console.error('Error removing repositories:', err);
     }
@@ -286,7 +285,7 @@ const RepositoriesView: React.FC = () => {
   ];
 
   const handleRepositoryClick = (repository: RepositorySummary) => {
-    navigate(`/repositories/${repository.repositoryId}`);
+    navigate(`/repositories/${repository.id}`);
   };
 
   const handleExport = async (option: ExportOption) => {

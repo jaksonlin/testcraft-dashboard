@@ -1,10 +1,16 @@
 import axios from 'axios';
 
 // API Configuration
-// Use environment variable or default to /api for Docker deployment
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8090/api';
 
-const apiClient = axios.create({
+let authToken: string | null = null;
+
+export const setAuthToken = (token: string | null) => {
+  authToken = token;
+};
+
+// Shared Axios client used across the app so auth headers & logging are consistent
+export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
@@ -12,9 +18,13 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor for logging
+// Request interceptor for auth + logging
 apiClient.interceptors.request.use(
   (config) => {
+    if (authToken) {
+      config.headers = config.headers ?? {};
+      config.headers['Authorization'] = `Bearer ${authToken}`;
+    }
     console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
@@ -30,12 +40,44 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    const status = error.response?.status;
+    if (status === 403) {
+      try {
+        const detail = {
+          url: error.config?.url,
+          method: (error.config?.method || 'get').toUpperCase(),
+        };
+        window.dispatchEvent(new CustomEvent('api:forbidden', { detail }));
+      } catch {
+        // best-effort; ignore if dispatch fails (SSR, etc.)
+      }
+    }
     console.error('API Response Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }
 );
 
 // Types for API responses
+export interface LoginResponse {
+  token: string;
+  username: string;
+  roles: string[];
+  defaultPasswordInUse: boolean;
+}
+
+export interface UserSummary {
+  id: number;
+  username: string;
+  enabled: boolean;
+  defaultPasswordInUse: boolean;
+  roles: string[];
+}
+
+export interface CreateUserRequest {
+  username: string;
+  roles?: string[];
+}
+
 export interface DashboardOverview {
   totalRepositories: number;
   totalTeams: number;
@@ -74,7 +116,7 @@ export interface TeamMetrics {
 }
 
 export interface RepositorySummary {
-  repositoryId: number;
+  id: number;
   repositoryName: string;
   gitUrl: string;
   testClassCount: number;
@@ -123,6 +165,18 @@ export interface TestMethodDetail {
   gitUrl: string;
 }
 
+export interface TestMethodSource {
+  testMethodId: number;
+  testMethodName: string;
+  methodLine: number | null;
+  testClassId: number;
+  testClassName: string;
+  packageName: string;
+  filePath: string;
+  classLineNumber: number | null;
+  classContent: string;
+}
+
 export interface TestClassSummary {
   id: number;
   className: string;
@@ -142,6 +196,8 @@ export interface ScanStatus {
   repositoryHubPath: string;
   repositoryListFile: string;
   tempCloneMode: boolean;
+  scanBranch?: string;
+  organization?: string;
   maxRepositoriesPerScan: number;
   schedulerEnabled: boolean;
   dailyScanCron: string;
@@ -155,6 +211,9 @@ export interface ScanConfig {
   maxRepositoriesPerScan: number;
   schedulerEnabled: boolean;
   dailyScanCron: string;
+  repositoryConfigContent?: string;
+  organization?: string;
+  scanBranch?: string;
   timestamp: number;
 }
 
@@ -267,16 +326,17 @@ export interface ExportStatus {
 
 export interface ScanSession {
   id: number;
-  startTime: string;
-  endTime: string;
-  status: string;
+  scanDate: string;
+  scanDirectory: string;
   totalRepositories: number;
-  successfulRepositories: number;
-  failedRepositories: number;
   totalTestClasses: number;
   totalTestMethods: number;
   totalAnnotatedMethods: number;
-  overallCoverageRate: number;
+  scanDurationMs: number;
+  scanStatus: string;
+  errorLog?: string | null;
+  metadata?: Record<string, unknown> | null;
+  reportFilePath?: string | null;
 }
 
 export interface HierarchyNode {
@@ -293,6 +353,21 @@ export interface HierarchyNode {
 
 // API Methods
 export const api = {
+  auth: {
+    login: (username: string, password: string): Promise<LoginResponse> =>
+      apiClient.post('/auth/login', { username, password }).then(res => res.data),
+    changePassword: (currentPassword: string, newPassword: string): Promise<void> =>
+      apiClient.post('/auth/change-password', { currentPassword, newPassword }).then(res => res.data),
+  },
+
+  users: {
+    list: (): Promise<UserSummary[]> =>
+      apiClient.get('/users').then(res => res.data),
+
+    create: (request: CreateUserRequest): Promise<void> =>
+      apiClient.post('/users', request).then(res => res.data),
+  },
+
   // Dashboard endpoints
   dashboard: {
     getOverview: (): Promise<DashboardOverview> =>
@@ -324,10 +399,11 @@ export const api = {
       size: number, 
       organization?: string,
       teamName?: string, 
-      repositoryName?: string,
-      packageName?: string,
-      className?: string,
-      annotated?: boolean
+      repositoryName?: string, 
+      packageName?: string, 
+      className?: string, 
+      annotated?: boolean,
+      codePattern?: string
     ): Promise<PagedResponse<TestMethodDetail>> => {
       const params = new URLSearchParams();
       params.append('page', page.toString());
@@ -338,12 +414,18 @@ export const api = {
       if (packageName) params.append('packageName', packageName);
       if (className) params.append('className', className);
       if (annotated !== undefined) params.append('annotated', annotated.toString());
+      if (codePattern) params.append('codePattern', codePattern);
       return apiClient.get(`/dashboard/test-methods/paginated?${params.toString()}`).then(res => res.data);
     },
     
-    // Grouped test method details for hierarchical display
-    getAllTestMethodDetailsGrouped: (limit?: number): Promise<GroupedTestMethodResponse> =>
-      apiClient.get(`/dashboard/test-methods/grouped${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
+    // Grouped test method details for hierarchical display (with backend filtering)
+    getAllTestMethodDetailsGrouped: (limit?: number, searchTerm?: string, annotated?: boolean): Promise<GroupedTestMethodResponse> => {
+      const params = new URLSearchParams();
+      if (limit) params.append('limit', limit.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      if (annotated !== undefined) params.append('annotated', annotated.toString());
+      return apiClient.get(`/dashboard/test-methods/grouped?${params.toString()}`).then(res => res.data);
+    },
     
     // Get global test method statistics (not limited to current page)
     getGlobalTestMethodStats: (organization?: string, teamId?: number, repositoryName?: string, annotated?: boolean): Promise<{
@@ -373,6 +455,9 @@ export const api = {
       if (packageName) params.append('packageName', packageName);
       return apiClient.get(`/dashboard/test-methods/hierarchy?${params.toString()}`).then(res => res.data);
     },
+
+    getTestMethodSource: (testMethodId: number): Promise<TestMethodSource> =>
+      apiClient.get(`/dashboard/test-methods/${testMethodId}/source`).then(res => res.data),
   },
 
   // Repository endpoints
@@ -463,6 +548,9 @@ export const api = {
     
     getHealth: (): Promise<{ status: string; service: string; databaseAvailable: boolean; timestamp: number }> =>
       apiClient.get('/scan/health').then(res => res.data),
+    
+    downloadReport: (scanId: number): Promise<Blob> =>
+      apiClient.get(`/scan/${scanId}/report`, { responseType: 'blob' }).then(res => res.data),
   },
 
   // Analytics endpoints

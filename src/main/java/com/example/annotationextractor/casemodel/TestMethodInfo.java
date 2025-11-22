@@ -12,6 +12,8 @@ public class TestMethodInfo {
     private String filePath;
     private UnittestCaseInfoData annotationData;
     private int lineNumber;
+    private int methodLoc;  // Lines of code in the test method body
+    private String methodBodyContent;  // Complete source code of the method body
     private String[] testCaseIds;  // Test case IDs extracted from ANY annotation
 
     public TestMethodInfo() {
@@ -21,17 +23,9 @@ public class TestMethodInfo {
         this.filePath = "";
         this.annotationData = new UnittestCaseInfoData();
         this.lineNumber = 0;
+        this.methodLoc = 0;
+        this.methodBodyContent = "";
         this.testCaseIds = new String[0];
-    }
-
-    public TestMethodInfo(String methodName, String className, String packageName, 
-                         String filePath, UnittestCaseInfoData annotationData, int lineNumber) {
-        this.methodName = methodName;
-        this.className = className;
-        this.packageName = packageName;
-        this.filePath = filePath;
-        this.annotationData = annotationData;
-        this.lineNumber = lineNumber;
     }
 
     // Getters and Setters
@@ -83,6 +77,22 @@ public class TestMethodInfo {
         this.lineNumber = lineNumber;
     }
 
+    public int getMethodLoc() {
+        return methodLoc;
+    }
+
+    public void setMethodLoc(int methodLoc) {
+        this.methodLoc = methodLoc;
+    }
+
+    public String getMethodBodyContent() {
+        return methodBodyContent;
+    }
+
+    public void setMethodBodyContent(String methodBodyContent) {
+        this.methodBodyContent = methodBodyContent != null ? methodBodyContent : "";
+    }
+
     public String[] getTestCaseIds() {
         return testCaseIds;
     }
@@ -109,6 +119,7 @@ public class TestMethodInfo {
                 ", filePath='" + filePath + '\'' +
                 ", annotationData=" + annotationData +
                 ", lineNumber=" + lineNumber +
+                ", methodLoc=" + methodLoc +
                 ", testCaseIds=" + Arrays.toString(testCaseIds) +
                 '}';
     }

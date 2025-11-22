@@ -20,7 +20,7 @@ const SystemConfigTab: React.FC = () => {
               </span>
             </div>
             <p className="text-xs mt-1" style={{ color: 'var(--color-muted-foreground)' }}>
-              H2 Database running on localhost:8090
+              PostgreSQL database connected
             </p>
           </div>
 

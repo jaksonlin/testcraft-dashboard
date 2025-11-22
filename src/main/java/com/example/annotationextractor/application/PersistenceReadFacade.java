@@ -47,9 +47,11 @@ public class PersistenceReadFacade {
     public List<TestClass> listClassesByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId) { return testArtifactQueryService.listClassesByRepositoryIdAndScanSessionId(repositoryId, scanSessionId); }
     public Optional<TestClass> listClassByRepositoryIdAndScanSessionIdAndFilePath(Long repositoryId, Long scanSessionId, String filePath) { return testArtifactQueryService.listClassByRepositoryIdAndScanSessionIdAndFilePath(repositoryId, scanSessionId, filePath); }
     public long countClassesByScanSessionId(Long scanSessionId) { return testArtifactQueryService.countClassesByScanSessionId(scanSessionId); }
+    public Optional<TestClass> getTestClassById(Long classId) { return testArtifactQueryService.getTestClassById(classId); }
     public List<TestMethod> listMethodsByTestClassId(Long testClassId) { return testArtifactQueryService.listMethodsByTestClassId(testClassId); } 
     public List<TestMethod> listMethodsByScanSessionId(Long scanSessionId) { return testArtifactQueryService.listMethodsByScanSessionId(scanSessionId); }
     public List<TestMethod> listAnnotatedMethodsByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId) { return testArtifactQueryService.listAnnotatedMethodsByRepositoryIdAndScanSessionId(repositoryId, scanSessionId); }
+    public Optional<TestMethod> getTestMethodById(Long methodId) { return testArtifactQueryService.getTestMethodById(methodId); }
     
     // list by scan session
     public List<TestMethodDetailRecord> listTestMethodDetailsByScanSessionId(Long scanSessionId, Integer limit) { return testArtifactQueryService.listTestMethodDetailsByScanSessionId(scanSessionId, limit); }
@@ -58,15 +60,15 @@ public class PersistenceReadFacade {
     // list with filters (DATABASE-level filtering, no client-side filtering)
     public List<TestMethodDetailRecord> listTestMethodDetailsWithFilters(
             Long scanSessionId, String teamName, String repositoryName, 
-            String packageName, String className, Boolean annotated, Integer offset, Integer limit) {
+            String packageName, String className, Boolean annotated, String searchTerm, String codePattern, Integer offset, Integer limit) {
         return testArtifactQueryService.listTestMethodDetailsWithFilters(
-            scanSessionId, teamName, repositoryName, packageName, className, annotated, offset, limit);
+            scanSessionId, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern, offset, limit);
     }
     public long countTestMethodDetailsWithFilters(
             Long scanSessionId, String teamName, String repositoryName, 
-            String packageName, String className, Boolean annotated) {
+            String packageName, String className, Boolean annotated, String searchTerm, String codePattern) {
         return testArtifactQueryService.countTestMethodDetailsWithFilters(
-            scanSessionId, teamName, repositoryName, packageName, className, annotated);
+            scanSessionId, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
     }
 
     // list by team and scan session

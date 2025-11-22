@@ -1,47 +1,64 @@
 # Git
 .git
 .gitignore
+.gitattributes
 
-# IDE
+# IDEs
 .idea
 .vscode
-*.iml
-*.ipr
-*.iws
+*.swp
+*.swo
+*~
+.DS_Store
 
 # Build artifacts
 target/
-dist/
-build/
 *.jar
 *.war
+*.ear
+*.class
 
-# Frontend
-frontend/node_modules/
+# Maven
+.mvn
+mvnw
+mvnw.cmd
+dependency-reduced-pom.xml
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# Frontend build
 frontend/dist/
-frontend/.vite/
+frontend/node_modules/
 
-# Logs
+# Reports and logs
+reports/
 *.log
 logs/
 
-# OS
-.DS_Store
-Thumbs.db
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
 
 # Documentation
 *.md
-!README.md
+docs/
 
-# Test files
-.cursor/
-*.bat
+# Deployment scripts
 *.sh
+*.bat
 
-# Docker
-docker-compose.yml
-Dockerfile*
-.dockerignore
+# Test
+src/test/
+*.test.js
+*.spec.js
+
+# Environment
 .env
-.env.*
+.env.local
+.env.*.local
 

@@ -12,58 +12,117 @@ import TestMethodGroupedView from '../views/TestMethodGroupedView';
 import TestMethodsView from '../views/TestMethodsView';
 import TestMethodHierarchicalView from '../views/TestMethodHierarchicalView';
 import { TestCasesView } from '../views/TestCasesView';
+import LoginView from '../views/LoginView';
+import ChangePasswordView from '../views/ChangePasswordView';
+import { ProtectedRoute } from './ProtectedRoute';
 
 const router = createBrowserRouter([
+  {
+    path: '/login',
+    element: <LoginView />,
+  },
+  {
+    path: '/change-password',
+    element: (
+      <ProtectedRoute allowDefaultPassword>
+        <ChangePasswordView />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/',
     element: <MainLayout />,
     children: [
       {
         index: true,
-        element: <DashboardView />
+        element: (
+          <ProtectedRoute>
+            <DashboardView />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'repositories',
-        element: <RepositoriesView />
+        element: (
+          <ProtectedRoute>
+            <RepositoriesView />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'repositories/:id',
-        element: <RepositoryDetailView />
+        element: (
+          <ProtectedRoute>
+            <RepositoryDetailView />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'repositories/:id/classes',
-        element: <ClassLevelView />
+        element: (
+          <ProtectedRoute>
+            <ClassLevelView />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'teams',
-        element: <TeamsView />
+        element: (
+          <ProtectedRoute>
+            <TeamsView />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'analytics',
-        element: <AnalyticsView />
+        element: (
+          <ProtectedRoute>
+            <AnalyticsView />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'testcases',
-        element: <TestCasesView />
+        element: (
+          <ProtectedRoute>
+            <TestCasesView />
+          </ProtectedRoute>
+        ),
       },
-              {
-                path: 'settings',
-                element: <SettingsView />
-              },
-              {
-                path: 'test-methods',
-                element: <TestMethodsView />
-              },
-              {
-                path: 'test-methods-grouped',
-                element: <TestMethodGroupedView />
-              },
-              {
-                path: 'test-methods-hierarchy',
-                element: <TestMethodHierarchicalView />
-              }
-    ]
-  }
+      {
+        path: 'settings',
+        element: (
+          <ProtectedRoute requireAdmin>
+            <SettingsView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'test-methods',
+        element: (
+          <ProtectedRoute>
+            <TestMethodsView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'test-methods-grouped',
+        element: (
+          <ProtectedRoute>
+            <TestMethodGroupedView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'test-methods-hierarchy',
+        element: (
+          <ProtectedRoute>
+            <TestMethodHierarchicalView />
+          </ProtectedRoute>
+        ),
+      },
+    ],
+  },
 ]);
 
 const AppRouter: React.FC = () => {

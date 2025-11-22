@@ -25,8 +25,7 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
   const [importing, setImporting] = useState<boolean>(false);
   const [importResult, setImportResult] = useState<ImportResponse | null>(null);
   
-  // Organization and Team selection
-  const [organization, setOrganization] = useState<string>('');
+  // Team selection (organization now comes from system setting on backend)
   const [teamId, setTeamId] = useState<string>('');
   const [createdBy, setCreatedBy] = useState<string>('system');
 
@@ -150,15 +149,6 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
       return;
     }
     
-    // Check if organization is mapped in Excel
-    const hasOrganizationMapping = Object.values(mappings).includes('organization');
-    
-    // Validate organization is selected (only if not mapped in Excel)
-    if (!hasOrganizationMapping && (!organization || organization.trim() === '')) {
-      alert('Please select an organization before importing');
-      return;
-    }
-
     setImporting(true);
 
     try {
@@ -169,7 +159,6 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
         dataStartRow,
         true, // replaceExisting
         createdBy || 'system',
-        organization,
         teamId ? Number(teamId) : undefined
       );
 
@@ -219,7 +208,6 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
     suggestions,
     importing,
     importResult,
-    organization,
     teamId,
     createdBy,
     
@@ -231,7 +219,6 @@ export const useTestCaseUpload = (onComplete?: () => void) => {
     handleAdvanceToPreview,
     handleImport,
     handleComplete,
-    setOrganization,
     setTeamId,
     setCreatedBy,
   };

@@ -1,20 +1,23 @@
 package com.example.annotationextractor.service;
 
-import com.example.annotationextractor.database.DatabaseConfig;
+import com.example.annotationextractor.application.ScanConfigService;
+import com.example.annotationextractor.domain.model.ScanConfig;
+import com.example.annotationextractor.domain.model.ScanRepositoryEntry;
 import com.example.annotationextractor.runner.RepositoryHubScanner;
 import com.example.annotationextractor.util.GitRepositoryManager;
 import com.example.annotationextractor.web.dto.ScanConfigDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
+import java.io.IOException;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  * Service for scheduled repository scanning
@@ -25,49 +28,16 @@ public class ScheduledScanService {
 
     private static final Logger logger = LoggerFactory.getLogger(ScheduledScanService.class);
 
-    @Value("${testcraft.scanner.repository-hub-path:./repositories}")
-    private String repositoryHubPath;
-
-    @Value("${testcraft.scanner.repository-list-file:./sample-repositories.txt}")
-    private String repositoryListFile;
-
-    @Value("${testcraft.scanner.temp-clone-mode:false}")
-    private boolean tempCloneMode;
-
-    @Value("${testcraft.scanning.max-repositories-per-scan:100}")
-    private int maxRepositoriesPerScan;
-
-    @Value("${testcraft.scheduler.enabled:true}")
-    private boolean schedulerEnabled;
-
-    @Value("${testcraft.scheduler.cron.daily-scan:0 0 2 * * ?}")
-    private String dailyScanCron;
+    private final ScanConfigService scanConfigService;
 
     // Thread-safe state tracking
     private final AtomicBoolean isScanning = new AtomicBoolean(false);
     private final AtomicReference<LocalDateTime> lastScanTime = new AtomicReference<>();
     private final AtomicReference<String> lastScanStatus = new AtomicReference<>("Never run");
     private final AtomicReference<String> lastScanError = new AtomicReference<>();
-    
-    // Thread-safe configuration tracking
-    private final AtomicReference<String> repositoryHubPathRef = new AtomicReference<>();
-    private final AtomicReference<String> repositoryListFileRef = new AtomicReference<>();
-    private final AtomicBoolean tempCloneModeRef = new AtomicBoolean();
-    private final AtomicInteger maxRepositoriesPerScanRef = new AtomicInteger();
-    private final AtomicBoolean schedulerEnabledRef = new AtomicBoolean();
-    private final AtomicReference<String> dailyScanCronRef = new AtomicReference<>();
 
-    /**
-     * Initialize atomic references with default values
-     */
-    @PostConstruct
-    public void initializeConfiguration() {
-        repositoryHubPathRef.set(repositoryHubPath);
-        repositoryListFileRef.set(repositoryListFile);
-        tempCloneModeRef.set(tempCloneMode);
-        maxRepositoriesPerScanRef.set(maxRepositoriesPerScan);
-        schedulerEnabledRef.set(schedulerEnabled);
-        dailyScanCronRef.set(dailyScanCron);
+    public ScheduledScanService(ScanConfigService scanConfigService) {
+        this.scanConfigService = scanConfigService;
     }
 
     /**
@@ -77,34 +47,39 @@ public class ScheduledScanService {
     @Scheduled(cron = "${testcraft.scheduler.cron.daily-scan:0 0 2 * * ?}")
     public void performDailyScan() {
         logger.info("Starting scheduled daily repository scan");
-        
-        // Prevent concurrent scans
+
         if (!isScanning.compareAndSet(false, true)) {
             logger.warn("Scan already in progress, skipping scheduled scan");
             return;
         }
-        
+
         try {
             LocalDateTime startTime = LocalDateTime.now();
             lastScanTime.set(startTime);
             lastScanError.set(null);
-            
-            // Initialize database connection
-            DatabaseConfig.initialize();
-            
-            // Create git manager and scanner
-            GitRepositoryManager gitManager = new GitRepositoryManager(
-                repositoryHubPathRef.get(), 
-                null, // username - use SSH keys
-                null, // password - use SSH keys
-                null  // sshKeyPath - use default
+
+            ScanConfig config = scanConfigService.getCurrentConfig();
+            if (!config.isSchedulerEnabled()) {
+                logger.info("Scheduler disabled in configuration. Skipping scheduled scan.");
+                lastScanStatus.set("Skipped (scheduler disabled)");
+                return;
+            }
+
+            List<ScanRepositoryEntry> repositoryEntries = extractActiveRepositories(config);
+            if (repositoryEntries.isEmpty()) {
+                logger.warn("No repository entries configured; skipping scheduled scan.");
+                lastScanStatus.set("Skipped (no repositories)");
+                return;
+            }
+
+            GitRepositoryManager gitManager = buildGitManager(config);
+            RepositoryHubScanner scanner = new RepositoryHubScanner(
+                    gitManager,
+                    repositoryEntries,
+                    config.getMaxRepositoriesPerScan()
             );
-            
-            RepositoryHubScanner scanner = new RepositoryHubScanner(gitManager);
-            
-            // Execute the scan
-            boolean success = scanner.executeFullScan(tempCloneModeRef.get());
-            
+
+            boolean success = scanner.executeFullScan(config.isTempCloneMode());
             if (success) {
                 lastScanStatus.set("Success");
                 logger.info("Scheduled daily scan completed successfully");
@@ -112,7 +87,15 @@ public class ScheduledScanService {
                 lastScanStatus.set("Failed");
                 logger.error("Scheduled daily scan failed");
             }
-            
+
+        } catch (SQLException e) {
+            lastScanStatus.set("Error");
+            lastScanError.set(e.getMessage());
+            logger.error("Failed to load scan configuration", e);
+        } catch (IOException e) {
+            lastScanStatus.set("Error");
+            lastScanError.set(e.getMessage());
+            logger.error("Failed to initialize repository scanner", e);
         } catch (Exception e) {
             lastScanStatus.set("Error");
             lastScanError.set(e.getMessage());
@@ -127,34 +110,33 @@ public class ScheduledScanService {
      */
     public boolean triggerManualScan() {
         logger.info("Starting manual repository scan");
-        
-        // Prevent concurrent scans
+
         if (!isScanning.compareAndSet(false, true)) {
             logger.warn("Scan already in progress, cannot start manual scan");
             return false;
         }
-        
+
         try {
             LocalDateTime startTime = LocalDateTime.now();
             lastScanTime.set(startTime);
             lastScanError.set(null);
-            
-            // Initialize database connection
-            DatabaseConfig.initialize();
-            
-            // Create git manager and scanner
-            GitRepositoryManager gitManager = new GitRepositoryManager(
-                repositoryHubPathRef.get(), 
-                null, // username - use SSH keys
-                null, // password - use SSH keys
-                null  // sshKeyPath - use default
+
+            ScanConfig config = scanConfigService.getCurrentConfig();
+            List<ScanRepositoryEntry> repositoryEntries = extractActiveRepositories(config);
+            if (repositoryEntries.isEmpty()) {
+                logger.warn("No repository entries configured; skipping manual scan.");
+                lastScanStatus.set("Skipped (no repositories)");
+                return false;
+            }
+
+            GitRepositoryManager gitManager = buildGitManager(config);
+            RepositoryHubScanner scanner = new RepositoryHubScanner(
+                    gitManager,
+                    repositoryEntries,
+                    config.getMaxRepositoriesPerScan()
             );
-            
-            RepositoryHubScanner scanner = new RepositoryHubScanner(gitManager);
-            
-            // Execute the scan
-            boolean success = scanner.executeFullScan(tempCloneModeRef.get());
-            
+
+            boolean success = scanner.executeFullScan(config.isTempCloneMode());
             if (success) {
                 lastScanStatus.set("Success");
                 logger.info("Manual scan completed successfully");
@@ -162,9 +144,18 @@ public class ScheduledScanService {
                 lastScanStatus.set("Failed");
                 logger.error("Manual scan failed");
             }
-            
             return success;
-            
+
+        } catch (SQLException e) {
+            lastScanStatus.set("Error");
+            lastScanError.set(e.getMessage());
+            logger.error("Failed to load scan configuration", e);
+            return false;
+        } catch (IOException e) {
+            lastScanStatus.set("Error");
+            lastScanError.set(e.getMessage());
+            logger.error("Failed to initialize repository scanner", e);
+            return false;
         } catch (Exception e) {
             lastScanStatus.set("Error");
             lastScanError.set(e.getMessage());
@@ -179,18 +170,26 @@ public class ScheduledScanService {
      * Get current scan status and configuration
      */
     public ScanStatus getScanStatus() {
-        return new ScanStatus(
-            isScanning.get(),
-            lastScanTime.get(),
-            lastScanStatus.get(),
-            lastScanError.get(),
-            repositoryHubPathRef.get(),
-            repositoryListFileRef.get(),
-            tempCloneModeRef.get(),
-            maxRepositoriesPerScanRef.get(),
-            schedulerEnabledRef.get(),
-            dailyScanCronRef.get()
-        );
+        try {
+            ScanConfig config = scanConfigService.getCurrentConfig();
+            return new ScanStatus(
+                    isScanning.get(),
+                    lastScanTime.get(),
+                    lastScanStatus.get(),
+                    lastScanError.get(),
+                    config
+            );
+        } catch (Exception e) {
+            logger.error("Failed to load scan configuration for status", e);
+            lastScanError.compareAndSet(null, e.getMessage());
+            return new ScanStatus(
+                    isScanning.get(),
+                    lastScanTime.get(),
+                    "Error",
+                    e.getMessage(),
+                    null
+            );
+        }
     }
 
     /**
@@ -198,37 +197,35 @@ public class ScheduledScanService {
      */
     public boolean updateScanConfiguration(ScanConfigDto configDto) {
         try {
-            if (configDto.getTempCloneMode() != null) {
-                tempCloneModeRef.set(configDto.getTempCloneMode());
-            }
-            
-            if (configDto.getRepositoryHubPath() != null) {
-                repositoryHubPathRef.set(configDto.getRepositoryHubPath());
-            }
-            
-            if (configDto.getRepositoryListFile() != null) {
-                repositoryListFileRef.set(configDto.getRepositoryListFile());
-            }
-            
-            if (configDto.getMaxRepositoriesPerScan() != null) {
-                maxRepositoriesPerScanRef.set(configDto.getMaxRepositoriesPerScan());
-            }
-            
-            if (configDto.getSchedulerEnabled() != null) {
-                schedulerEnabledRef.set(configDto.getSchedulerEnabled());
-            }
-            
-            if (configDto.getDailyScanCron() != null) {
-                dailyScanCronRef.set(configDto.getDailyScanCron());
-            }
-            
+            scanConfigService.updateConfiguration(configDto);
             logger.info("Scan configuration updated: {}", configDto);
             return true;
-            
         } catch (Exception e) {
             logger.error("Failed to update scan configuration", e);
             return false;
         }
+    }
+
+    private GitRepositoryManager buildGitManager(ScanConfig config) {
+        String gitUsername = System.getenv("GIT_USERNAME");
+        String gitPassword = System.getenv("GIT_PASSWORD");
+        String gitSshKeyPath = System.getenv("GIT_SSH_KEY_PATH");
+        String repositoryHubOverride = System.getenv("REPOSITORY_HUB_PATH");
+        String finalRepoPath = repositoryHubOverride != null ? repositoryHubOverride : config.getRepositoryHubPath();
+
+        return new GitRepositoryManager(
+                finalRepoPath,
+                gitUsername,
+                gitPassword,
+                gitSshKeyPath,
+                config.getScanBranch()
+        );
+    }
+
+    private List<ScanRepositoryEntry> extractActiveRepositories(ScanConfig config) {
+        return config.getRepositories().stream()
+                .filter(ScanRepositoryEntry::isActive)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -239,39 +236,30 @@ public class ScheduledScanService {
         private final LocalDateTime lastScanTime;
         private final String lastScanStatus;
         private final String lastScanError;
-        private final String repositoryHubPath;
-        private final String repositoryListFile;
-        private final boolean tempCloneMode;
-        private final int maxRepositoriesPerScan;
-        private final boolean schedulerEnabled;
-        private final String dailyScanCron;
+        private final ScanConfig scanConfig;
 
-        public ScanStatus(boolean isScanning, LocalDateTime lastScanTime, String lastScanStatus, 
-                         String lastScanError, String repositoryHubPath, String repositoryListFile, 
-                         boolean tempCloneMode, int maxRepositoriesPerScan, boolean schedulerEnabled, 
-                         String dailyScanCron) {
+        public ScanStatus(boolean isScanning, LocalDateTime lastScanTime, String lastScanStatus,
+                          String lastScanError, ScanConfig scanConfig) {
             this.isScanning = isScanning;
             this.lastScanTime = lastScanTime;
             this.lastScanStatus = lastScanStatus;
             this.lastScanError = lastScanError;
-            this.repositoryHubPath = repositoryHubPath;
-            this.repositoryListFile = repositoryListFile;
-            this.tempCloneMode = tempCloneMode;
-            this.maxRepositoriesPerScan = maxRepositoriesPerScan;
-            this.schedulerEnabled = schedulerEnabled;
-            this.dailyScanCron = dailyScanCron;
+            this.scanConfig = scanConfig;
         }
 
-        // Getters
         public boolean isScanning() { return isScanning; }
         public LocalDateTime getLastScanTime() { return lastScanTime; }
         public String getLastScanStatus() { return lastScanStatus; }
         public String getLastScanError() { return lastScanError; }
-        public String getRepositoryHubPath() { return repositoryHubPath; }
-        public String getRepositoryListFile() { return repositoryListFile; }
-        public boolean isTempCloneMode() { return tempCloneMode; }
-        public int getMaxRepositoriesPerScan() { return maxRepositoriesPerScan; }
-        public boolean isSchedulerEnabled() { return schedulerEnabled; }
-        public String getDailyScanCron() { return dailyScanCron; }
+        public String getRepositoryHubPath() { return scanConfig != null ? scanConfig.getRepositoryHubPath() : null; }
+        public String getRepositoryListFile() { return scanConfig != null ? scanConfig.getRepositoryListFileLabel() : null; }
+        public boolean isTempCloneMode() { return scanConfig != null && scanConfig.isTempCloneMode(); }
+        public int getMaxRepositoriesPerScan() { return scanConfig != null ? scanConfig.getMaxRepositoriesPerScan() : 0; }
+        public boolean isSchedulerEnabled() { return scanConfig != null && scanConfig.isSchedulerEnabled(); }
+        public String getDailyScanCron() { return scanConfig != null ? scanConfig.getDailyScanCron() : null; }
+        public String getRepositoryConfigContent() { return scanConfig != null ? scanConfig.getRepositoryConfigContent() : null; }
+        public List<ScanRepositoryEntry> getRepositories() { return scanConfig != null ? scanConfig.getRepositories() : List.of(); }
+        public String getOrganization() { return scanConfig != null ? scanConfig.getOrganization() : null; }
+        public String getScanBranch() { return scanConfig != null ? scanConfig.getScanBranch() : null; }
     }
 }

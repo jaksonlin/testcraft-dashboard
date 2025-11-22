@@ -1,6 +1,7 @@
 import React from 'react';
 import { RefreshCw, Target } from 'lucide-react';
 import ServerSideExportManager from '../shared/ServerSideExportManager';
+import DataControls from '../shared/DataControls';
 
 interface TestMethodsHeaderProps {
   loading: boolean;
@@ -10,12 +11,16 @@ interface TestMethodsHeaderProps {
     annotated: boolean | undefined;
   };
   onRefresh: () => void;
+  pageSize: number;
+  onPageSizeChange: (size: number) => void;
 }
 
 const TestMethodsHeader: React.FC<TestMethodsHeaderProps> = ({
   loading,
   filters,
-  onRefresh
+  onRefresh,
+  pageSize,
+  onPageSizeChange
 }) => {
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -33,6 +38,19 @@ const TestMethodsHeader: React.FC<TestMethodsHeaderProps> = ({
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            {/* Data Controls */}
+            <DataControls
+              pageSize={pageSize}
+              onPageSizeChange={onPageSizeChange}
+              pageSizeOptions={[
+                { value: 25, label: '25 per page' },
+                { value: 50, label: '50 per page' },
+                { value: 100, label: '100 per page' },
+                { value: 200, label: '200 per page' },
+                { value: 500, label: '500 per page' }
+              ]}
+            />
+            
             <button
               onClick={onRefresh}
               disabled={loading}

@@ -3,13 +3,16 @@ import { Outlet } from 'react-router-dom';
 import { Menu, X, Settings } from 'lucide-react';
 import SidebarNavigation from './SidebarNavigation';
 import SettingsPanel from '../shared/SettingsPanel';
+import ApiForbiddenNotice from '../shared/ApiForbiddenNotice';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const MainLayout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { preferences } = usePreferences();
+  const { needsPasswordChange } = useAuth();
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
@@ -57,6 +60,18 @@ const MainLayout: React.FC = () => {
       
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Optional password change prompt */}
+        {needsPasswordChange && (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-3 text-sm flex items-start justify-between">
+            <div className="pr-4">
+              <div className="font-medium">Security reminder</div>
+              <div>
+                You are currently using the default initial password. For security, please change your
+                password as soon as possible.
+              </div>
+            </div>
+          </div>
+        )}
         {/* Content */}
         <main className="flex-1 overflow-auto">
           <Outlet />
@@ -73,6 +88,8 @@ const MainLayout: React.FC = () => {
 
       {/* Settings Panel */}
       <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {/* Global 403 notice */}
+      <ApiForbiddenNotice />
     </div>
   );
 };

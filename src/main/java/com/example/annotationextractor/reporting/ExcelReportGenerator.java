@@ -8,6 +8,8 @@ import org.apache.poi.ss.util.CellRangeAddress;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -55,7 +57,10 @@ public class ExcelReportGenerator {
             createTeamSummarySheet(workbook, teamSummarySheet,teamCodes);
             
             createTestMethodDetailsSheetStreaming(workbook, teamCodes);
-            
+            // create parent directory if it doesn't exist
+            if (!Files.exists(Paths.get(outputPath).getParent())) {
+                Files.createDirectories(Paths.get(outputPath).getParent());
+            }
             // Write to file
             try (FileOutputStream fileOut = new FileOutputStream(outputPath)) {
                 workbook.write(fileOut);
@@ -165,10 +170,12 @@ public class ExcelReportGenerator {
         sheet.setColumnWidth(5, 3000);
         sheet.setColumnWidth(6, 3000);
         sheet.setColumnWidth(7, 3000);
+        sheet.setColumnWidth(8, 3000);  // Test Code Lines
+        sheet.setColumnWidth(9, 3000);  // Test Related Lines
         
         // Create headers
         Row headerRow = sheet.createRow(0);
-        String[] headers = {"Repository", "Path", "Git URL", "Test Classes", "Test Methods", "Annotated", "Coverage %", "Last Scan"};
+        String[] headers = {"Repository", "Path", "Git URL", "Test Classes", "Test Methods", "Annotated", "Coverage %", "Last Scan", "Test Code Lines", "Test Related Lines"};
         
         CellStyle headerStyle = createHeaderStyle(workbook);
         for (int i = 0; i < headers.length; i++) {
@@ -197,6 +204,8 @@ public class ExcelReportGenerator {
                     row.createCell(5).setCellValue(rs.getInt("total_annotated_methods"));
                     row.createCell(6).setCellValue(rs.getDouble("annotation_coverage_rate"));
                     row.createCell(7).setCellValue(rs.getTimestamp("last_scan_date").toString());
+                    row.createCell(8).setCellValue(rs.getInt("test_code_lines"));
+                    row.createCell(9).setCellValue(rs.getInt("test_related_code_lines"));
                 }
                 
                 if (!hasData) {
@@ -205,8 +214,8 @@ public class ExcelReportGenerator {
                     Cell noDataCell = noDataRow.createCell(0);
                     noDataCell.setCellValue("No repository data available. Please run a scan first.");
                     
-                    // Merge cells for the message
-                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 7));
+                    // Merge cells for the message (10 columns: 0-9)
+                    sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 10));
                     
                     // Style the message
                     CellStyle messageStyle = workbook.createCellStyle();
@@ -382,28 +391,31 @@ public class ExcelReportGenerator {
          // Set column widths
          sheet.setColumnWidth(0, 3000); // Team
          sheet.setColumnWidth(1, 2000); // Team Code
-         sheet.setColumnWidth(2, 3000); // Repository
-         sheet.setColumnWidth(3, 6000); // Git URL
-         sheet.setColumnWidth(4, 3000); // Class
-         sheet.setColumnWidth(5, 3000); // Method
-         sheet.setColumnWidth(6, 2000); // Line
-         sheet.setColumnWidth(7, 4000); // Title
-         sheet.setColumnWidth(8, 2000); // Author
-         sheet.setColumnWidth(9, 2000); // Status
-         sheet.setColumnWidth(10, 3000); // Target Class
-         sheet.setColumnWidth(11, 3000); // Target Method
-         sheet.setColumnWidth(12, 5000); // Description
-         sheet.setColumnWidth(13, 3000); // Test Points
-         sheet.setColumnWidth(14, 3000); // Tags
-         sheet.setColumnWidth(15, 3000); // Requirements
-         sheet.setColumnWidth(16, 3000); // Test Cases
-         sheet.setColumnWidth(17, 3000); // Defects
-         sheet.setColumnWidth(18, 3000); // Last Modified
-         sheet.setColumnWidth(19, 2000); // Last Author
+        sheet.setColumnWidth(2, 3000); // Repository
+        sheet.setColumnWidth(3, 6000); // Git URL
+        sheet.setColumnWidth(4, 3000); // Class
+        sheet.setColumnWidth(5, 3000); // Method
+        sheet.setColumnWidth(6, 2000); // Method Line
+        sheet.setColumnWidth(7, 2000); // Class Line
+        sheet.setColumnWidth(8, 2000); // Method LOC
+        sheet.setColumnWidth(9, 2000); // Class LOC
+        sheet.setColumnWidth(10, 4000); // Title
+        sheet.setColumnWidth(11, 2000); // Author
+        sheet.setColumnWidth(12, 2000); // Status
+        sheet.setColumnWidth(13, 3000); // Target Class
+        sheet.setColumnWidth(14, 3000); // Target Method
+        sheet.setColumnWidth(15, 5000); // Description
+        sheet.setColumnWidth(16, 3000); // Test Points
+        sheet.setColumnWidth(17, 3000); // Tags
+        sheet.setColumnWidth(18, 3000); // Requirements
+        sheet.setColumnWidth(19, 3000); // Test Cases
+        sheet.setColumnWidth(20, 3000); // Defects
+        sheet.setColumnWidth(21, 3000); // Last Modified
+        sheet.setColumnWidth(22, 2000); // Last Author
          
          // Create headers
          Row headerRow = sheet.createRow(0);
-         String[] headers = {"Team", "Team Code", "Repository", "Git URL", "Class", "Method", "Line", "Title", "Author", "Status", 
+         String[] headers = {"Team", "Team Code", "Repository", "Git URL", "Class", "Method", "Method Line", "Class Line", "Method LOC", "Class LOC", "Title", "Author", "Status", 
                             "Target Class", "Target Method", "Description", "Test Points", "Tags", 
                             "Requirements", "Test Cases", "Defects", "Last Modified", "Last Author"};
          
@@ -433,9 +445,12 @@ public class ExcelReportGenerator {
                         r.repository_name, 
                         r.git_url,
                         tc.class_name, 
-                        tc.package_name, 
+                        tc.package_name,
+                        tc.class_line_number,
+                        tc.class_loc,
                         tm.method_name, 
-                        tm.line_number, 
+                        tm.line_number,
+                        tm.method_loc, 
                         tm.annotation_title, 
                         tm.annotation_author, 
                         tm.annotation_status, 
@@ -490,44 +505,74 @@ public class ExcelReportGenerator {
                         // Class and method information
                         row.createCell(4).setCellValue(rs.getString("class_name"));
                         row.createCell(5).setCellValue(rs.getString("method_name"));
-                        row.createCell(6).setCellValue(rs.getInt("line_number"));
+                        
+                        // Line numbers
+                        Integer methodLine = (Integer) rs.getObject("line_number");
+                        if (methodLine != null) {
+                            row.createCell(6).setCellValue(methodLine);
+                        } else {
+                            row.createCell(6);
+                        }
+                        
+                        Integer classLine = (Integer) rs.getObject("class_line_number");
+                        if (classLine != null) {
+                            row.createCell(7).setCellValue(classLine);
+                        } else {
+                            row.createCell(7);
+                        }
+                        
+                        // Method LOC
+                        Integer methodLoc = (Integer) rs.getObject("method_loc");
+                        if (methodLoc != null) {
+                            row.createCell(8).setCellValue(methodLoc);
+                        } else {
+                            row.createCell(8);
+                        }
+                        
+                        // Class LOC
+                        Integer classLoc = (Integer) rs.getObject("class_loc");
+                        if (classLoc != null) {
+                            row.createCell(9).setCellValue(classLoc);
+                        } else {
+                            row.createCell(9);
+                        }
                         
                         // Annotation information
-                        row.createCell(7).setCellValue(rs.getString("annotation_title"));
-                        row.createCell(8).setCellValue(rs.getString("annotation_author"));
-                        row.createCell(9).setCellValue(rs.getString("annotation_status"));
-                        row.createCell(10).setCellValue(rs.getString("annotation_target_class"));
-                        row.createCell(11).setCellValue(rs.getString("annotation_target_method"));
-                        row.createCell(12).setCellValue(rs.getString("annotation_description"));
+                        row.createCell(10).setCellValue(rs.getString("annotation_title"));
+                        row.createCell(11).setCellValue(rs.getString("annotation_author"));
+                        row.createCell(12).setCellValue(rs.getString("annotation_status"));
+                        row.createCell(13).setCellValue(rs.getString("annotation_target_class"));
+                        row.createCell(14).setCellValue(rs.getString("annotation_target_method"));
+                        row.createCell(15).setCellValue(rs.getString("annotation_description"));
                         
                         // TEXT fields - parse comma-separated strings back to arrays
                         String testPointsStr = rs.getString("annotation_test_points");
                         String[] testPoints = parseSemicolonSeparatedString(testPointsStr);
-                        row.createCell(13).setCellValue(arrayToString(testPoints));
+                        row.createCell(16).setCellValue(arrayToString(testPoints));
                         
                         String tagsStr = rs.getString("annotation_tags");
                         String[] tags = parseSemicolonSeparatedString(tagsStr);
-                        row.createCell(14).setCellValue(arrayToString(tags));
+                        row.createCell(17).setCellValue(arrayToString(tags));
                         
                         String requirementsStr = rs.getString("annotation_requirements");
                         String[] requirements = parseSemicolonSeparatedString(requirementsStr);
-                        row.createCell(15).setCellValue(arrayToString(requirements));
+                        row.createCell(18).setCellValue(arrayToString(requirements));
                         
                         String testCasesStr = rs.getString("annotation_testcases");
                         String[] testCases = parseSemicolonSeparatedString(testCasesStr);
-                        row.createCell(16).setCellValue(arrayToString(testCases));
+                        row.createCell(19).setCellValue(arrayToString(testCases));
                         
                         String defectsStr = rs.getString("annotation_defects");
                         String[] defects = parseSemicolonSeparatedString(defectsStr);
-                        row.createCell(17).setCellValue(arrayToString(defects));
+                        row.createCell(20).setCellValue(arrayToString(defects));
                         
                         // Timestamp information
                         if (rs.getTimestamp("last_modified_date") != null) {
-                            row.createCell(18).setCellValue(rs.getTimestamp("last_modified_date").toString());
+                            row.createCell(21).setCellValue(rs.getTimestamp("last_modified_date").toString());
                         }
                         
                         // Last update author
-                        row.createCell(19).setCellValue(rs.getString("annotation_last_update_author"));
+                        row.createCell(22).setCellValue(rs.getString("annotation_last_update_author"));
                         
                         // Progress indicator for large datasets
                         if (totalRows % 1000 == 0) {
@@ -542,7 +587,7 @@ public class ExcelReportGenerator {
                         noDataCell.setCellValue("No test method data available. Please run a scan first.");
                         
                         // Merge cells for the message
-                        sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 19));
+                            sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 21));
                         
                         // Style the message
                         CellStyle messageStyle = workbook.createCellStyle();

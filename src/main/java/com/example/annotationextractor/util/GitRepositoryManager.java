@@ -25,6 +25,7 @@ public class GitRepositoryManager {
     private final String password;
     private final String sshKeyPath;
     private final int timeoutSeconds;
+    private final String targetBranch;
     
     /**
      * Constructor for GitRepositoryManager with SSH key support
@@ -35,11 +36,19 @@ public class GitRepositoryManager {
      * @param sshKeyPath Path to SSH private key (can be null to use default SSH config)
      */
     public GitRepositoryManager(String repositoryHubPath, String username, String password, String sshKeyPath) {
+        this(repositoryHubPath, username, password, sshKeyPath, null);
+    }
+
+    public GitRepositoryManager(String repositoryHubPath, String username, String password, String sshKeyPath, String targetBranch) {
         this.repositoryHubPath = repositoryHubPath;
         this.username = username;
         this.password = password;
         this.sshKeyPath = sshKeyPath;
         this.timeoutSeconds = 300; // 5 minutes default timeout
+        this.targetBranch = normalizeBranch(targetBranch);
+        
+        // Pre-populate known hosts to avoid interactive prompts
+        populateKnownHosts();
     }
     
     /**
@@ -50,7 +59,43 @@ public class GitRepositoryManager {
      * @param password Git password/token (can be null for public repos)
      */
     public GitRepositoryManager(String repositoryHubPath, String username, String password) {
-        this(repositoryHubPath, username, password, null);
+        this(repositoryHubPath, username, password, null, null);
+    }
+    
+    /**
+     * Pre-populate known hosts for common Git servers to avoid interactive prompts
+     */
+    private void populateKnownHosts() {
+        try {
+            // Common Git server host keys (these are public and safe to add)
+            String[] knownHosts = {
+                "github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjL2ZoL0H6XoVvF3S1mKgf3HwV467B2Xfpz0kSkmIWSkqw==\n",
+                "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
+                "github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=\n"
+            };
+            
+            Path knownHostsFile = Paths.get(System.getProperty("user.home"), ".ssh", "known_hosts");
+            Files.createDirectories(knownHostsFile.getParent());
+            
+            // Check if hosts are already in known_hosts
+            List<String> existingHosts = Files.exists(knownHostsFile) ? 
+                Files.readAllLines(knownHostsFile) : new ArrayList<>();
+            
+            for (String hostEntry : knownHosts) {
+                String hostname = hostEntry.split(" ")[0];
+                boolean hostExists = existingHosts.stream()
+                    .anyMatch(line -> line.startsWith(hostname + " "));
+                
+                if (!hostExists) {
+                    Files.write(knownHostsFile, hostEntry.getBytes(), 
+                        java.nio.file.StandardOpenOption.CREATE, 
+                        java.nio.file.StandardOpenOption.APPEND);
+                    System.out.println("Added " + hostname + " to known_hosts");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: Could not populate known_hosts: " + e.getMessage());
+        }
     }
     
     /**
@@ -59,7 +104,7 @@ public class GitRepositoryManager {
      * @param repositoryHubPath Path to the repository hub directory
      */
     public GitRepositoryManager(String repositoryHubPath) {
-        this(repositoryHubPath, null, null, null);
+        this(repositoryHubPath, null, null, null, null);
     }
     
     /**
@@ -142,6 +187,9 @@ public class GitRepositoryManager {
             
             // Build Git clone command
             List<String> command = buildGitCloneCommand(gitUrl, repoPath);
+            if (useTargetBranch()) {
+                System.out.println("Requested branch: " + targetBranch);
+            }
             
             // Execute the command
             ProcessBuilder pb = new ProcessBuilder(command);
@@ -156,7 +204,10 @@ public class GitRepositoryManager {
             
             // Set SSH key if provided
             if (sshKeyPath != null && isSshUrl(gitUrl)) {
-                pb.environment().put("GIT_SSH_COMMAND", "ssh -i " + sshKeyPath + " -o StrictHostKeyChecking=no");
+                pb.environment().put("GIT_SSH_COMMAND", "ssh -i " + sshKeyPath + " -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null");
+            } else if (isSshUrl(gitUrl)) {
+                // Even without SSH key, disable host key checking for automated operations
+                pb.environment().put("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null");
             }
             
             System.out.println("Executing: " + String.join(" ", command));
@@ -215,6 +266,12 @@ public class GitRepositoryManager {
         // Add timeout
         command.add("--config");
         command.add("http.timeout=" + timeoutSeconds);
+
+        if (useTargetBranch()) {
+            command.add("--branch");
+            command.add(targetBranch);
+            command.add("--single-branch");
+        }
         
         // Add the repository URL and target directory (full path to support nested directories)
         command.add(gitUrl);
@@ -229,52 +286,107 @@ public class GitRepositoryManager {
     private boolean pullRepository(Path repoPath, String repoName) {
         try {
             System.out.println("Pulling latest changes for repository: " + repoName);
-            
-            List<String> command = List.of("git", "pull");
-            
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.directory(repoPath.toFile());
-            
-            // Set SSH key if provided
-            if (sshKeyPath != null) {
-                pb.environment().put("GIT_SSH_COMMAND", "ssh -i " + sshKeyPath + " -o StrictHostKeyChecking=no");
-            }
-            
-            System.out.println("Executing: " + String.join(" ", command));
-            
-            Process process = pb.start();
-            
-            // Wait for completion with timeout
-            boolean completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
-            
-            if (!completed) {
-                process.destroyForcibly();
-                System.err.println("Git pull operation timed out after " + timeoutSeconds + " seconds");
-                return false;
-            }
-            
-            int exitCode = process.exitValue();
-            
-            if (exitCode == 0) {
-                System.out.println("Successfully pulled latest changes for repository: " + repoName);
-                return true;
-            } else {
-                // Capture error output
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        System.err.println("Git error: " + line);
-                    }
+            System.out.println("Repository path: " + repoPath);
+            if (useTargetBranch()) {
+                System.out.println("Ensuring branch: " + targetBranch);
+                if (!ensureBranchCheckedOut(repoPath)) {
+                    System.err.println("Failed to align repository " + repoName + " to branch " + targetBranch);
+                    return false;
                 }
-                System.err.println("Failed to pull changes for repository " + repoName + " (exit code: " + exitCode + ")");
-                return false;
             }
-            
+
+            List<String> command = useTargetBranch()
+                    ? List.of("git", "pull", "origin", targetBranch)
+                    : List.of("git", "pull");
+
+            return runGitCommand(repoPath, command);
         } catch (Exception e) {
             System.err.println("Failed to pull repository " + repoName + ": " + e.getMessage());
             e.printStackTrace();
             return false;
         }
+    }
+
+    private boolean ensureBranchCheckedOut(Path repoPath) {
+        if (!useTargetBranch()) {
+            return true;
+        }
+        if (!runGitCommand(repoPath, List.of("git", "fetch", "origin", targetBranch))) {
+            return false;
+        }
+        if (runGitCommand(repoPath, List.of("git", "checkout", targetBranch))) {
+            return true;
+        }
+        return runGitCommand(repoPath, List.of("git", "checkout", "-B", targetBranch, "origin/" + targetBranch));
+    }
+
+    private boolean runGitCommand(Path repoPath, List<String> command) {
+        try {
+            System.out.println("Executing git command in " + repoPath + ": " + String.join(" ", command));
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(repoPath.toFile());
+            applySshEnvironment(pb);
+            pb.redirectErrorStream(true);
+
+            Process process = pb.start();
+            StringBuilder output = new StringBuilder();
+            Thread outputThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        System.out.println("git> " + line);
+                        output.append(line).append("\n");
+                    }
+                } catch (IOException e) {
+                    System.err.println("Error reading git command output: " + e.getMessage());
+                }
+            });
+            outputThread.start();
+
+            boolean completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+            if (!completed) {
+                System.err.println("Git command timed out after " + timeoutSeconds + " seconds: " + command);
+                process.destroyForcibly();
+                outputThread.interrupt();
+                return false;
+            }
+
+            outputThread.join(1000);
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                System.err.println("Git command failed (" + exitCode + "): " + String.join(" ", command));
+                System.err.println(output.toString());
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            System.err.println("Failed to execute git command " + command + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    private void applySshEnvironment(ProcessBuilder pb) {
+        if (sshKeyPath != null) {
+            pb.environment().put("GIT_SSH_COMMAND", "ssh -i " + sshKeyPath + " -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null");
+        } else {
+            pb.environment().put("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null");
+        }
+    }
+
+    private boolean useTargetBranch() {
+        return targetBranch != null && !targetBranch.isBlank();
+    }
+
+    public String getTargetBranch() {
+        return targetBranch;
+    }
+
+    private String normalizeBranch(String branch) {
+        if (branch == null) {
+            return null;
+        }
+        String trimmed = branch.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
     
     /**

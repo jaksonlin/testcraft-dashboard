@@ -21,6 +21,8 @@ public final class RepositoryRecord {
     private final int totalTestMethods;
     private final int totalAnnotatedMethods;
     private final double annotationCoverageRate;
+    private final int testCodeLines;
+    private final int testRelatedCodeLines;
 
     public RepositoryRecord(Long id,
                             String repositoryName,
@@ -34,7 +36,9 @@ public final class RepositoryRecord {
                             int totalTestClasses,
                             int totalTestMethods,
                             int totalAnnotatedMethods,
-                            double annotationCoverageRate) {
+                            double annotationCoverageRate,
+                            int testCodeLines,
+                            int testRelatedCodeLines) {
         this.id = id;
         this.repositoryName = repositoryName;
         this.repositoryPath = repositoryPath;
@@ -48,6 +52,8 @@ public final class RepositoryRecord {
         this.totalTestMethods = totalTestMethods;
         this.totalAnnotatedMethods = totalAnnotatedMethods;
         this.annotationCoverageRate = annotationCoverageRate;
+        this.testCodeLines = testCodeLines;
+        this.testRelatedCodeLines = testRelatedCodeLines;
     }
 
     public Long getId() { return id; }
@@ -63,6 +69,8 @@ public final class RepositoryRecord {
     public int getTotalTestMethods() { return totalTestMethods; }
     public int getTotalAnnotatedMethods() { return totalAnnotatedMethods; }
     public double getAnnotationCoverageRate() { return annotationCoverageRate; }
+    public int getTestCodeLines() { return testCodeLines; }
+    public int getTestRelatedCodeLines() { return testRelatedCodeLines; }
 
     @Override
     public boolean equals(Object o) {

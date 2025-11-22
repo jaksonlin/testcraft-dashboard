@@ -591,6 +591,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
         String methodName = rs.getString("method_name");
         String methodSignature = rs.getString("method_signature");
         Integer lineNumber = (Integer) rs.getObject("line_number");
+        Integer methodLoc = (Integer) rs.getObject("method_loc");
         boolean hasAnnotation = rs.getBoolean("has_annotation");
         String annotationData = rs.getString("annotation_data");
         String annotationTitle = rs.getString("annotation_title");
@@ -616,6 +617,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             methodName,
             methodSignature,
             lineNumber,
+            methodLoc,
             hasAnnotation,
             annotationData,
             annotationTitle,
@@ -648,6 +650,8 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             String packageName,
             String className,
             Boolean annotated,
+            String searchTerm,
+            String codePattern,
             Integer offset,
             Integer limit) {
         
@@ -684,6 +688,16 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
         List<Object> params = new ArrayList<>();
         params.add(scanSessionId);
         
+        // Search term filter (searches across multiple fields)
+        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+            sql.append(" AND (LOWER(tm.method_name) LIKE LOWER(?) OR LOWER(tc.class_name) LIKE LOWER(?) OR LOWER(r.repository_name) LIKE LOWER(?) OR LOWER(tm.annotation_title) LIKE LOWER(?))");
+            String searchPattern = "%" + searchTerm + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
+            params.add(searchPattern);
+            params.add(searchPattern);
+        }
+        
         // Team name filter (case-insensitive)
         if (teamName != null && !teamName.trim().isEmpty()) {
             sql.append(" AND LOWER(t.team_name) LIKE LOWER(?)");
@@ -715,6 +729,15 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             } else {
                 sql.append(" AND (tm.annotation_title IS NULL OR tm.annotation_title = '')");
             }
+        }
+        
+        // Code pattern filter (searches in target class, target method, and method body content)
+        if (codePattern != null && !codePattern.trim().isEmpty()) {
+            sql.append(" AND (LOWER(tm.annotation_target_class) LIKE LOWER(?) OR LOWER(tm.annotation_target_method) LIKE LOWER(?) OR LOWER(tm.method_body_content) LIKE LOWER(?))");
+            String codePatternSearch = "%" + codePattern + "%";
+            params.add(codePatternSearch);
+            params.add(codePatternSearch);
+            params.add(codePatternSearch);
         }
         
         sql.append(" ORDER BY r.repository_name, tc.class_name, tm.method_name");
@@ -760,7 +783,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
                     
                     String lastUpdateTime = rs.getString("annotation_last_update_time");
                     LocalDateTime lastUpdateDateTime = null;
-                    if (lastUpdateTime != null && !lastUpdateTime.isEmpty()) {
+                    if (lastUpdateTime != null && !lastUpdateTime.trim().isEmpty()) {
                         try {
                             lastUpdateDateTime = LocalDateTime.parse(lastUpdateTime);
                         } catch (Exception e) {
@@ -800,7 +823,9 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             String repositoryName,
             String packageName,
             String className,
-            Boolean annotated) {
+            Boolean annotated,
+            String searchTerm,
+            String codePattern) {
         
         StringBuilder sql = new StringBuilder("""
             SELECT COUNT(*) 
@@ -813,6 +838,16 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
         
         List<Object> params = new ArrayList<>();
         params.add(scanSessionId);
+        
+        // Search term filter (searches across multiple fields)
+        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+            sql.append(" AND (LOWER(tm.method_name) LIKE LOWER(?) OR LOWER(tc.class_name) LIKE LOWER(?) OR LOWER(r.repository_name) LIKE LOWER(?) OR LOWER(tm.annotation_title) LIKE LOWER(?))");
+            String searchPattern = "%" + searchTerm + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
+            params.add(searchPattern);
+            params.add(searchPattern);
+        }
         
         // Apply same filters as in findTestMethodDetailsWithFilters
         if (teamName != null && !teamName.trim().isEmpty()) {
@@ -841,6 +876,15 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             } else {
                 sql.append(" AND (tm.annotation_title IS NULL OR tm.annotation_title = '')");
             }
+        }
+        
+        // Code pattern filter (searches in target class, target method, and method body content)
+        if (codePattern != null && !codePattern.trim().isEmpty()) {
+            sql.append(" AND (LOWER(tm.annotation_target_class) LIKE LOWER(?) OR LOWER(tm.annotation_target_method) LIKE LOWER(?) OR LOWER(tm.method_body_content) LIKE LOWER(?))");
+            String codePatternSearch = "%" + codePattern + "%";
+            params.add(codePatternSearch);
+            params.add(codePatternSearch);
+            params.add(codePatternSearch);
         }
         
         try (Connection conn = DatabaseConfig.getConnection();

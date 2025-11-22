@@ -105,6 +105,7 @@ public class JdbcScanSessionAdapter implements ScanSessionPort {
         String scanStatus = rs.getString("scan_status");
         String errorLog = rs.getString("error_log");
         String metadata = rs.getString("metadata");
+        String reportFilePath = rs.getString("report_file_path");
         return new ScanSession(
             id,
             scanDate != null ? scanDate.toInstant() : null,
@@ -116,7 +117,8 @@ public class JdbcScanSessionAdapter implements ScanSessionPort {
             scanDurationMs,
             scanStatus,
             errorLog,
-            metadata
+            metadata,
+            reportFilePath
         );
     }
 }

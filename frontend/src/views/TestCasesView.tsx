@@ -12,7 +12,7 @@ import Pagination from '../components/shared/Pagination';
 import { Toast } from '../components/shared/Toast';
 import { useTestCaseData, type TabType, type TestCaseFilters } from '../hooks/useTestCaseData';
 import type { TestCase, Team } from '../lib/testCaseApi';
-import { getOrganizations, getTeams, deleteAllTestCases } from '../lib/testCaseApi';
+import { getTeams, deleteAllTestCases } from '../lib/testCaseApi';
 
 /**
  * Main Test Cases view with tabs for list, coverage, and gaps.
@@ -25,10 +25,8 @@ export const TestCasesView: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
-  const [organizations, setOrganizations] = useState<string[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [uiFilters, setUiFilters] = useState({
-    organization: '',
     teamId: '',
     priority: '',
     type: '',
@@ -57,15 +55,11 @@ export const TestCasesView: React.FC = () => {
     clearError,
   } = useTestCaseData();
 
-  // Load organizations and teams on mount
+  // Load teams on mount
   useEffect(() => {
     const loadFiltersData = async () => {
       try {
-        const [orgs, teamsData] = await Promise.all([
-          getOrganizations(),
-          getTeams()
-        ]);
-        setOrganizations(orgs);
+        const teamsData = await getTeams();
         setTeams(teamsData);
       } catch (error) {
         console.error('Failed to load filter data:', error);
@@ -117,7 +111,6 @@ export const TestCasesView: React.FC = () => {
   const handleBulkDelete = async () => {
     // Check if any filters are active
     const hasActiveFilters = !!(
-      uiFilters.organization ||
       uiFilters.teamId ||
       uiFilters.priority ||
       uiFilters.type ||
@@ -139,7 +132,6 @@ export const TestCasesView: React.FC = () => {
 
     // First confirmation
     const filterSummary = [
-      uiFilters.organization && `Organization: ${uiFilters.organization}`,
       uiFilters.teamId && `Team ID: ${uiFilters.teamId}`,
       uiFilters.type && `Type: ${uiFilters.type}`,
       uiFilters.priority && `Priority: ${uiFilters.priority}`,
@@ -171,7 +163,6 @@ export const TestCasesView: React.FC = () => {
       // Execute bulk delete
       const result = await deleteAllTestCases(
         {
-          organization: uiFilters.organization || undefined,
           teamId: uiFilters.teamId ? Number(uiFilters.teamId) : undefined,
           type: uiFilters.type || undefined,
           priority: uiFilters.priority || undefined,
@@ -212,7 +203,6 @@ export const TestCasesView: React.FC = () => {
     
     // Convert to backend filter format
     const backendFilters: TestCaseFilters = {};
-    if (newFilters.organization) backendFilters.organization = newFilters.organization;
     if (newFilters.teamId) backendFilters.teamId = Number(newFilters.teamId);
     if (newFilters.priority) backendFilters.priority = newFilters.priority;
     if (newFilters.type) backendFilters.type = newFilters.type;
@@ -239,7 +229,6 @@ export const TestCasesView: React.FC = () => {
         onUploadClick={() => setIsUploadModalOpen(true)}
         onBulkDelete={handleBulkDelete}
         hasActiveFilters={!!(
-          uiFilters.organization ||
           uiFilters.teamId ||
           uiFilters.priority ||
           uiFilters.type ||
@@ -305,7 +294,6 @@ export const TestCasesView: React.FC = () => {
             <TestCaseListTable
               testCases={testCases}
               filters={uiFilters}
-              organizations={organizations}
               teams={teams}
               onFilterChange={handleFilterChange}
               onViewDetails={setSelectedTestCase}
@@ -360,7 +348,6 @@ export const TestCasesView: React.FC = () => {
                 <TestCaseListTable
                   testCases={untestedCases}
                   filters={uiFilters}
-                  organizations={organizations}
                   teams={teams}
                   onFilterChange={handleFilterChange}
                   onViewDetails={setSelectedTestCase}

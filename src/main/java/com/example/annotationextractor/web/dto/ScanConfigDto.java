@@ -25,19 +25,32 @@ public class ScanConfigDto {
     @JsonProperty("dailyScanCron")
     private String dailyScanCron;
     
+    @JsonProperty("repositoryConfigContent")
+    private String repositoryConfigContent;
+
+    @JsonProperty("organization")
+    private String organization;
+
+    @JsonProperty("scanBranch")
+    private String scanBranch;
+    
     // Default constructor
     public ScanConfigDto() {}
     
     // Constructor with all fields
     public ScanConfigDto(Boolean tempCloneMode, String repositoryHubPath, 
                         String repositoryListFile, Integer maxRepositoriesPerScan,
-                        Boolean schedulerEnabled, String dailyScanCron) {
+                        Boolean schedulerEnabled, String dailyScanCron, String repositoryConfigContent,
+                        String organization, String scanBranch) {
         this.tempCloneMode = tempCloneMode;
         this.repositoryHubPath = repositoryHubPath;
         this.repositoryListFile = repositoryListFile;
         this.maxRepositoriesPerScan = maxRepositoriesPerScan;
         this.schedulerEnabled = schedulerEnabled;
         this.dailyScanCron = dailyScanCron;
+        this.repositoryConfigContent = repositoryConfigContent;
+        this.organization = organization;
+        this.scanBranch = scanBranch;
     }
     
     // Getters and Setters
@@ -89,6 +102,30 @@ public class ScanConfigDto {
         this.dailyScanCron = dailyScanCron;
     }
     
+    public String getRepositoryConfigContent() {
+        return repositoryConfigContent;
+    }
+    
+    public void setRepositoryConfigContent(String repositoryConfigContent) {
+        this.repositoryConfigContent = repositoryConfigContent;
+    }
+
+    public String getOrganization() {
+        return organization;
+    }
+
+    public void setOrganization(String organization) {
+        this.organization = organization;
+    }
+
+    public String getScanBranch() {
+        return scanBranch;
+    }
+
+    public void setScanBranch(String scanBranch) {
+        this.scanBranch = scanBranch;
+    }
+    
     @Override
     public String toString() {
         return "ScanConfigDto{" +
@@ -98,6 +135,9 @@ public class ScanConfigDto {
                 ", maxRepositoriesPerScan=" + maxRepositoriesPerScan +
                 ", schedulerEnabled=" + schedulerEnabled +
                 ", dailyScanCron='" + dailyScanCron + '\'' +
+                ", repositoryConfigContent='" + repositoryConfigContent + '\'' +
+                ", organization='" + organization + '\'' +
+                ", scanBranch='" + scanBranch + '\'' +
                 '}';
     }
 }

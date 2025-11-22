@@ -117,6 +117,23 @@ const ScanConfigModal: React.FC<ScanConfigModalProps> = ({
                   </p>
                 </div>
 
+                {/* Default Scan Branch */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Default Scan Branch
+                  </label>
+                  <input
+                    type="text"
+                    name="scanBranch"
+                    defaultValue={scanConfig.scanBranch || 'main'}
+                    className="input w-full"
+                    placeholder="main"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Branch to checkout during clone/pull operations
+                  </p>
+                </div>
+
                 {/* Max Repositories Per Scan */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">

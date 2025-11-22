@@ -230,4 +230,12 @@
       transform: translateX(-100%);
     }
   }
+
+  .tm-source-highlight {
+    background-color: rgba(253, 224, 71, 0.18);
+  }
+
+  .tm-source-highlight-inline {
+    background-color: rgba(253, 224, 71, 0.12);
+  }
 }

@@ -5,7 +5,6 @@ import com.example.annotationextractor.domain.model.TestClass;
 import com.example.annotationextractor.domain.port.TestClassPort;
 
 import java.sql.*;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -115,6 +114,11 @@ public class JdbcTestClassAdapter implements TestClassPort {
         Timestamp firstSeen = rs.getTimestamp("first_seen_date");
         Timestamp lastModified = rs.getTimestamp("last_modified_date");
         Long scanSessionId = (Long) rs.getObject("scan_session_id");
+        Integer classLineNumber = (Integer) rs.getObject("class_line_number");
+        String testClassContent = rs.getString("test_class_content");
+        String helperClassesLineNumbers = rs.getString("helper_classes_line_numbers");
+        String importedTypes = rs.getString("imported_types");
+        String referencedTypes = rs.getString("referenced_types");
 
         return new TestClass(
             id,
@@ -128,7 +132,12 @@ public class JdbcTestClassAdapter implements TestClassPort {
             coverageRate,
             firstSeen != null ? firstSeen.toInstant() : null,
             lastModified != null ? lastModified.toInstant() : null,
-            scanSessionId
+            scanSessionId,
+            classLineNumber,
+            testClassContent,
+            helperClassesLineNumbers,
+            importedTypes,
+            referencedTypes
         );
     }
 }

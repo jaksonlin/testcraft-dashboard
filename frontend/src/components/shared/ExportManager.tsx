@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileText, Table, BarChart3, Users, GitBranch, Calendar, Settings } from 'lucide-react';
+import { Download, FileText, Table, BarChart3, Users, GitBranch, Calendar } from 'lucide-react';
 
 export type ExportFormat = 'csv' | 'json' | 'excel';
 export type ExportScope = 'all' | 'selected' | 'filtered';

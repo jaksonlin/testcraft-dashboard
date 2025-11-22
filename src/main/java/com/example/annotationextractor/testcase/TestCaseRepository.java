@@ -35,20 +35,29 @@ public class TestCaseRepository {
     public SaveResult saveAll(List<TestCase> testCases) throws SQLException {
         int created = 0;
         int updated = 0;
+        int skipped = 0;
         
         try (Connection conn = DatabaseConfig.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 for (TestCase testCase : testCases) {
-                    boolean isNew = save(conn, testCase);
-                    if (isNew) {
-                        created++;
-                    } else {
-                        updated++;
+                    try {
+                        boolean isNew = save(conn, testCase);
+                        if (isNew) {
+                            created++;
+                        } else {
+                            updated++;
+                        }
+                    } catch (SQLException rowEx) {
+                        // Skip this row if it violates DB constraints or other errors occur
+                        skipped++;
+                        // Optionally log the failure for diagnostics
+                        System.err.println("Skipping test case due to DB error (externalId=" + testCase.getExternalId() + "): " + rowEx.getMessage());
+                        // Continue with next row without failing entire batch
                     }
                 }
                 conn.commit();
-                return new SaveResult(created, updated);
+                return new SaveResult(created, updated, skipped);
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
@@ -62,14 +71,17 @@ public class TestCaseRepository {
     public static class SaveResult {
         private final int created;
         private final int updated;
+        private final int skipped;
         
-        public SaveResult(int created, int updated) {
+        public SaveResult(int created, int updated, int skipped) {
             this.created = created;
             this.updated = updated;
+            this.skipped = skipped;
         }
         
         public int getCreated() { return created; }
         public int getUpdated() { return updated; }
+        public int getSkipped() { return skipped; }
         public int getTotal() { return created + updated; }
     }
     

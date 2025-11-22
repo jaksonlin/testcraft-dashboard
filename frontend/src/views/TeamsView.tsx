@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, TrendingUp, BarChart3, GitBranch, Search, Download, ChevronLeft, ChevronRight, Eye, CheckCircle, Play, RefreshCw } from 'lucide-react';
-import { api, type TeamMetrics, type PagedResponse } from '../lib/api';
+import { api, type TeamMetrics, type PagedResponse, type DashboardOverview } from '../lib/api';
 import StatCard from '../components/shared/StatCard';
 import BulkOperations, { type BulkAction } from '../components/shared/BulkOperations';
 import ExportManager, { type ExportOption } from '../components/shared/ExportManager';
@@ -22,6 +22,7 @@ const TeamsView: React.FC = () => {
   const [pagination, setPagination] = useState<PagedResponse<TeamMetrics> | null>(null);
   const { isOpen: isDetailOpen, open: openDetailModal, close: closeDetailModal } = useModal();
   const [selectedTeam, setSelectedTeam] = useState<TeamMetrics | null>(null);
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
 
   // Sort options configuration
   const sortOptions: SortOption[] = [
@@ -42,6 +43,13 @@ const TeamsView: React.FC = () => {
       );
       setTeams(response.content);
       setPagination(response);
+
+      try {
+        const overviewResponse = await api.dashboard.getOverview();
+        setOverview(overviewResponse);
+      } catch (overviewErr) {
+        console.error('Error fetching dashboard overview:', overviewErr);
+      }
     } catch (err) {
       setError('Failed to fetch teams data');
       console.error('Error fetching teams:', err);
@@ -197,11 +205,15 @@ const TeamsView: React.FC = () => {
     );
   }
 
-  const totalRepositories = teams.reduce((sum, team) => sum + team.repositoryCount, 0);
-  const totalTestMethods = teams.reduce((sum, team) => sum + team.totalTestMethods, 0);
-  const averageCoverage = teams.length > 0 
-    ? teams.reduce((sum, team) => sum + team.averageCoverageRate, 0) / teams.length 
-    : 0;
+  const totalTeams = overview?.totalTeams ?? pagination?.totalElements ?? teams.length;
+  const totalRepositories = overview?.totalRepositories 
+    ?? teams.reduce((sum, team) => sum + team.repositoryCount, 0);
+  const totalTestMethods = overview?.totalTestMethods 
+    ?? teams.reduce((sum, team) => sum + team.totalTestMethods, 0);
+  const averageCoverage = overview?.overallCoverageRate 
+    ?? (teams.length > 0 
+      ? teams.reduce((sum, team) => sum + team.averageCoverageRate, 0) / teams.length 
+      : 0);
 
   return (
     <div className="p-8">
@@ -238,7 +250,7 @@ const TeamsView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <StatCard
           title="Total Teams"
-          value={teams.length.toString()}
+          value={totalTeams.toString()}
           icon={<Users className="h-5 w-5" />}
           color="blue"
         />

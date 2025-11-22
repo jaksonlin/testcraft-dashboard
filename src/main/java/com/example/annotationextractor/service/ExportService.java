@@ -168,7 +168,7 @@ public class ExportService {
                 // Fetch chunk of data with all filter parameters
                 com.example.annotationextractor.web.dto.PagedResponse<TestMethodDetailDto> chunkData = 
                     repositoryDataService.getTestMethodDetailsPaginated(
-                        page, pageSize, organization, teamName, repositoryName, packageName, className, annotated);
+                        page, pageSize, organization, teamName, repositoryName, packageName, className, annotated, null);
                 
                 if (chunkData.getContent().isEmpty()) {
                     break; // No more data
@@ -347,7 +347,7 @@ public class ExportService {
                     // Get a small sample to determine total count
                     com.example.annotationextractor.web.dto.PagedResponse<TestMethodDetailDto> sample = 
                         repositoryDataService.getTestMethodDetailsPaginated(
-                            0, 1, organization, teamName, repositoryName, packageName, className, annotated);
+                            0, 1, organization, teamName, repositoryName, packageName, className, annotated, null);
                     return sample.getTotalElements();
                     
                 case "repositories":

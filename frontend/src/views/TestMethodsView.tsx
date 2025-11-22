@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { CheckCircle, XCircle, ExternalLink, FileText, Target } from 'lucide-react';
-import { api, type TestMethodDetail } from '../lib/api';
+import { CheckCircle, XCircle, ExternalLink, FileText, Target, Eye } from 'lucide-react';
+import { api, type TestMethodDetail, type TestMethodSource } from '../lib/api';
 import PaginatedTable, { type ColumnDef } from '../components/shared/PaginatedTable';
 import { usePaginatedData } from '../hooks/usePaginatedData';
 import { isMethodAnnotated, getAnnotationStatusDisplayName } from '../utils/methodUtils';
@@ -8,6 +8,7 @@ import TestMethodsHeader from '../components/test-methods/TestMethodsHeader';
 import { useSearchParams } from 'react-router-dom';
 import { HighlightedText } from '../components/shared/HighlightedText';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import TestMethodSourceViewer from '../components/test-methods/TestMethodSourceViewer';
 
 const TestMethodsView: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -21,7 +22,8 @@ const TestMethodsView: React.FC = () => {
       packageName: searchParams.get('package') || '',
       className: searchParams.get('class') || '',
       annotated: searchParams.get('annotated') === 'true' ? true : 
-                 searchParams.get('annotated') === 'false' ? false : undefined
+                 searchParams.get('annotated') === 'false' ? false : undefined,
+      codePattern: searchParams.get('code') || ''
     };
   };
   
@@ -37,6 +39,10 @@ const TestMethodsView: React.FC = () => {
     totalNotAnnotated: 0,
     coverageRate: 0
   });
+  const [sourceModalOpen, setSourceModalOpen] = useState(false);
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const [selectedSource, setSelectedSource] = useState<TestMethodSource | null>(null);
 
   const {
     data: testMethods,
@@ -59,7 +65,8 @@ const TestMethodsView: React.FC = () => {
         currentFilters.repositoryName || undefined,
         currentFilters.packageName || undefined,
         currentFilters.className || undefined,
-        currentFilters.annotated
+        currentFilters.annotated,
+        currentFilters.codePattern || undefined
       );
       return {
         content: response.content,
@@ -118,11 +125,36 @@ const TestMethodsView: React.FC = () => {
       repositoryName: '',
       packageName: '',
       className: '',
-      annotated: undefined as boolean | undefined
+      annotated: undefined as boolean | undefined,
+      codePattern: ''
     };
     setFilters(emptyFilters);
     setDataFilters(emptyFilters);
   }, [setDataFilters]);
+
+  const handleViewSource = useCallback(async (methodId: number) => {
+    setSourceModalOpen(true);
+    setSourceLoading(true);
+    setSourceError(null);
+    setSelectedSource(null);
+
+    try {
+      const source = await api.dashboard.getTestMethodSource(methodId);
+      setSelectedSource(source);
+    } catch (err) {
+      console.error('Failed to load test class source', err);
+      setSourceError('Unable to load test class content right now.');
+    } finally {
+      setSourceLoading(false);
+    }
+  }, []);
+
+  const handleCloseSource = useCallback(() => {
+    setSourceModalOpen(false);
+    setSourceError(null);
+    setSelectedSource(null);
+    setSourceLoading(false);
+  }, []);
   
   // Keyboard shortcuts for power users
   useKeyboardShortcuts([
@@ -188,6 +220,7 @@ const TestMethodsView: React.FC = () => {
     if (filters.packageName) params.set('package', filters.packageName);
     if (filters.className) params.set('class', filters.className);
     if (filters.annotated !== undefined) params.set('annotated', filters.annotated.toString());
+    if (filters.codePattern) params.set('code', filters.codePattern);
     
     // Update URL without triggering navigation
     setSearchParams(params, { replace: true });
@@ -217,7 +250,7 @@ const TestMethodsView: React.FC = () => {
         </div>
       ),
       sortable: true,
-      width: '200px'
+      width: '150px'
     },
     {
       key: 'testClass',
@@ -230,7 +263,7 @@ const TestMethodsView: React.FC = () => {
         />
       ),
       sortable: true,
-      width: '250px'
+      width: '200px'
     },
     {
       key: 'testMethod',
@@ -243,7 +276,7 @@ const TestMethodsView: React.FC = () => {
         />
       ),
       sortable: true,
-      width: '200px'
+      width: '150px'
     },
     {
       key: 'annotation',
@@ -281,7 +314,7 @@ const TestMethodsView: React.FC = () => {
         />
       ),
       sortable: true,
-      width: '300px'
+      width: '200px'
     },
     {
       key: 'author',
@@ -319,8 +352,26 @@ const TestMethodsView: React.FC = () => {
       ),
       sortable: true,
       width: '100px'
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (method) => (
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
+            handleViewSource(method.id);
+          }}
+          className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors"
+        >
+          <Eye className="h-4 w-4 mr-1" />
+          View
+        </button>
+      ),
+      sortable: false,
+      width: '110px'
     }
-  ], [filters.repositoryName, filters.className, filters.packageName]);
+  ], [filters.repositoryName, filters.className, filters.packageName, handleViewSource]);
 
   if (error) {
     return (
@@ -349,6 +400,8 @@ const TestMethodsView: React.FC = () => {
         loading={loading}
         filters={filters}
         onRefresh={refresh}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
       />
 
       {/* Main Content */}
@@ -402,7 +455,7 @@ const TestMethodsView: React.FC = () => {
           </div>
 
           {/* Secondary Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Package
@@ -429,6 +482,19 @@ const TestMethodsView: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Code Pattern
+              </label>
+              <input
+                type="text"
+                placeholder="Filter by target class/method..."
+                value={filters.codePattern}
+                onChange={(e) => handleFilterChange({ codePattern: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                title="Filter by the class or method being tested (target class/method)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Annotation Status
               </label>
               <select
@@ -449,7 +515,7 @@ const TestMethodsView: React.FC = () => {
           </div>
           
           {/* Active Filters Display */}
-          {(filters.organization || filters.teamName || filters.repositoryName || filters.packageName || filters.className || filters.annotated !== undefined) && (
+          {(filters.organization || filters.teamName || filters.repositoryName || filters.packageName || filters.className || filters.codePattern || filters.annotated !== undefined) && (
             <div className="mt-4 flex items-center gap-2 flex-wrap">
               <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
               {filters.organization && (
@@ -475,6 +541,11 @@ const TestMethodsView: React.FC = () => {
               {filters.className && (
                 <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
                   Class: {filters.className}
+                </span>
+              )}
+              {filters.codePattern && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                  Code: {filters.codePattern}
                 </span>
               )}
               {filters.annotated !== undefined && (
@@ -568,7 +639,6 @@ const TestMethodsView: React.FC = () => {
           currentPage={currentPage}
           pageSize={pageSize}
           onPageChange={setPage}
-          onPageSizeChange={setPageSize}
           columns={columns}
           loading={loading}
           searchable={false}
@@ -585,6 +655,14 @@ const TestMethodsView: React.FC = () => {
           </p>
         </div>
       </main>
+
+      <TestMethodSourceViewer
+        isOpen={sourceModalOpen}
+        loading={sourceLoading}
+        error={sourceError}
+        source={selectedSource}
+        onClose={handleCloseSource}
+      />
     </div>
   );
 };
