@@ -3,16 +3,19 @@ package com.example.annotationextractor.runner;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import com.example.annotationextractor.casemodel.ParseResult;
 import com.example.annotationextractor.casemodel.RepositoryTestInfo;
 import com.example.annotationextractor.casemodel.TestClassInfo;
 import com.example.annotationextractor.casemodel.TestClassParser;
 import com.example.annotationextractor.casemodel.TestCollectionSummary;
+import com.example.annotationextractor.casemodel.TestHelperClassInfo;
+import com.example.annotationextractor.domain.model.ScanRepositoryEntry;
 import com.example.annotationextractor.util.GitRepositoryManager;
 
 import java.util.regex.Matcher;
@@ -26,22 +29,29 @@ import java.util.regex.Matcher;
 
 public class RepositoryScanner {
 
-    private final Map<String, RepositoryTestInfo> repositoryInfos = new HashMap<>();
+    private final Map<String, RepositoryTestInfo> repositoryInfos = new LinkedHashMap<>();
     private final TestCollectionSummary summary;
     private final GitRepositoryManager gitRepositoryManager;
+    private final Path dependenciesDir;
+    private final int maxRepositoriesPerScan;
 
-    public RepositoryScanner(GitRepositoryManager gitRepositoryManager) throws IOException {
-        
+    public RepositoryScanner(GitRepositoryManager gitRepositoryManager, List<ScanRepositoryEntry> repositoryEntries, int maxRepositoriesPerScan) throws IOException {
+        this(gitRepositoryManager, repositoryEntries, maxRepositoriesPerScan, null);
+    }
+
+    public RepositoryScanner(GitRepositoryManager gitRepositoryManager, List<ScanRepositoryEntry> repositoryEntries, int maxRepositoriesPerScan, Path dependenciesDir) throws IOException {
         this.gitRepositoryManager = gitRepositoryManager;
         this.summary = new TestCollectionSummary(gitRepositoryManager.getRepositoryHubPath());
-        String scanConfigPath = gitRepositoryManager.getRepositoryHubPath() + "/scanConfig.txt";
-        if (!Files.exists(Paths.get(scanConfigPath))) {
-            throw new IOException("Scan config file not found: " + scanConfigPath);
-        }
-        List<RepositoryHubRunnerConfig> repositoryHubRunnerConfigs = RepositoryListProcessor.readRepositoryHubRunnerConfigs(scanConfigPath);
-        for (RepositoryHubRunnerConfig config : repositoryHubRunnerConfigs) {
-            RepositoryTestInfo repoInfo = new RepositoryTestInfo(config.getRepositoryUrl(), config.getTeamName(), config.getTeamCode());
-            repositoryInfos.put(config.getRepositoryUrl(), repoInfo);
+        this.dependenciesDir = dependenciesDir == null ? null : dependenciesDir.toAbsolutePath().normalize();
+        this.maxRepositoriesPerScan = maxRepositoriesPerScan;
+        if (repositoryEntries != null) {
+            for (ScanRepositoryEntry entry : repositoryEntries) {
+                if (!entry.isActive()) {
+                    continue;
+                }
+                RepositoryTestInfo repoInfo = new RepositoryTestInfo(entry.getRepositoryUrl(), entry.getTeamName(), entry.getTeamCode());
+                repositoryInfos.put(entry.getRepositoryUrl(), repoInfo);
+            }
         }
     }
     
@@ -67,7 +77,12 @@ public class RepositoryScanner {
      */
     public TestCollectionSummary scanRepositories(List<String> includePatterns, List<String> excludePatterns, boolean tempCloneMode) throws IOException {
         Path rootPath = gitRepositoryManager.initializeRepositoryHub();
+        int processedCount = 0;
         for (Map.Entry<String, RepositoryTestInfo> entry : repositoryInfos.entrySet()) {
+            if (maxRepositoriesPerScan > 0 && processedCount >= maxRepositoriesPerScan) {
+                System.out.println("Reached maxRepositoriesPerScan limit (" + maxRepositoriesPerScan + "), stopping further scans.");
+                break;
+            }
             try {
                 Path repoPath = gitRepositoryManager.cloneOrUpdateRepository(entry.getKey());
                 if (repoPath != null) {
@@ -96,6 +111,7 @@ public class RepositoryScanner {
                     gitRepositoryManager.deleteRepository(entry.getKey());
                 }
             }
+            processedCount++;
         }
         
         return summary;
@@ -214,12 +230,29 @@ public class RepositoryScanner {
         // Find test directories following standard Java conventions
         HashMap<String, Path> testJavaFiles = findTestJavaFiles(repoInfo.getRepositoryPath());
         System.out.println("Found " + testJavaFiles.size() + " test Java files");
+        try {
+            TestClassParser.configureSymbolResolver(repoInfo.getRepositoryPath(), dependenciesDir);
+        } catch (IOException e) {
+            System.err.println("Failed to configure symbol resolver for repository " +
+                repoInfo.getRepositoryPath() + ": " + e.getMessage());
+        }
         for (Path javaFile : testJavaFiles.values()) {
             try {
-                TestClassInfo testClassInfo = TestClassParser.parseTestClass(javaFile);
+                ParseResult parseResult = TestClassParser.parseTestClassWithHelpers(javaFile);
+                TestClassInfo testClassInfo = parseResult.getTestClassInfo();
+                
+                // A file is either a test file OR a helper file, not both
+                // Check if we have a valid test class first
                 if (testClassInfo.getTotalTestMethods() > 0) {
+                    // This file contains a test class with test methods
                     repoInfo.addTestClass(testClassInfo);
+                } else if (!parseResult.getHelperClasses().isEmpty()) {
+                    // This file contains helper classes (non-test classes)
+                    for (TestHelperClassInfo helperClass : parseResult.getHelperClasses()) {
+                        repoInfo.addHelperClass(helperClass);
+                    }
                 }
+                // else: file has neither test methods nor helper classes (shouldn't happen in test directory)
             } catch (Exception e) {
                 System.err.println("Error parsing test class " + javaFile + ": " + e.getMessage());
                 // Continue with other files

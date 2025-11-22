@@ -1,0 +1,27 @@
+# Deployment directory gitignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# SSL certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
+
+# Logs
+*.log
+logs/
+
+# Backup files
+*.sql
+*.backup
+
+# Temporary files
+*.tmp
+*.temp
+
+# Docker override file (local customization)
+docker-compose.override.yml
+

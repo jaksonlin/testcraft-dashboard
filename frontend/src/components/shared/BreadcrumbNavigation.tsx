@@ -7,12 +7,12 @@ const BreadcrumbNavigation: React.FC = () => {
   
   const getBreadcrumbs = () => {
     const pathSegments = location.pathname.split('/').filter(segment => segment !== '');
-    const breadcrumbs = [
+    const breadcrumbs: { name: string; path: string; icon: React.ForwardRefExoticComponent<any> | null }[] = [
       { name: 'Dashboard', path: '/', icon: Home }
     ];
     
     let currentPath = '';
-    pathSegments.forEach((segment, index) => {
+    pathSegments.forEach((segment) => {
       currentPath += `/${segment}`;
       
       // Map segments to readable names

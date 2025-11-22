@@ -41,9 +41,7 @@ export interface PreviewStepProps {
   headerRow: number;
   dataStartRow: number;
   importing: boolean;
-  organization: string;
   teamId: string;
-  onOrganizationChange: (value: string) => void;
   onTeamIdChange: (value: string) => void;
   onImport: () => void;
   onBack: () => void;

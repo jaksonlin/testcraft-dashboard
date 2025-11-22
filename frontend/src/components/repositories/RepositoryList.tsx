@@ -117,13 +117,13 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {repositories.map((repository) => (
-                <tr key={repository.repositoryId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <tr key={repository.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
-                      onClick={() => handleSelectRepository(repository.repositoryId)}
+                      onClick={() => handleSelectRepository(repository.id)}
                       className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
                     >
-                      {selectedRepositories.has(repository.repositoryId) ? (
+                      {selectedRepositories.has(repository.id) ? (
                         <CheckSquare className="h-4 w-4" />
                       ) : (
                         <Square className="h-4 w-4" />
@@ -178,7 +178,7 @@ const RepositoryList: React.FC<RepositoryListProps> = ({
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => onBulkScan([repository.repositoryId])}
+                        onClick={() => onBulkScan([repository.id])}
                         className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
                         title="Scan Repository"
                       >

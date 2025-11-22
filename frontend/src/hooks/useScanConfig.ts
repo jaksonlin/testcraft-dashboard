@@ -10,7 +10,7 @@ interface UseScanConfigReturn {
   clearMessages: () => void;
 }
 
-export const useScanConfig = (scanConfig: ScanConfig | null, onConfigUpdated: () => void): UseScanConfigReturn => {
+export const useScanConfig = (_scanConfig: ScanConfig | null, onConfigUpdated: () => void): UseScanConfigReturn => {
   const [configLoading, setConfigLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
   const [configSuccess, setConfigSuccess] = useState<string | null>(null);
@@ -61,6 +61,12 @@ export const useScanConfig = (scanConfig: ScanConfig | null, onConfigUpdated: ()
     }
     if (formData.get('dailyScanCron')) {
       updatedConfig.dailyScanCron = formData.get('dailyScanCron') as string;
+    }
+    if (formData.get('scanBranch')) {
+      updatedConfig.scanBranch = formData.get('scanBranch') as string;
+    }
+    if (formData.get('organization')) {
+      updatedConfig.organization = formData.get('organization') as string;
     }
 
     handleConfigUpdate(updatedConfig);

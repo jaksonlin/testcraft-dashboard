@@ -7,6 +7,7 @@ import ScanConfigTab from '../components/settings/ScanConfigTab';
 import SystemConfigTab from '../components/settings/SystemConfigTab';
 import NotificationsTab from '../components/settings/NotificationsTab';
 import AdvancedConfigTab from '../components/settings/AdvancedConfigTab';
+import UserManagementTab from '../components/settings/UserManagementTab';
 
 const SettingsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -22,7 +23,10 @@ const SettingsView: React.FC = () => {
     repositoryListFile: '',
     maxRepositoriesPerScan: 10,
     schedulerEnabled: false,
-    dailyScanCron: '0 0 2 * * ?' // Default: 2 AM daily
+    dailyScanCron: '0 0 2 * * ?', // Default: 2 AM daily
+    repositoryConfigContent: '',
+    organization: '',
+    scanBranch: 'main'
   });
 
   const fetchConfig = async () => {
@@ -36,7 +40,10 @@ const SettingsView: React.FC = () => {
         repositoryListFile: configData.repositoryListFile || '',
         maxRepositoriesPerScan: configData.maxRepositoriesPerScan || 10,
         schedulerEnabled: configData.schedulerEnabled || false,
-        dailyScanCron: configData.dailyScanCron || '0 0 2 * * ?'
+        dailyScanCron: configData.dailyScanCron || '0 0 2 * * ?',
+        repositoryConfigContent: configData.repositoryConfigContent || '',
+        organization: configData.organization || '',
+        scanBranch: configData.scanBranch || 'main'
       });
     } catch (err) {
       setError('Failed to load configuration');
@@ -87,7 +94,10 @@ const SettingsView: React.FC = () => {
       repositoryListFile: '',
       maxRepositoriesPerScan: 10,
       schedulerEnabled: false,
-      dailyScanCron: '0 0 2 * * ?'
+      dailyScanCron: '0 0 2 * * ?',
+      repositoryConfigContent: '',
+      organization: '',
+      scanBranch: 'main'
     });
   };
 
@@ -128,6 +138,8 @@ const SettingsView: React.FC = () => {
         {activeTab === 'system' && <SystemConfigTab />}
 
         {activeTab === 'notifications' && <NotificationsTab />}
+
+        {activeTab === 'users' && <UserManagementTab />}
 
         {activeTab === 'advanced' && (
           <AdvancedConfigTab

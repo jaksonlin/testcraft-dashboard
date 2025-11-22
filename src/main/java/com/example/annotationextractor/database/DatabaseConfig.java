@@ -45,8 +45,19 @@ public class DatabaseConfig {
     
     /**
      * Get a property value with fallback to default
+     * Priority: 1) Environment variables, 2) Properties file, 3) Default value
      */
     private static String getProperty(String key, String defaultValue) {
+        // Convert property key to environment variable format (db.host -> DB_HOST)
+        String envKey = key.toUpperCase().replace(".", "_");
+        
+        // Check environment variable first
+        String envValue = System.getenv(envKey);
+        if (envValue != null && !envValue.isEmpty()) {
+            return envValue;
+        }
+        
+        // Fall back to properties file
         return dbProperties != null ? dbProperties.getProperty(key, defaultValue) : defaultValue;
     }
     
@@ -61,10 +72,18 @@ public class DatabaseConfig {
         }
     }
     
+
+    public static boolean isInitialized() {
+        return dataSource != null && !dataSource.isClosed();
+    }
+
     /**
      * Initialize the database connection pool using properties file
      */
     public static void initialize() {
+        if (isInitialized()) {
+            return;
+        }
         String host = getProperty("db.host", DEFAULT_HOST);
         int port = getIntProperty("db.port", Integer.parseInt(DEFAULT_PORT));
         String database = getProperty("db.name", DEFAULT_DATABASE);
@@ -78,6 +97,9 @@ public class DatabaseConfig {
      * Initialize the database connection pool with custom settings
      */
     public static void initialize(String host, int port, String database, String username, String password) {
+        if (isInitialized()) {
+            return;
+        }
         HikariConfig config = new HikariConfig();
         
         // Database connection settings
@@ -93,16 +115,14 @@ public class DatabaseConfig {
         config.setConnectionTimeout(getIntProperty("db.pool.connectionTimeout", 30000)); // 30 seconds
         
         // PostgreSQL specific settings
-        config.addDataSourceProperty("cachePrepStmts", getProperty("db.postgres.cachePrepStmts", "true"));
-        config.addDataSourceProperty("prepStmtCacheSize", getProperty("db.postgres.prepStmtCacheSize", "250"));
-        config.addDataSourceProperty("prepStmtCacheSqlLimit", getProperty("db.postgres.prepStmtCacheSqlLimit", "2048"));
-        config.addDataSourceProperty("useServerPrepStmts", getProperty("db.postgres.useServerPrepStmts", "true"));
-        config.addDataSourceProperty("useLocalSessionState", getProperty("db.postgres.useLocalSessionState", "true"));
-        config.addDataSourceProperty("rewriteBatchedStatements", getProperty("db.postgres.rewriteBatchedStatements", "true"));
-        config.addDataSourceProperty("cacheResultSetMetadata", getProperty("db.postgres.cacheResultSetMetadata", "true"));
-        config.addDataSourceProperty("cacheServerConfiguration", getProperty("db.postgres.cacheServerConfiguration", "true"));
-        config.addDataSourceProperty("elideSetAutoCommits", getProperty("db.postgres.elideSetAutoCommits", "true"));
-        config.addDataSourceProperty("maintainTimeStats", getProperty("db.postgres.maintainTimeStats", "false"));
+        config.addDataSourceProperty("prepareThreshold", getProperty("db.postgres.prepareThreshold", "5"));
+        config.addDataSourceProperty("preparedStatementCacheQueries", getProperty("db.postgres.preparedStatementCacheQueries", "256"));
+        config.addDataSourceProperty("preparedStatementCacheSizeMiB", getProperty("db.postgres.preparedStatementCacheSizeMiB", "5"));
+        config.addDataSourceProperty("defaultRowFetchSize", getProperty("db.postgres.defaultRowFetchSize", "0"));
+        config.addDataSourceProperty("logUnclosedConnections", getProperty("db.postgres.logUnclosedConnections", "false"));
+        config.addDataSourceProperty("tcpKeepAlive", getProperty("db.postgres.tcpKeepAlive", "true"));
+        config.addDataSourceProperty("connectTimeout", getProperty("db.postgres.connectTimeout", "10"));
+        config.addDataSourceProperty("socketTimeout", getProperty("db.postgres.socketTimeout", "0"));
         
         dataSource = new HikariDataSource(config);
         

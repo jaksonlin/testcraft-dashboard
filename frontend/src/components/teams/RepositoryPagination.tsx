@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface RepositoryPaginationProps {
   currentPage: number;
@@ -32,50 +33,40 @@ const RepositoryPagination: React.FC<RepositoryPaginationProps> = ({
       </div>
       <div className="flex items-center space-x-2">
         <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)' }}
+          onClick={() => onPageChange(Math.max(0, currentPage - 1))}
+          disabled={currentPage === 0}
+          className={`
+            inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+            ${currentPage === 0
+              ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+            }
+          `}
         >
+          <ChevronLeft className="h-4 w-4 mr-2" />
           Previous
         </button>
         
-        {/* Page numbers */}
-        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-          let pageNum;
-          if (totalPages <= 5) {
-            pageNum = i + 1;
-          } else if (currentPage <= 3) {
-            pageNum = i + 1;
-          } else if (currentPage >= totalPages - 2) {
-            pageNum = totalPages - 4 + i;
-          } else {
-            pageNum = currentPage - 2 + i;
-          }
-          
-          return (
-            <button
-              key={`page-${pageNum}-${i}`}
-              onClick={() => onPageChange(pageNum)}
-              className={`px-3 py-1 text-sm border rounded`}
-              style={{
-                backgroundColor: pageNum === currentPage ? 'var(--color-accent)' : 'var(--color-background)',
-                borderColor: pageNum === currentPage ? 'var(--color-primary)' : 'var(--color-border)',
-                color: pageNum === currentPage ? 'var(--color-primary)' : 'var(--color-foreground)'
-              }}
-            >
-              {pageNum}
-            </button>
-          );
-        })}
+        {/* Page indicator */}
+        <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+            Page {currentPage + 1} of {totalPages}
+          </span>
+        </div>
         
         <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-foreground)' }}
+          onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
+          disabled={currentPage >= totalPages - 1}
+          className={`
+            inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+            ${currentPage >= totalPages - 1
+              ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md'
+            }
+          `}
         >
           Next
+          <ChevronRight className="h-4 w-4 ml-2" />
         </button>
       </div>
     </div>

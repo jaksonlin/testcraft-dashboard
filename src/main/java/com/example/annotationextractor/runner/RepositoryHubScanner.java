@@ -1,11 +1,13 @@
 package com.example.annotationextractor.runner;
 
-import com.example.annotationextractor.reporting.ExcelReportGenerator;
-import com.example.annotationextractor.util.GitRepositoryManager;
+import com.example.annotationextractor.application.PersistScanResultsUseCase;
 import com.example.annotationextractor.casemodel.RepositoryTestInfo;
 import com.example.annotationextractor.casemodel.TestCollectionSummary;
 import com.example.annotationextractor.database.DataPersistenceService;
 import com.example.annotationextractor.database.DatabaseConfig;
+import com.example.annotationextractor.domain.model.ScanRepositoryEntry;
+import com.example.annotationextractor.reporting.ExcelReportGenerator;
+import com.example.annotationextractor.util.GitRepositoryManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,6 +16,7 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -23,11 +26,10 @@ import java.util.Set;
 public class RepositoryHubScanner {
     
     private final RepositoryScanner repositoryScanner;
-    
-    public RepositoryHubScanner(GitRepositoryManager gitManager) throws IOException {
-        this.repositoryScanner = new RepositoryScanner(gitManager);
+
+    public RepositoryHubScanner(GitRepositoryManager gitManager, List<ScanRepositoryEntry> repositoryEntries, int maxRepositoriesPerScan) throws IOException {
+        this.repositoryScanner = new RepositoryScanner(gitManager, repositoryEntries, maxRepositoriesPerScan);
     }
-    
 
     public boolean executeFullScan(boolean tempCloneMode) {
         try {
@@ -63,7 +65,7 @@ public class RepositoryHubScanner {
     }
 
     
-    private void generateReport(Set<String> teamCodes) {
+    private String generateReport(Set<String> teamCodes) {
         // Generate final report AFTER data persistence
         try {
             String reportPath = "reports/weekly_report_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
@@ -73,9 +75,11 @@ public class RepositoryHubScanner {
             }
             ExcelReportGenerator.generateWeeklyReport(reportPath, teamCodes);
             System.out.println("📊 Report generated successfully: " + reportPath);
+            return reportPath;
         } catch (Exception e) {
             System.err.println("❌ Error generating report: " + e.getMessage());
             e.printStackTrace();
+            return null;
         }
     }
 
@@ -111,14 +115,25 @@ public class RepositoryHubScanner {
             System.out.println("Scan completed in " + duration + " milliseconds");
     
             if (scanSummary != null) {
-                storeScanResults(scanSummary, duration);
+                long scanSessionId = storeScanResults(scanSummary, duration);
                 System.out.println("Repository Hub Scan Completed Successfully!");
+                
+                // Generate report and store its path
+                String reportPath = generateReport(scanSummary.getTeamCodes());
+                if (reportPath != null) {
+                    try {
+                        // Convert to absolute path
+                        Path absolutePath = Paths.get(reportPath).toAbsolutePath();
+                        PersistScanResultsUseCase.updateReportFilePath(scanSessionId, absolutePath.toString());
+                        System.out.println("Report path stored: " + absolutePath.toString());
+                    } catch (SQLException e) {
+                        System.err.println("Failed to store report path: " + e.getMessage());
+                    }
+                }
             } else {
                 System.out.println("Repository Hub Scan Failed!");
                 return false;
             }
-            // Generate report
-            generateReport(scanSummary.getTeamCodes());
             return true;
         } catch (IOException e) {
             System.err.println("Error scanning repositories: " + e.getMessage());
@@ -132,10 +147,11 @@ public class RepositoryHubScanner {
     }
     
 
-    private void storeScanResults(TestCollectionSummary summary, long duration) throws SQLException {
+    private long storeScanResults(TestCollectionSummary summary, long duration) throws SQLException {
         System.out.println("\nPersisting data to database...");
         long scanSessionId = DataPersistenceService.persistScanSession(summary, duration);
         System.out.println("Data persisted successfully. Scan Session ID: " + scanSessionId);
+        return scanSessionId;
     }
     
 

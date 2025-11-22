@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { api, type RepositoryDetail, type TestMethodDetail, type TestClassSummary, type PagedResponse } from '../lib/api';
@@ -20,6 +20,9 @@ const RepositoryDetailView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  
+  // Ref to track if initial load has completed to prevent duplicate API calls
+  const initialLoadCompleted = useRef(false);
   
   // Pagination state for classes
   const [classesPage, setClassesPage] = useState(0);
@@ -86,16 +89,23 @@ const RepositoryDetailView: React.FC = () => {
 
   useEffect(() => {
     if (id) {
+      initialLoadCompleted.current = false;
       fetchRepositoryDetails();
     }
   }, [id, fetchRepositoryDetails]);
 
-  // Fetch classes when pagination parameters change
+  // Fetch classes when pagination parameters change (only when user interacts with filters/pagination, not on initial load)
   useEffect(() => {
-    if (id && repository) {
+    if (id && repository && initialLoadCompleted.current) {
+      // Only fetch if this is not the initial load (initial load is handled by fetchRepositoryDetails)
       fetchClassesPaginated();
     }
-  }, [id, repository, fetchClassesPaginated]);
+    
+    // Mark initial load as completed after first fetch
+    if (repository && !initialLoadCompleted.current) {
+      initialLoadCompleted.current = true;
+    }
+  }, [id, repository, classesPage, classesPageSize, classesSearchTerm, classesAnnotatedFilter, fetchClassesPaginated]);
 
   const handleScanRepository = async () => {
     try {

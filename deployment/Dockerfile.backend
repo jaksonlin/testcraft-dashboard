@@ -1,58 +1,100 @@
-# Multi-stage build for Spring Boot backend
-FROM maven:3.9-eclipse-temurin-17-alpine AS build
+# Multi-stage Dockerfile for Spring Boot Backend
 
+# Development Stage
+FROM maven:3.9-eclipse-temurin-17 AS development
 WORKDIR /app
 
-# Copy pom.xml first for better caching
+# Copy Maven files
 COPY pom.xml .
+
+# create maven settings.xml file
+RUN echo '<mirror><id>aliyunmaven</id><mirrorOf>*</mirrorOf><name>aliyun maven</name><url>https://maven.aliyun.com/repository/public</url></mirror>' > settings.xml
+
+# Download dependencies (cached layer)
+RUN mvn dependency:go-offline -B -s settings.xml
+
+# Copy source code
+COPY src ./src
+
+# Expose application and debug ports
+EXPOSE 8090 5005
+
+# Development command (will be overridden in docker-compose.dev.yml)
+CMD ["mvn", "spring-boot:run", "-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]
+
+# Build Stage
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+
+# Copy Maven files
+COPY pom.xml .
+
+# Download dependencies
 RUN mvn dependency:go-offline -B
 
 # Copy source code
 COPY src ./src
-COPY META-INF ./META-INF
 
 # Build the application
-RUN mvn clean package -DskipTests
+RUN mvn clean package -DskipTests -B
 
-# Runtime stage
-FROM eclipse-temurin:17-jre-alpine
-
+# Production Stage
+FROM eclipse-temurin:17-jre-alpine AS production
 WORKDIR /app
 
-# Install curl for healthcheck, bash for startup script, and netcat for db wait
-RUN apk add --no-cache curl bash netcat-openbsd
+# Install required packages for Git operations and user switching
+RUN apk add --no-cache \
+    wget \
+    git \
+    openssh-client \
+    bash \
+    su-exec
 
-# Copy the built JAR from build stage
+# Create non-root user
+RUN addgroup -S spring && adduser -S spring -G spring
+
+# Copy built artifact from build stage
 COPY --from=build /app/target/annotation-extractor-*.jar app.jar
 
-# Create a startup script to wait for database
-RUN echo '#!/bin/bash' > /app/wait-for-db.sh && \
-    echo 'set -e' >> /app/wait-for-db.sh && \
-    echo 'host="$(echo $SPRING_DATASOURCE_URL | sed -n "s/.*:\/\/\([^:]*\).*/\1/p")"' >> /app/wait-for-db.sh && \
-    echo 'port="$(echo $SPRING_DATASOURCE_URL | sed -n "s/.*:\([0-9]*\)\/.*/\1/p")"' >> /app/wait-for-db.sh && \
-    echo 'echo "Waiting for database at $host:$port..."' >> /app/wait-for-db.sh && \
-    echo 'max_tries=30' >> /app/wait-for-db.sh && \
-    echo 'tries=0' >> /app/wait-for-db.sh && \
-    echo 'while ! nc -z $host $port; do' >> /app/wait-for-db.sh && \
-    echo '  tries=$((tries+1))' >> /app/wait-for-db.sh && \
-    echo '  if [ $tries -ge $max_tries ]; then' >> /app/wait-for-db.sh && \
-    echo '    echo "Database not available after $max_tries attempts"' >> /app/wait-for-db.sh && \
-    echo '    exit 1' >> /app/wait-for-db.sh && \
-    echo '  fi' >> /app/wait-for-db.sh && \
-    echo '  echo "Database not ready, waiting... ($tries/$max_tries)"' >> /app/wait-for-db.sh && \
-    echo '  sleep 2' >> /app/wait-for-db.sh && \
-    echo 'done' >> /app/wait-for-db.sh && \
-    echo 'echo "Database is ready!"' >> /app/wait-for-db.sh && \
-    echo 'exec java $JAVA_OPTS -jar /app/app.jar "$@"' >> /app/wait-for-db.sh && \
-    chmod +x /app/wait-for-db.sh
+# Create directories for reports, logs, and SSH
+RUN mkdir -p /app/reports /app/logs /app/ssh-keys && \
+    chown -R spring:spring /app
 
-# Expose port
+# Note: We don't switch to spring user here because we need root privileges
+# to fix SSH key permissions at runtime. The startup script handles user switching.
+
+# Expose application port
 EXPOSE 8090
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=90s --retries=5 \
-  CMD curl -f http://localhost:8090/api/actuator/health || exit 1
+# JVM configuration
+ENV JAVA_OPTS="-Xms256m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication"
 
-# Run the application with wait script
-ENTRYPOINT ["/app/wait-for-db.sh"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8090/api/actuator/health || exit 1
+
+# Create SSH config for automated Git operations
+RUN mkdir -p /home/spring/.ssh && \
+    echo "Host *" > /home/spring/.ssh/config && \
+    echo "    StrictHostKeyChecking no" >> /home/spring/.ssh/config && \
+    echo "    UserKnownHostsFile /dev/null" >> /home/spring/.ssh/config && \
+    echo "    LogLevel ERROR" >> /home/spring/.ssh/config && \
+    chown -R spring:spring /home/spring/.ssh && \
+    chmod 700 /home/spring/.ssh && \
+    chmod 600 /home/spring/.ssh/config
+
+# Create startup script that copies SSH keys and runs as spring user
+RUN echo '#!/bin/sh' > /app/startup.sh && \
+    echo '# Copy SSH keys from mounted volume to writable location' >> /app/startup.sh && \
+    echo 'if [ -d "/app/ssh-keys" ] && [ "$(ls -A /app/ssh-keys)" ]; then' >> /app/startup.sh && \
+    echo '  cp -r /app/ssh-keys/* /home/spring/.ssh/ 2>/dev/null || true' >> /app/startup.sh && \
+    echo '  chown -R spring:spring /home/spring/.ssh' >> /app/startup.sh && \
+    echo '  chmod 700 /home/spring/.ssh' >> /app/startup.sh && \
+    echo '  chmod 600 /home/spring/.ssh/* 2>/dev/null || true' >> /app/startup.sh && \
+    echo 'fi' >> /app/startup.sh && \
+    echo 'exec su-exec spring java $JAVA_OPTS -jar app.jar' >> /app/startup.sh && \
+    chmod +x /app/startup.sh
+
+# Run the startup script
+ENTRYPOINT ["/app/startup.sh"]
 

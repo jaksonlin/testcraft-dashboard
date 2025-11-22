@@ -1,7 +1,4 @@
-import axios from 'axios';
-
-// Use environment variable or default to /api for Docker deployment
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import { apiClient } from './api';
 
 export interface ExcelPreviewResponse {
   columns: string[];
@@ -76,15 +73,11 @@ export const previewExcelFile = async (file: File): Promise<ExcelPreviewResponse
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await axios.post(
-    `${API_BASE_URL}/testcases/upload/preview`,
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }
-  );
+  const response = await apiClient.post('/testcases/upload/preview', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 
   return response.data;
 };
@@ -95,7 +88,7 @@ export const previewExcelWithRows = async (file: File, headerRow: number, dataSt
   formData.append('headerRow', headerRow.toString());
   formData.append('dataStartRow', dataStartRow.toString());
   
-  const response = await axios.post(`${API_BASE_URL}/testcases/upload/preview-with-rows`, formData, {
+  const response = await apiClient.post('/testcases/upload/preview-with-rows', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
   
@@ -109,10 +102,7 @@ export const validateMappings = async (
   mappings: Record<string, string>,
   columns: string[]
 ): Promise<ValidationResponse> => {
-  const response = await axios.post(
-    `${API_BASE_URL}/testcases/upload/validate`,
-    { mappings, columns }
-  );
+  const response = await apiClient.post('/testcases/upload/validate', { mappings, columns });
 
   return response.data;
 };
@@ -127,7 +117,6 @@ export const importTestCases = async (
   dataStartRow: number,
   replaceExisting: boolean = true,
   createdBy: string = 'system',
-  organization: string = 'default',
   teamId?: number
 ): Promise<ImportResponse> => {
   const formData = new FormData();
@@ -137,20 +126,15 @@ export const importTestCases = async (
   formData.append('dataStartRow', dataStartRow.toString());
   formData.append('replaceExisting', replaceExisting.toString());
   formData.append('createdBy', createdBy);
-  formData.append('organization', organization);
   if (teamId) {
     formData.append('teamId', teamId.toString());
   }
 
-  const response = await axios.post(
-    `${API_BASE_URL}/testcases/upload/import`,
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }
-  );
+  const response = await apiClient.post('/testcases/upload/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 
   return response.data;
 };
@@ -166,7 +150,7 @@ export interface PageResponse<T> {
 }
 
 export const getAllTestCases = async (params?: { page?: number; size?: number; organization?: string; type?: string; priority?: string; teamId?: number; status?: string; search?: string }): Promise<PageResponse<TestCase>> => {
-  const response = await axios.get(`${API_BASE_URL}/testcases`, { params });
+  const response = await apiClient.get('/testcases', { params });
   return response.data as PageResponse<TestCase>;
 };
 
@@ -174,7 +158,7 @@ export const getAllTestCases = async (params?: { page?: number; size?: number; o
  * Get single test case by internal ID
  */
 export const getTestCaseById = async (internalId: number): Promise<TestCase> => {
-  const response = await axios.get(`${API_BASE_URL}/testcases/${internalId}`);
+  const response = await apiClient.get(`/testcases/${internalId}`);
   return response.data;
 };
 
@@ -182,7 +166,7 @@ export const getTestCaseById = async (internalId: number): Promise<TestCase> => 
  * Get coverage statistics
  */
 export const getCoverageStats = async (): Promise<CoverageStats> => {
-  const response = await axios.get(`${API_BASE_URL}/testcases/stats/coverage`);
+  const response = await apiClient.get('/testcases/stats/coverage');
   return response.data;
 };
 
@@ -190,7 +174,7 @@ export const getCoverageStats = async (): Promise<CoverageStats> => {
  * Get untested test cases (gaps)
  */
 export const getUntestedCases = async (params?: { page?: number; size?: number }): Promise<PageResponse<TestCase>> => {
-  const response = await axios.get(`${API_BASE_URL}/testcases/gaps`, { params });
+  const response = await apiClient.get('/testcases/gaps', { params });
   return response.data as PageResponse<TestCase>;
 };
 
@@ -198,7 +182,7 @@ export const getUntestedCases = async (params?: { page?: number; size?: number }
  * Delete test case by internal ID
  */
 export const deleteTestCase = async (internalId: number): Promise<void> => {
-  await axios.delete(`${API_BASE_URL}/testcases/${internalId}`);
+  await apiClient.delete(`/testcases/${internalId}`);
 };
 
 /**
@@ -231,7 +215,7 @@ export const deleteAllTestCases = async (
   if (filters.search) params.append('search', filters.search);
   params.append('confirm', confirm.toString());
   
-  const response = await axios.delete(`${API_BASE_URL}/testcases?${params.toString()}`);
+  const response = await apiClient.delete(`/testcases?${params.toString()}`);
   return response.data;
 };
 
@@ -239,7 +223,7 @@ export const deleteAllTestCases = async (
  * Get distinct organizations for filter dropdown
  */
 export const getOrganizations = async (): Promise<string[]> => {
-  const response = await axios.get(`${API_BASE_URL}/testcases/organizations`);
+  const response = await apiClient.get('/testcases/organizations');
   return response.data;
 };
 
@@ -255,7 +239,7 @@ export interface Team {
  * Get all teams for filter dropdown
  */
 export const getTeams = async (): Promise<Team[]> => {
-  const response = await axios.get(`${API_BASE_URL}/testcases/teams`);
+  const response = await apiClient.get('/testcases/teams');
   return response.data;
 };
 

@@ -1,18 +1,9 @@
 import React from 'react';
 import GitUrlLink from '../shared/GitUrlLink';
-
-interface Repository {
-  repositoryId: number;
-  repositoryName: string;
-  gitUrl: string;
-  testClassCount: number;
-  testMethodCount: number;
-  coverageRate: number;
-  lastScanDate?: string;
-}
+import { type RepositorySummary } from '../../lib/api';
 
 interface RepositoryTableProps {
-  repositories: Repository[];
+  repositories: RepositorySummary[];
 }
 
 const RepositoryTable: React.FC<RepositoryTableProps> = ({ repositories }) => {
@@ -40,7 +31,7 @@ const RepositoryTable: React.FC<RepositoryTableProps> = ({ repositories }) => {
         </thead>
         <tbody className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
           {repositories.map((repo, index) => (
-            <tr key={`repo-${repo.repositoryId}-${index}`} className="hover:bg-gray-50">
+            <tr key={`repo-${repo.id}-${index}`} className="hover:bg-gray-50">
               <td className="px-4 py-3">
                 <div>
                   <div className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{repo.repositoryName}</div>

@@ -6,7 +6,6 @@ import com.example.annotationextractor.domain.model.RepositoryDetailRecord;
 import com.example.annotationextractor.domain.port.RepositoryRecordPort;
 
 import java.sql.*;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -168,6 +167,8 @@ public class JdbcRepositoryRecordAdapter implements RepositoryRecordPort {
         int totalMethods = rs.getInt("total_test_methods");
         int totalAnnotated = rs.getInt("total_annotated_methods");
         double coverage = rs.getDouble("annotation_coverage_rate");
+        int testCodeLines = rs.getInt("test_code_lines");
+        int testRelatedCodeLines = rs.getInt("test_related_code_lines");
 
         return new RepositoryRecord(
             id,
@@ -182,7 +183,9 @@ public class JdbcRepositoryRecordAdapter implements RepositoryRecordPort {
             totalClasses,
             totalMethods,
             totalAnnotated,
-            coverage
+            coverage,
+            testCodeLines,
+            testRelatedCodeLines
         );
     }
 }

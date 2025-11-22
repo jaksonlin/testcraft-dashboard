@@ -46,8 +46,8 @@ export const usePaginatedData = <T>({
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
   const fetchData = useCallback(async (page: number, size: number, currentFilters: any) => {
     // Cancel previous request
@@ -123,6 +123,7 @@ export const usePaginatedData = <T>({
         clearTimeout(debounceTimeoutRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

@@ -1,0 +1,46 @@
+# Hot Reload Development Dockerfile for Spring Boot Backend
+# This version expects pre-compiled classes from host and watches for changes
+
+FROM eclipse-temurin:17-jdk-alpine AS hotreload-dev
+WORKDIR /app
+
+# Install Maven for dependency management and su-exec for user switching
+RUN apk add --no-cache maven git openssh-client bash su-exec
+
+# Copy Maven files first (for layer caching)
+COPY pom.xml .
+
+# Download dependencies (this layer is cached unless pom.xml changes)
+RUN mvn dependency:go-offline -B
+
+# Create non-root user (same as production)
+RUN addgroup -S spring && adduser -S spring -G spring
+
+# Create directories with proper ownership
+RUN mkdir -p /app/src /app/target /app/reports /app/logs /app/repos && \
+    chown -R spring:spring /app
+
+# Create SSH config for automated Git operations
+RUN mkdir -p /home/spring/.ssh && \
+    echo "Host *" > /home/spring/.ssh/config && \
+    echo "    StrictHostKeyChecking no" >> /home/spring/.ssh/config && \
+    echo "    UserKnownHostsFile /dev/null" >> /home/spring/.ssh/config && \
+    echo "    LogLevel ERROR" >> /home/spring/.ssh/config && \
+    chown -R spring:spring /home/spring/.ssh && \
+    chmod 700 /home/spring/.ssh && \
+    chmod 600 /home/spring/.ssh/config
+
+# Expose application and debug ports
+EXPOSE 8090 5005
+
+# Create startup script that fixes permissions and runs as spring user
+RUN echo '#!/bin/sh' > /app/startup.sh && \
+    echo '# Fix permissions for mounted volumes' >> /app/startup.sh && \
+    echo 'chown -R spring:spring /app/reports /app/logs /app/repos 2>/dev/null || true' >> /app/startup.sh && \
+    echo '# Start Spring Boot with DevTools as spring user' >> /app/startup.sh && \
+    echo 'exec su-exec spring mvn spring-boot:run -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005" -Dspring-boot.run.fork=false' >> /app/startup.sh && \
+    chmod +x /app/startup.sh
+
+# Use the startup script
+CMD ["/app/startup.sh"]
+

@@ -1,0 +1,77 @@
+# Docker-specific configuration that reads from environment variables
+# This profile is automatically used when running in Docker containers
+
+server:
+  port: ${SERVER_PORT:8090}
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: testcraft-dashboard
+  
+  # Database configuration from environment variables
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:test_analytics}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT:300000}
+      max-lifetime: ${DB_POOL_MAX_LIFETIME:1800000}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT:30000}
+    
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Application specific configuration
+testcraft:
+  dashboard:
+    title: "TestCraft Dashboard"
+    description: "Continuous Git Repository Monitoring"
+    version: "1.0.0"
+  
+  database:
+    enabled: true
+  
+  scheduler:
+    enabled: ${SCHEDULER_ENABLED:true}
+    cron:
+      daily-scan: ${SCHEDULER_CRON:0 0 2 * * ?}
+    
+  scanning:
+    temp-clone-mode: false
+    max-repositories-per-scan: 100
+    
+# Logging configuration
+logging:
+  level:
+    com.example.annotationextractor: ${LOG_LEVEL:INFO}
+    org.springframework.web: INFO
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  file:
+    name: /app/logs/application.log
+    max-size: 100MB
+    max-history: 30
+

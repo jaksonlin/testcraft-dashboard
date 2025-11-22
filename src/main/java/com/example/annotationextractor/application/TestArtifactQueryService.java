@@ -35,6 +35,10 @@ public class TestArtifactQueryService {
         return testClassPort.countAllByScanSessionId(scanSessionId);
     }
 
+    public Optional<TestClass> getTestClassById(Long classId) {
+        return testClassPort.findById(classId);
+    }
+
     public List<TestMethod> listMethodsByTestClassId(Long testClassId) {
         return testMethodPort.findByTestClassId(testClassId);
     }
@@ -93,6 +97,8 @@ public class TestArtifactQueryService {
             String packageName,
             String className,
             Boolean annotated,
+            String searchTerm,
+            String codePattern,
             Integer offset,
             Integer limit) {
         // Cast to concrete implementation to access new method
@@ -100,7 +106,7 @@ public class TestArtifactQueryService {
             com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
                 (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
             return adapter.findTestMethodDetailsWithFilters(
-                scanSessionId, teamName, repositoryName, packageName, className, annotated, offset, limit);
+                scanSessionId, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern, offset, limit);
         }
         // Fallback for other implementations (shouldn't happen)
         return List.of();
@@ -115,16 +121,22 @@ public class TestArtifactQueryService {
             String repositoryName,
             String packageName,
             String className,
-            Boolean annotated) {
+            Boolean annotated,
+            String searchTerm,
+            String codePattern) {
         // Cast to concrete implementation to access new method
         if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
             com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
                 (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
             return adapter.countTestMethodDetailsWithFilters(
-                scanSessionId, teamName, repositoryName, packageName, className, annotated);
+                scanSessionId, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
         }
         // Fallback for other implementations (shouldn't happen)
         return 0;
+    }
+
+    public Optional<TestMethod> getTestMethodById(Long methodId) {
+        return testMethodPort.findById(methodId);
     }
     
     /**

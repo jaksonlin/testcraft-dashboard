@@ -41,7 +41,7 @@ const RepositoriesTable: React.FC<RepositoriesTableProps> = ({ repositories, onR
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
             {repositories.map((repo) => (
               <tr 
-                key={repo.repositoryId}
+                key={repo.id}
                 onClick={() => onRepositoryClick?.(repo)}
                 className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >

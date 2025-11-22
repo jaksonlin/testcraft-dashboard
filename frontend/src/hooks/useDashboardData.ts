@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, type DashboardOverview, type TeamSummary, type ScanStatus, type ScanConfig } from '../lib/api';
+import { api, type DashboardOverview, type TeamSummary, type ScanStatus, type ScanConfig, type ScanSession } from '../lib/api';
 
 interface UseDashboardDataReturn {
   overview: DashboardOverview | null;
   teamMetrics: TeamSummary[];
   scanStatus: ScanStatus | null;
   scanConfig: ScanConfig | null;
+  scanHistory: ScanSession[];
   loading: boolean;
   error: string | null;
   lastRefreshTime: Date;
@@ -18,6 +19,7 @@ export const useDashboardData = (showConfigPanel: boolean = false): UseDashboard
   const [teamMetrics, setTeamMetrics] = useState<TeamSummary[]>([]);
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [scanConfig, setScanConfig] = useState<ScanConfig | null>(null);
+  const [scanHistory, setScanHistory] = useState<ScanSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
@@ -27,15 +29,17 @@ export const useDashboardData = (showConfigPanel: boolean = false): UseDashboard
       setLoading(true);
       setError(null);
       
-      const [overviewData, teamsData, statusData] = await Promise.all([
+      const [overviewData, teamsData, statusData, historyData] = await Promise.all([
         api.dashboard.getOverview(),
         api.dashboard.getTeamMetrics(),
-        api.scan.getStatus()
+        api.scan.getStatus(),
+        api.scan.getSessions(10)
       ]);
       
       setOverview(overviewData);
       setTeamMetrics(teamsData);
       setScanStatus(statusData);
+      setScanHistory(historyData);
       
       // Only fetch config data if not skipping and config modal is not open
       if (!skipConfig && !showConfigPanel) {
@@ -65,13 +69,12 @@ export const useDashboardData = (showConfigPanel: boolean = false): UseDashboard
   useEffect(() => {
     fetchDashboardData();
     
-    // Auto refresh disabled for testing - uncomment to re-enable
-    // Refresh data every 30 seconds, but skip config if modal is open
-    // const interval = setInterval(() => {
-    //   fetchDashboardData(showConfigPanel);
-    // }, 30000);
+    // Auto refresh enabled - Refresh data every 30 seconds, but skip config if modal is open
+    const interval = setInterval(() => {
+      fetchDashboardData(showConfigPanel);
+    }, 30000);
     
-    // return () => clearInterval(interval);
+    return () => clearInterval(interval);
   }, [fetchDashboardData, showConfigPanel]);
 
   return {
@@ -79,6 +82,7 @@ export const useDashboardData = (showConfigPanel: boolean = false): UseDashboard
     teamMetrics,
     scanStatus,
     scanConfig,
+    scanHistory,
     loading,
     error,
     lastRefreshTime,

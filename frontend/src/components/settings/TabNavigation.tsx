@@ -1,7 +1,7 @@
 import React from 'react';
-import { GitBranch, Database, Bell, Shield } from 'lucide-react';
+import { GitBranch, Database, Bell, Shield, Users } from 'lucide-react';
 
-export type SettingsTab = 'scan' | 'system' | 'notifications' | 'advanced';
+export type SettingsTab = 'scan' | 'system' | 'notifications' | 'users' | 'advanced';
 
 interface TabNavigationProps {
   activeTab: SettingsTab;
@@ -12,6 +12,7 @@ const tabs = [
   { id: 'scan' as const, label: 'Scan Configuration', icon: GitBranch },
   { id: 'system' as const, label: 'System Settings', icon: Database },
   { id: 'notifications' as const, label: 'Notifications', icon: Bell },
+  { id: 'users' as const, label: 'User Management', icon: Users },
   { id: 'advanced' as const, label: 'Advanced', icon: Shield }
 ];
 

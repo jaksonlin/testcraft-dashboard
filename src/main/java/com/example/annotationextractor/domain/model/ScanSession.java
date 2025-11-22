@@ -19,6 +19,7 @@ public final class ScanSession {
     private final String scanStatus;
     private final String errorLog;
     private final String metadata;
+    private final String reportFilePath;
 
     public ScanSession(Long id,
                        Instant scanDate,
@@ -30,7 +31,8 @@ public final class ScanSession {
                        long scanDurationMs,
                        String scanStatus,
                        String errorLog,
-                       String metadata) {
+                       String metadata,
+                       String reportFilePath) {
         this.id = id;
         this.scanDate = scanDate;
         this.scanDirectory = scanDirectory;
@@ -42,6 +44,7 @@ public final class ScanSession {
         this.scanStatus = scanStatus;
         this.errorLog = errorLog;
         this.metadata = metadata;
+        this.reportFilePath = reportFilePath;
     }
 
     public Long getId() { return id; }
@@ -55,6 +58,7 @@ public final class ScanSession {
     public String getScanStatus() { return scanStatus; }
     public String getErrorLog() { return errorLog; }
     public String getMetadata() { return metadata; }
+    public String getReportFilePath() { return reportFilePath; }
 
     @Override
     public boolean equals(Object o) {

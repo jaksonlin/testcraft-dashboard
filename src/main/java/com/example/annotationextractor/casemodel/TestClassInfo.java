@@ -11,8 +11,14 @@ public class TestClassInfo {
     private String packageName;
     private String filePath;
     private List<TestMethodInfo> testMethods;
+    private List<String> importedTypes;
     private int totalTestMethods;
     private int annotatedTestMethods;
+    private Integer classLineNumber;
+    private String testClassContent;
+    private String helperClassesLineNumbers;
+    private int classLoc;
+    private List<String> referencedTypes;
 
     public void setTotalTestMethods(int totalTestMethods) {
         this.totalTestMethods = totalTestMethods;
@@ -29,6 +35,12 @@ public class TestClassInfo {
         this.testMethods = new ArrayList<>();
         this.totalTestMethods = 0;
         this.annotatedTestMethods = 0;
+        this.classLineNumber = null;
+        this.testClassContent = null;
+        this.helperClassesLineNumbers = null;
+        this.classLoc = 0;
+        this.importedTypes = new ArrayList<>();
+        this.referencedTypes = new ArrayList<>();
     }
 
     public TestClassInfo(String className, String packageName, String filePath) {
@@ -38,6 +50,12 @@ public class TestClassInfo {
         this.testMethods = new ArrayList<>();
         this.totalTestMethods = 0;
         this.annotatedTestMethods = 0;
+        this.classLineNumber = null;
+        this.testClassContent = null;
+        this.helperClassesLineNumbers = null;
+        this.classLoc = 0;
+        this.importedTypes = new ArrayList<>();
+        this.referencedTypes = new ArrayList<>();
     }
 
     public void addTestMethod(TestMethodInfo testMethod) {
@@ -46,6 +64,14 @@ public class TestClassInfo {
         if (testMethod.getAnnotationData() != null && testMethod.getAnnotationData().getTitle() != null && !testMethod.getAnnotationData().getTitle().isEmpty()) {
             this.annotatedTestMethods++;
         }
+    }
+
+    public void addImportedType(String importedType) {
+        this.importedTypes.add(importedType);
+    }
+
+    public void addReferencedType(String referencedType) {
+        this.referencedTypes.add(referencedType);
     }
 
     // Getters and Setters
@@ -95,6 +121,54 @@ public class TestClassInfo {
 
     public int getAnnotatedTestMethods() {
         return annotatedTestMethods;
+    }
+
+    public Integer getClassLineNumber() {
+        return classLineNumber;
+    }
+
+    public void setClassLineNumber(Integer classLineNumber) {
+        this.classLineNumber = classLineNumber;
+    }
+
+    public String getTestClassContent() {
+        return testClassContent;
+    }
+
+    public void setTestClassContent(String testClassContent) {
+        this.testClassContent = testClassContent;
+    }
+
+    public String getHelperClassesLineNumbers() {
+        return helperClassesLineNumbers;
+    }
+
+    public void setHelperClassesLineNumbers(String helperClassesLineNumbers) {
+        this.helperClassesLineNumbers = helperClassesLineNumbers;
+    }
+
+    public int getClassLoc() {
+        return classLoc;
+    }
+
+    public void setClassLoc(int classLoc) {
+        this.classLoc = classLoc;
+    }
+
+    public List<String> getImportedTypes() {
+        return importedTypes;
+    }
+
+    public void setImportedTypes(List<String> importedTypes) {
+        this.importedTypes = importedTypes;
+    }
+
+    public List<String> getReferencedTypes() {
+        return referencedTypes;
+    }
+
+    public void setReferencedTypes(List<String> referencedTypes) {
+        this.referencedTypes = referencedTypes;
     }
 
     @Override

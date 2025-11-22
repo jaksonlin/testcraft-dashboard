@@ -16,7 +16,6 @@ interface PaginationState {
 }
 
 export interface TestCaseFilters {
-  organization?: string;
   teamId?: number;
   type?: string;
   priority?: string;

@@ -13,6 +13,7 @@ public final class TestMethod {
     private final String methodName;
     private final String methodSignature;
     private final Integer lineNumber;
+    private final Integer methodLoc;
     private final boolean hasAnnotation;
     private final String annotationData;
     private final String annotationTitle;
@@ -33,11 +34,12 @@ public final class TestMethod {
     private final Long scanSessionId;
 
     public TestMethod(Long id,
-                      Long testClassId,
-                      String methodName,
-                      String methodSignature,
-                      Integer lineNumber,
-                      boolean hasAnnotation,
+                     Long testClassId,
+                     String methodName,
+                     String methodSignature,
+                     Integer lineNumber,
+                     Integer methodLoc,
+                     boolean hasAnnotation,
                       String annotationData,
                       String annotationTitle,
                       String annotationAuthor,
@@ -60,6 +62,7 @@ public final class TestMethod {
         this.methodName = methodName;
         this.methodSignature = methodSignature;
         this.lineNumber = lineNumber;
+        this.methodLoc = methodLoc;
         this.hasAnnotation = hasAnnotation;
         this.annotationData = annotationData;
         this.annotationTitle = annotationTitle;
@@ -85,6 +88,7 @@ public final class TestMethod {
     public String getMethodName() { return methodName; }
     public String getMethodSignature() { return methodSignature; }
     public Integer getLineNumber() { return lineNumber; }
+    public Integer getMethodLoc() { return methodLoc; }
     public boolean isHasAnnotation() { return hasAnnotation; }
     public String getAnnotationData() { return annotationData; }
     public String getAnnotationTitle() { return annotationTitle; }

@@ -11,6 +11,9 @@ export interface ExportData {
   methods?: TestMethodDetail[];
   groupedMethods?: GroupedTestMethodResponse;
   classes?: TestClassSummary[];
+  scanHistory?: any[];
+  dashboardOverview?: any;
+  exportDate?: Date;
   metadata: {
     exportDate: string;
     totalItems: number;
@@ -56,7 +59,7 @@ const createRepositoriesSheet = (repositories: RepositorySummary[]): XLSX.WorkSh
   ];
   
   const data = repositories.map(repo => [
-    repo.repositoryId,
+    repo.id,
     repo.repositoryName,
     repo.teamName,
     '', // teamCode - not available in RepositorySummary
@@ -215,7 +218,7 @@ export const exportToCSV = (data: ExportData, filename: string): void => {
     
     data.repositories.forEach(repo => {
       csvContent += [
-        repo.repositoryId,
+        repo.id,
         `"${repo.repositoryName}"`,
         `"${repo.teamName}"`,
         `""`, // teamCode - not available in RepositorySummary
@@ -400,7 +403,7 @@ export const prepareRepositoryExportData = (
   let exportRepositories = repositories;
   
   if (scope === 'selected' && selectedIds) {
-    exportRepositories = repositories.filter(repo => selectedIds.has(repo.repositoryId));
+    exportRepositories = repositories.filter(repo => selectedIds.has(repo.id));
   }
   
   return {

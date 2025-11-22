@@ -1,137 +1,156 @@
-# Deployment Directory
+# TestCraft Dashboard - Deployment Guide
 
-This directory contains all Docker-related configuration files for deploying the TestCraft Dashboard.
+## Quick Start
 
-## 📁 Contents
+### 1. Setup Environment
 
-```
-deployment/
-├── docker-compose.yml              # Docker Compose configuration
-├── docker-compose.dev.yml          # Development configuration
-├── Dockerfile.backend              # Backend container build
-├── Dockerfile.frontend             # Frontend container build
-├── env.example                     # Environment variables template
-├── init-db.sql                     # Database initialization
-├── nginx/                          # Nginx configuration
-│   ├── nginx.conf                  # Reverse proxy config
-│   └── frontend.conf               # Frontend server config
-├── DOCKER_SETUP.md                 # Detailed setup guide
-├── DOCKER_README.md                # Usage documentation
-├── QUICK_START.md                  # Quick reference
-├── DOCKER_DEPLOYMENT_SUMMARY.md    # Overview
-├── DOCKER_FILES_CREATED.txt        # File listing
-└── README.md                       # This file
-```
-
-## 🚀 Quick Start
-
-### Option 1: Run from Project Root (Recommended)
-
-The project root has convenience scripts and a docker-compose.yml wrapper:
+Copy the example environment file and configure:
 
 ```bash
-# From project root
-./docker-start.sh --build
-```
-
-Or manually:
-
-```bash
-# From project root
-docker-compose up -d --build
-```
-
-### Option 2: Run from Deployment Directory
-
-```bash
-# Navigate to deployment directory
 cd deployment
-
-# Copy environment file
-cp env.example ../.env
-
-# Start services (need to specify paths correctly)
-cd ..
-docker-compose -f deployment/docker-compose.yml up -d --build
+cp env.example .env
+# Edit .env with your settings
 ```
 
-## 📖 Documentation
+### 2. Configure Git Authentication (Optional)
 
-- **[QUICK_START.md](QUICK_START.md)** - Fast reference for common tasks
-- **[DOCKER_README.md](DOCKER_README.md)** - Complete usage guide
-- **[DOCKER_SETUP.md](DOCKER_SETUP.md)** - Detailed configuration reference
-- **[DOCKER_DEPLOYMENT_SUMMARY.md](DOCKER_DEPLOYMENT_SUMMARY.md)** - What's included
-
-## ⚙️ Configuration
-
-1. **Environment Variables**: Copy `env.example` to project root as `.env`
-2. **Database Settings**: Configured in `.env`
-3. **Nginx**: Modify `nginx/nginx.conf` for reverse proxy settings
-4. **Build Context**: All Dockerfiles use project root as build context
-
-## 🏗️ Architecture
-
-```
-nginx (Port 80)
-├── / → Frontend (React on Nginx)
-└── /api → Backend (Spring Boot)
-           └── PostgreSQL (Port 5432)
-```
-
-## 📝 Notes
-
-- All paths in docker-compose.yml are relative to **project root**
-- Build context is **project root** (to access src/ and frontend/ directories)
-- Volume mounts reference `deployment/` directory
-- Scripts at project root provide convenience wrappers
-
-## 🔧 Development vs Production
-
-### Production (`docker-compose.yml`)
-- Minimal exposed ports (only nginx on 80)
-- Optimized builds
-- Production Spring profile
-
-### Development (`docker-compose.dev.yml`)
-- All ports exposed for direct access
-- Backend: 8090
-- Frontend: 5173
-- Nginx: 80
-- PostgreSQL: 5432
-
-Run dev mode:
+**Method 1: SSH Keys (Recommended)**
 ```bash
-docker-compose -f deployment/docker-compose.dev.yml up -d
+# Place your SSH private key
+mkdir -p ssh-keys
+cp ~/.ssh/id_rsa ssh-keys/
+chmod 600 ssh-keys/id_rsa
 ```
 
-## 🛠️ Common Commands
+Update `.env`:
+```bash
+SSH_KEY_PATH=./ssh-keys
+GIT_SSH_KEY_PATH=/home/spring/.ssh/id_rsa
+```
 
-From project root:
+**Method 2: HTTPS with Token**
+
+Update `.env`:
+```bash
+GIT_USERNAME=your_username
+GIT_PASSWORD=your_token_or_password
+```
+
+### 3. Start Services
 
 ```bash
-# Start
-./docker-start.sh
-
-# Stop
-./docker-stop.sh
+# Start all services
+docker-compose -f docker-compose.yml build
+docker-compose up -d
 
 # View logs
 docker-compose logs -f
 
-# Rebuild
-docker-compose up -d --build
+# Check status
+docker-compose ps
 
-# Clean up
-./docker-stop.sh --clean
+chmod -R 777 ./reports (or corresponding report directory)
 ```
 
-## 📚 Getting Help
+### 4. Access Application
 
-1. Check [QUICK_START.md](QUICK_START.md) for common tasks
-2. Review [DOCKER_README.md](DOCKER_README.md) for troubleshooting
-3. See [DOCKER_SETUP.md](DOCKER_SETUP.md) for detailed configuration
+- **Frontend**: http://localhost (via Nginx)
+- **Backend API**: http://localhost/api
+- **Direct Backend**: http://localhost:8090
 
----
+## Configuration
 
-**Tip**: The project root has convenience scripts (`docker-start.sh`, `docker-stop.sh`) that handle everything automatically.
+### Database Settings
+
+The application uses two PostgreSQL databases:
+- **Primary**: For application data
+- **Shadow**: For Flyway migrations (optional, requires `--profile shadow`)
+
+Configure in `.env`:
+```bash
+DB_PASSWORD=your_password
+SHADOW_DB_PASSWORD=your_shadow_password
+```
+
+### Network Configuration
+
+The application uses a custom bridge network (`testcraft-network`) with subnet `172.20.0.0/16` to avoid conflicts with host networks.
+
+Service IPs:
+- PostgreSQL: 172.20.0.10
+- Backend: 172.20.0.20
+- Frontend: 172.20.0.30
+- Nginx: 172.20.0.40
+
+## Export/Import for Isolated Environments
+
+### Export Images
+
+```bash
+# Save images to tar files
+docker save testcraft-dashboard-backend:latest -o backend.tar
+docker save testcraft-dashboard-frontend:latest -o frontend.tar
+docker save postgres:16-alpine -o postgres.tar
+docker save nginx:alpine -o nginx.tar
+```
+
+### Import and Run in Isolated Environment
+
+```bash
+# Load images
+docker load -i backend.tar
+docker load -i frontend.tar
+docker load -i postgres.tar
+docker load -i nginx.tar
+
+# Start services
+cd deployment
+docker-compose up -d
+```
+
+## Troubleshooting
+
+### Check Service Health
+
+```bash
+# View all services
+docker-compose ps
+
+# Check specific service logs
+docker-compose logs backend
+docker-compose logs frontend
+
+# Check database connection
+docker-compose exec backend wget -O- http://localhost:8090/api/actuator/health
+```
+
+### Restart Services
+
+```bash
+# Restart specific service
+docker-compose restart backend
+
+# Rebuild and restart
+docker-compose up -d --build backend
+```
+
+### Clean Up
+
+```bash
+# Stop all services
+docker-compose down
+
+# Remove volumes (WARNING: deletes data)
+docker-compose down -v
+
+# Remove images
+docker-compose down --rmi all
+```
+
+## Documentation
+
+- `STARTUP_GUIDE.md` - Detailed startup instructions
+- `GIT_AUTH_SETUP.md` - Git authentication configuration
+- `NETWORK_SETUP.md` - Docker network details
+- `ENVIRONMENT_VARIABLES.md` - All available environment variables
 

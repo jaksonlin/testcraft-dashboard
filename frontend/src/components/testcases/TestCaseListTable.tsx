@@ -3,7 +3,6 @@ import { CheckCircle, XCircle, Eye, Trash2, Filter } from 'lucide-react';
 import type { TestCase, Team } from '../../lib/testCaseApi';
 
 interface TestCaseFilters {
-  organization: string;
   teamId: string; // Use string for select value, convert to number when sending to backend
   priority: string;
   type: string;
@@ -14,7 +13,6 @@ interface TestCaseFilters {
 interface TestCaseListTableProps {
   testCases: TestCase[];
   filters: TestCaseFilters;
-  organizations: string[];
   teams: Team[];
   onFilterChange: (filters: TestCaseFilters) => void;
   onViewDetails?: (testCase: TestCase) => void;
@@ -24,7 +22,6 @@ interface TestCaseListTableProps {
 export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
   testCases,
   filters,
-  organizations,
   teams,
   onFilterChange,
   onViewDetails,
@@ -38,7 +35,7 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
   const priorities = [...new Set(testCases.map(tc => tc.priority).filter(Boolean))];
   const types = [...new Set(testCases.map(tc => tc.type).filter(Boolean))];
   const statuses = [...new Set(testCases.map(tc => tc.status).filter(Boolean))];
-  // organizations and teams loaded from API (not extracted from testCases)
+  // teams loaded from API (not extracted from testCases)
 
   const getPriorityBadgeColor = (priority?: string) => {
     switch (priority?.toLowerCase()) {
@@ -80,17 +77,7 @@ export const TestCaseListTable: React.FC<TestCaseListTableProps> = ({
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
 
-          {/* Organization Filter */}
-          <select
-            value={filters.organization}
-            onChange={(e) => handleFilterChange('organization', e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">All Organizations</option>
-            {organizations.map(org => (
-              <option key={org} value={org}>{org}</option>
-            ))}
-          </select>
+          {/* Organization Filter removed - org is instance-wide */}
 
           {/* Team Filter */}
           <select

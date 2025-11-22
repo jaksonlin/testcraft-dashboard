@@ -8,6 +8,9 @@ interface ScanConfigData {
   tempCloneMode: boolean;
   schedulerEnabled: boolean;
   dailyScanCron: string;
+  repositoryConfigContent?: string;
+  organization?: string;
+  scanBranch?: string;
 }
 
 interface ScanConfigTabProps {
@@ -26,6 +29,36 @@ const ScanConfigTab: React.FC<ScanConfigTabProps> = ({ formData, onInputChange }
         </h3>
         
         <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Organization (Instance-wide)
+            </label>
+            <input
+              type="text"
+              value={formData.organization || ''}
+              onChange={(e) => onInputChange('organization', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="e.g. acme"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Used when linking test methods to test cases (multi-tenant safety).
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Default Scan Branch
+            </label>
+            <input
+              type="text"
+              value={formData.scanBranch || ''}
+              onChange={(e) => onInputChange('scanBranch', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="main"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Git branch that will be cloned during scan operations.
+            </p>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Repository Hub Path
@@ -72,6 +105,32 @@ const ScanConfigTab: React.FC<ScanConfigTabProps> = ({ formData, onInputChange }
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Maximum number of repositories to process in a single scan
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Repository Configuration Content */}
+      <div className="rounded-lg shadow-sm border p-6" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+        <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: 'var(--color-foreground)' }}>
+          <GitBranch className="h-5 w-5 mr-2 text-purple-600 dark:text-purple-400" />
+          Repository Configuration Content
+        </h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Repository Configuration
+            </label>
+            <textarea
+              value={formData.repositoryConfigContent || ''}
+              onChange={(e) => onInputChange('repositoryConfigContent', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={8}
+              placeholder="ssh://git@192.168.1.49:12022/zhishun/testcraft-dashboard.git,team_a,dev_0001&#10;ssh://git@192.168.1.49:12022/zhishun/db2h2.git,team_b,dev_0002&#10;ssh://git@192.168.1.49:12022/zhishun/testcraft-dashboard,team_b,dev_0002"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Enter repository configurations in the format: git_repo_url,team_name,team_identification_id (one per line)
             </p>
           </div>
         </div>

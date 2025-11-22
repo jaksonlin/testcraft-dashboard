@@ -12,6 +12,7 @@ import com.example.annotationextractor.web.dto.RepositoryDetailDto;
 import com.example.annotationextractor.web.dto.TestMethodDetailDto;
 import com.example.annotationextractor.web.dto.PagedResponse;
 import com.example.annotationextractor.web.dto.GroupedTestMethodResponse;
+import com.example.annotationextractor.web.dto.TestMethodSourceDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -129,10 +130,11 @@ public class DashboardController {
             @RequestParam(required = false) String repositoryName,
             @RequestParam(required = false) String packageName,
             @RequestParam(required = false) String className,
-            @RequestParam(required = false) Boolean annotated) {
+            @RequestParam(required = false) Boolean annotated,
+            @RequestParam(required = false) String codePattern) {
         if (repositoryDataService != null) {
             PagedResponse<TestMethodDetailDto> result = repositoryDataService.getTestMethodDetailsPaginated(
-                page, size, organization, teamName, repositoryName, packageName, className, annotated);
+                page, size, organization, teamName, repositoryName, packageName, className, annotated, codePattern);
             return ResponseEntity.ok(result);
         } else {
             PagedResponse<TestMethodDetailDto> emptyResponse = new PagedResponse<>(List.of(), page, size, 0);
@@ -143,12 +145,15 @@ public class DashboardController {
     /**
      * Get all test method details grouped by team and class for hierarchical display
      * This endpoint provides pre-grouped data to avoid performance issues on the frontend
+     * Filters are applied at database level for optimal performance
      */
     @GetMapping("/test-methods/grouped")
     public ResponseEntity<GroupedTestMethodResponse> getAllTestMethodDetailsGrouped(
-            @RequestParam(defaultValue = "100") Integer limit) {
+            @RequestParam(defaultValue = "100") Integer limit,
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(required = false) Boolean annotated) {
         if (repositoryDataService != null) {
-            GroupedTestMethodResponse groupedData = repositoryDataService.getAllTestMethodDetailsGrouped(limit);
+            GroupedTestMethodResponse groupedData = repositoryDataService.getAllTestMethodDetailsGrouped(limit, searchTerm, annotated);
             return ResponseEntity.ok(groupedData);
         } else {
             GroupedTestMethodResponse emptyResponse = new GroupedTestMethodResponse(List.of(), null);
@@ -249,6 +254,19 @@ public class DashboardController {
             }
         }
         return ResponseEntity.ok(List.of());
+    }
+
+    /**
+     * Get the source code for the class that owns the specified test method.
+     */
+    @GetMapping("/test-methods/{testMethodId}/source")
+    public ResponseEntity<TestMethodSourceDto> getTestMethodSource(@PathVariable Long testMethodId) {
+        if (repositoryDataService != null) {
+            return repositoryDataService.getTestMethodSource(testMethodId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+        }
+        return ResponseEntity.notFound().build();
     }
 
     /**
