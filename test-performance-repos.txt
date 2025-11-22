@@ -1,5 +1,0 @@
-# Small test dataset for performance testing 
-# This will test the optimizations without overwhelming the system 
-https://github.com/junit-team/junit4.git 
-https://github.com/junit-team/junit5.git 
-https://github.com/mockito/mockito.git 
