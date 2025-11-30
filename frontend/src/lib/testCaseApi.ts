@@ -50,11 +50,11 @@ export interface TestCase {
   updatedDate?: string;
   createdBy?: string;
   organization?: string;
-  
+
   // Team association
   teamId?: number;
   teamName?: string;
-  
+
   // Legacy field for backward compatibility (returns externalId)
   id?: string;
 }
@@ -87,11 +87,11 @@ export const previewExcelWithRows = async (file: File, headerRow: number, dataSt
   formData.append('file', file);
   formData.append('headerRow', headerRow.toString());
   formData.append('dataStartRow', dataStartRow.toString());
-  
+
   const response = await apiClient.post('/testcases/upload/preview-with-rows', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
-  
+
   return response.data;
 };
 
@@ -149,7 +149,7 @@ export interface PageResponse<T> {
   total: number;
 }
 
-export const getAllTestCases = async (params?: { page?: number; size?: number; organization?: string; type?: string; priority?: string; teamId?: number; status?: string; search?: string }): Promise<PageResponse<TestCase>> => {
+export const getAllTestCases = async (params?: { page?: number; size?: number; type?: string; priority?: string; teamId?: number; status?: string; search?: string }): Promise<PageResponse<TestCase>> => {
   const response = await apiClient.get('/testcases', { params });
   return response.data as PageResponse<TestCase>;
 };
@@ -196,7 +196,6 @@ export const deleteTestCase = async (internalId: number): Promise<void> => {
  */
 export const deleteAllTestCases = async (
   filters: {
-    organization?: string;
     teamId?: number;
     type?: string;
     priority?: string;
@@ -206,15 +205,14 @@ export const deleteAllTestCases = async (
   confirm: boolean = false
 ): Promise<{ success: boolean; deleted: number; message: string }> => {
   const params = new URLSearchParams();
-  
-  if (filters.organization) params.append('organization', filters.organization);
+
   if (filters.teamId) params.append('teamId', filters.teamId.toString());
   if (filters.type) params.append('type', filters.type);
   if (filters.priority) params.append('priority', filters.priority);
   if (filters.status) params.append('status', filters.status);
   if (filters.search) params.append('search', filters.search);
   params.append('confirm', confirm.toString());
-  
+
   const response = await apiClient.delete(`/testcases?${params.toString()}`);
   return response.data;
 };

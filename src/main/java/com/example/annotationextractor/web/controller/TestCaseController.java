@@ -16,15 +16,15 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/testcases")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
+@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:3000" })
 public class TestCaseController {
-    
+
     private final TestCaseService testCaseService;
-    
+
     public TestCaseController(TestCaseService testCaseService) {
         this.testCaseService = testCaseService;
     }
-    
+
     /**
      * Upload Excel file and get preview with auto-detected mappings
      * 
@@ -36,50 +36,49 @@ public class TestCaseController {
             if (file.isEmpty() || file.getSize() == 0) {
                 return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
             }
-            
+
             String filename = file.getOriginalFilename();
             if (!isExcelFile(filename)) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Only Excel files (.xls, .xlsx) are supported"));
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Only Excel files (.xls, .xlsx) are supported"));
             }
-            
+
             // Debug diagnostics
             try {
                 String contentType = String.valueOf(file.getContentType());
                 long size = file.getSize();
-                System.out.println("[TestCases] Upload preview: name=" + filename + ", size=" + size + ", contentType=" + contentType);
-            } catch (Exception ignore) { }
+                System.out.println("[TestCases] Upload preview: name=" + filename + ", size=" + size + ", contentType="
+                        + contentType);
+            } catch (Exception ignore) {
+            }
 
             // Read fully to avoid stream issues with some servlet containers
             java.io.ByteArrayInputStream bin = new java.io.ByteArrayInputStream(file.getBytes());
             ExcelParserService.ExcelPreview preview = testCaseService.previewExcel(
-                bin,
-                filename
-            );
-            
+                    bin,
+                    filename);
+
             // Also run validation on suggested mappings
             ExcelParserService.ValidationResult validation = testCaseService.validateMappings(
-                preview.getSuggestedMappings(),
-                preview.getColumns()
-            );
-            
+                    preview.getSuggestedMappings(),
+                    preview.getColumns());
+
             return ResponseEntity.ok(Map.of(
-                "columns", preview.getColumns(),
-                "previewData", preview.getPreviewData(),
-                "suggestedMappings", preview.getSuggestedMappings(),
-                "confidence", preview.getConfidence(),
-                "suggestedHeaderRow", preview.getSuggestedHeaderRow(),
-                "suggestedDataStartRow", preview.getSuggestedDataStartRow(),
-                "totalRows", preview.getTotalRows(),
-                "validation", Map.of(
-                    "valid", validation.isValid(),
-                    "missingRequiredFields", validation.getMissingRequiredFields(),
-                    "suggestions", validation.getSuggestions()
-                )
-            ));
-            
+                    "columns", preview.getColumns(),
+                    "previewData", preview.getPreviewData(),
+                    "suggestedMappings", preview.getSuggestedMappings(),
+                    "confidence", preview.getConfidence(),
+                    "suggestedHeaderRow", preview.getSuggestedHeaderRow(),
+                    "suggestedDataStartRow", preview.getSuggestedDataStartRow(),
+                    "totalRows", preview.getTotalRows(),
+                    "validation", Map.of(
+                            "valid", validation.isValid(),
+                            "missingRequiredFields", validation.getMissingRequiredFields(),
+                            "suggestions", validation.getSuggestions())));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to preview Excel: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to preview Excel: " + e.getMessage()));
         }
     }
 
@@ -92,48 +91,45 @@ public class TestCaseController {
             if (file.isEmpty() || file.getSize() == 0) {
                 return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
             }
-            
+
             String filename = file.getOriginalFilename();
             if (!isExcelFile(filename)) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Only Excel files (.xls, .xlsx) are supported"));
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Only Excel files (.xls, .xlsx) are supported"));
             }
-            
+
             // Read fully to avoid stream issues with some servlet containers
             java.io.ByteArrayInputStream bin = new java.io.ByteArrayInputStream(file.getBytes());
             ExcelParserService.ExcelPreview preview = testCaseService.previewExcelWithRows(
-                bin,
-                filename,
-                headerRow,
-                dataStartRow
-            );
-            
+                    bin,
+                    filename,
+                    headerRow,
+                    dataStartRow);
+
             // Also run validation on suggested mappings
             ExcelParserService.ValidationResult validation = testCaseService.validateMappings(
-                preview.getSuggestedMappings(),
-                preview.getColumns()
-            );
-            
+                    preview.getSuggestedMappings(),
+                    preview.getColumns());
+
             return ResponseEntity.ok(Map.of(
-                "columns", preview.getColumns(),
-                "previewData", preview.getPreviewData(),
-                "suggestedMappings", preview.getSuggestedMappings(),
-                "confidence", preview.getConfidence(),
-                "suggestedHeaderRow", preview.getSuggestedHeaderRow(),
-                "suggestedDataStartRow", preview.getSuggestedDataStartRow(),
-                "totalRows", preview.getTotalRows(),
-                "validation", Map.of(
-                    "valid", validation.isValid(),
-                    "missingRequiredFields", validation.getMissingRequiredFields(),
-                    "suggestions", validation.getSuggestions()
-                )
-            ));
-            
+                    "columns", preview.getColumns(),
+                    "previewData", preview.getPreviewData(),
+                    "suggestedMappings", preview.getSuggestedMappings(),
+                    "confidence", preview.getConfidence(),
+                    "suggestedHeaderRow", preview.getSuggestedHeaderRow(),
+                    "suggestedDataStartRow", preview.getSuggestedDataStartRow(),
+                    "totalRows", preview.getTotalRows(),
+                    "validation", Map.of(
+                            "valid", validation.isValid(),
+                            "missingRequiredFields", validation.getMissingRequiredFields(),
+                            "suggestions", validation.getSuggestions())));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to preview Excel: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to preview Excel: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Validate column mappings
      * 
@@ -144,23 +140,22 @@ public class TestCaseController {
         try {
             @SuppressWarnings("unchecked")
             Map<String, String> mappings = (Map<String, String>) request.get("mappings");
-            
+
             @SuppressWarnings("unchecked")
             List<String> columns = (List<String>) request.get("columns");
-            
+
             ExcelParserService.ValidationResult validation = testCaseService.validateMappings(mappings, columns);
-            
+
             return ResponseEntity.ok(Map.of(
-                "valid", validation.isValid(),
-                "missingRequiredFields", validation.getMissingRequiredFields(),
-                "suggestions", validation.getSuggestions()
-            ));
-            
+                    "valid", validation.isValid(),
+                    "missingRequiredFields", validation.getMissingRequiredFields(),
+                    "suggestions", validation.getSuggestions()));
+
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     /**
      * Import test cases from Excel
      * 
@@ -174,57 +169,52 @@ public class TestCaseController {
             @RequestParam("dataStartRow") int dataStartRow,
             @RequestParam(value = "replaceExisting", defaultValue = "true") boolean replaceExisting,
             @RequestParam(value = "createdBy", defaultValue = "system") String createdBy,
-            @RequestParam(value = "organization", required = false) String organization,
             @RequestParam(value = "teamId", required = false) Long teamId) {
-        
+
         try {
             if (file.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
             }
-            
+
             // Parse mappings JSON
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             @SuppressWarnings("unchecked")
             Map<String, String> columnMappings = mapper.readValue(mappingsJson, Map.class);
-            
+
             // Import
             java.io.ByteArrayInputStream importIn = new java.io.ByteArrayInputStream(file.getBytes());
             TestCaseService.ImportResult result = testCaseService.importTestCases(
-                importIn,
-                file.getOriginalFilename(),
-                columnMappings,
-                headerRow,
-                dataStartRow,
-                replaceExisting,
-                createdBy,
-                organization,
-                teamId
-            );
-            
+                    importIn,
+                    file.getOriginalFilename(),
+                    columnMappings,
+                    headerRow,
+                    dataStartRow,
+                    replaceExisting,
+                    createdBy,
+                    teamId);
+
             if (!result.isSuccess()) {
                 return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "errors", result.getErrors(),
-                    "suggestions", result.getSuggestions()
-                ));
+                        "success", false,
+                        "errors", result.getErrors(),
+                        "suggestions", result.getSuggestions()));
             }
-            
+
             return ResponseEntity.ok(Map.of(
-                "success", true,
-                "imported", result.getImported(),
-                "created", result.getCreated(),
-                "updated", result.getUpdated(),
-                "skipped", result.getSkipped(),
-                "message", "Successfully imported " + result.getImported() + " test cases (" + 
-                          result.getCreated() + " created, " + result.getUpdated() + " updated)"
-            ));
-            
+                    "success", true,
+                    "imported", result.getImported(),
+                    "created", result.getCreated(),
+                    "updated", result.getUpdated(),
+                    "skipped", result.getSkipped(),
+                    "message", "Successfully imported " + result.getImported() + " test cases (" +
+                            result.getCreated() + " created, " + result.getUpdated() + " updated)"));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Import failed: " + e.getMessage()));
+                    .body(Map.of("error", "Import failed: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Get all test cases
      * 
@@ -232,7 +222,6 @@ public class TestCaseController {
      */
     @GetMapping
     public ResponseEntity<?> getAllTestCases(
-            @RequestParam(required = false) String organization,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) Long teamId,
@@ -240,27 +229,28 @@ public class TestCaseController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        
+
         try {
             int pageNum = page != null && page >= 0 ? page : 0;
             int pageSize = size != null && size > 0 ? size : 20;
 
-            List<TestCase> testCases = testCaseService.getAllTestCasesPaged(pageNum, pageSize, organization, type, priority, teamId, status, search);
-            int total = testCaseService.countTestCases(organization, type, priority, teamId, status, search); // Count with same filters
+            List<TestCase> testCases = testCaseService.getAllTestCasesPaged(pageNum, pageSize, type, priority, teamId,
+                    status, search);
+            int total = testCaseService.countTestCases(type, priority, teamId, status, search); // Count with same
+                                                                                                // filters
 
             return ResponseEntity.ok(Map.of(
-                "content", testCases,
-                "page", pageNum,
-                "size", pageSize,
-                "total", total
-            ));
-            
+                    "content", testCases,
+                    "page", pageNum,
+                    "size", pageSize,
+                    "total", total));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get test cases: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to get test cases: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Get single test case by internal ID
      * 
@@ -270,19 +260,19 @@ public class TestCaseController {
     public ResponseEntity<?> getTestCase(@PathVariable Long id) {
         try {
             TestCase testCase = testCaseService.getTestCaseById(id);
-            
+
             if (testCase == null) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             return ResponseEntity.ok(testCase);
-            
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get test case: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to get test case: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Get coverage statistics
      * 
@@ -292,20 +282,19 @@ public class TestCaseController {
     public ResponseEntity<?> getCoverageStats() {
         try {
             TestCaseService.CoverageStats stats = testCaseService.getCoverageStats();
-            
+
             return ResponseEntity.ok(Map.of(
-                "total", stats.getTotalTestCases(),
-                "automated", stats.getAutomatedTestCases(),
-                "manual", stats.getManualTestCases(),
-                "coveragePercentage", stats.getCoveragePercentage()
-            ));
-            
+                    "total", stats.getTotalTestCases(),
+                    "automated", stats.getAutomatedTestCases(),
+                    "manual", stats.getManualTestCases(),
+                    "coveragePercentage", stats.getCoveragePercentage()));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get coverage stats: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to get coverage stats: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Get untested test cases (gaps)
      * 
@@ -313,7 +302,7 @@ public class TestCaseController {
      */
     @GetMapping("/gaps")
     public ResponseEntity<?> getUntestedCases(@RequestParam(required = false) Integer page,
-                                              @RequestParam(required = false) Integer size) {
+            @RequestParam(required = false) Integer size) {
         try {
             int pageNum = page != null && page >= 0 ? page : 0;
             int pageSize = size != null && size > 0 ? size : 20;
@@ -322,18 +311,17 @@ public class TestCaseController {
             int total = testCaseService.countUntestedCases();
 
             return ResponseEntity.ok(Map.of(
-                "content", untested,
-                "page", pageNum,
-                "size", pageSize,
-                "total", total
-            ));
-            
+                    "content", untested,
+                    "page", pageNum,
+                    "size", pageSize,
+                    "total", total));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get untested cases: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to get untested cases: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Get distinct organizations for filter dropdown
      * 
@@ -346,10 +334,10 @@ public class TestCaseController {
             return ResponseEntity.ok(organizations);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get organizations: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to get organizations: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Get all teams for filter dropdown
      * 
@@ -362,10 +350,10 @@ public class TestCaseController {
             return ResponseEntity.ok(teams);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get teams: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to get teams: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Delete test case by internal ID
      * 
@@ -375,19 +363,19 @@ public class TestCaseController {
     public ResponseEntity<?> deleteTestCase(@PathVariable Long id) {
         try {
             boolean deleted = testCaseService.deleteTestCase(id);
-            
+
             if (!deleted) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             return ResponseEntity.ok(Map.of("success", true, "message", "Test case deleted"));
-            
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to delete test case: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to delete test case: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Delete all test cases matching filters (bulk deletion)
      * 
@@ -398,51 +386,48 @@ public class TestCaseController {
      */
     @DeleteMapping
     public ResponseEntity<?> deleteAllTestCases(
-            @RequestParam(required = false) String organization,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) Long teamId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String search,
             @RequestParam(required = true) boolean confirm) {
-        
+
         try {
             // Safety check: require explicit confirmation
             if (!confirm) {
                 return ResponseEntity.badRequest().body(Map.of(
-                    "error", "Bulk deletion requires confirmation",
-                    "message", "Add parameter 'confirm=true' to execute bulk deletion"
-                ));
+                        "error", "Bulk deletion requires confirmation",
+                        "message", "Add parameter 'confirm=true' to execute bulk deletion"));
             }
-            
+
             // Prevent accidental deletion of all data (require at least one filter)
-            if (organization == null && type == null && priority == null && 
-                teamId == null && status == null && search == null) {
+            if (type == null && priority == null &&
+                    teamId == null && status == null && search == null) {
                 return ResponseEntity.badRequest().body(Map.of(
-                    "error", "Bulk deletion requires at least one filter",
-                    "message", "Specify organization, team, type, priority, status, or search filter to prevent accidental deletion of all test cases"
-                ));
+                        "error", "Bulk deletion requires at least one filter",
+                        "message",
+                        "Specify team, type, priority, status, or search filter to prevent accidental deletion of all test cases"));
             }
-            
+
             // Log the deletion attempt for audit
-            System.out.println("BULK DELETE requested: org=" + organization + ", team=" + teamId + 
-                ", type=" + type + ", priority=" + priority + ", status=" + status + ", search=" + search);
-            
+            System.out.println("BULK DELETE requested: team=" + teamId +
+                    ", type=" + type + ", priority=" + priority + ", status=" + status + ", search=" + search);
+
             int deleted = testCaseService.deleteAllTestCasesWithFilters(
-                organization, type, priority, teamId, status, search);
-            
+                    type, priority, teamId, status, search);
+
             return ResponseEntity.ok(Map.of(
-                "success", true,
-                "deleted", deleted,
-                "message", "Successfully deleted " + deleted + " test case(s)"
-            ));
-            
+                    "success", true,
+                    "deleted", deleted,
+                    "message", "Successfully deleted " + deleted + " test case(s)"));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to delete test cases: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to delete test cases: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Helper: Check if file is Excel
      */
@@ -454,4 +439,3 @@ public class TestCaseController {
         return lower.endsWith(".xlsx") || lower.endsWith(".xls");
     }
 }
-
