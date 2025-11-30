@@ -19,6 +19,10 @@ public class RepositoryQueryService {
         return repositoryRecordPort.findByGitUrl(gitUrl);
     }
 
+    public Optional<RepositoryRecord> getById(Long id) {
+        return repositoryRecordPort.findById(id);
+    }
+
     public List<RepositoryRecord> listByTeamId(Long teamId) {
         return repositoryRecordPort.findByTeamId(teamId);
     }
@@ -31,7 +35,7 @@ public class RepositoryQueryService {
         return repositoryRecordPort.findRepositoryDetails();
     }
 
-    public long count() { return repositoryRecordPort.count(); }
+    public long count() {
+        return repositoryRecordPort.count();
+    }
 }
-
-
