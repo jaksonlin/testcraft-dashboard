@@ -14,6 +14,8 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
 @Configuration
 @EnableWebSecurity
@@ -30,15 +32,27 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> {})
+                .cors(cors -> {
+                })
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.getWriter().write(
+                                    "{\"error\":\"Unauthorized\",\"message\":\"" + authException.getMessage() + "\"}");
+                        }))
                 .authorizeHttpRequests(auth -> auth
                         // Allow all CORS preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Auth & health endpoints (only login is anonymous; password change requires auth)
-                        .requestMatchers("/auth/login", "/actuator/health", "/dashboard/health", "/scan/health").permitAll()
+                        // Auth & health endpoints (only login is anonymous; password change requires
+                        // auth)
+                        .requestMatchers("/auth/login", "/actuator/health", "/dashboard/health", "/scan/health")
+                        .permitAll()
                         // Read‑only scan information can be viewed by any authenticated user
-                        .requestMatchers(HttpMethod.GET, "/scan/config", "/scan/status", "/scan/sessions", "/scan/*/report").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/scan/config", "/scan/status", "/scan/sessions",
+                                "/scan/*/report")
+                        .authenticated()
 
                         // Static resources
                         .requestMatchers("/", "/index.html", "/assets/**").permitAll()
@@ -47,8 +61,7 @@ public class SecurityConfig {
                         // Admin-only settings view APIs if added later
                         .requestMatchers("/settings/**").hasRole("ADMIN")
                         // Everything else requires authentication
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -65,5 +78,3 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 }
-
-

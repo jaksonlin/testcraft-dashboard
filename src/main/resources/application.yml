@@ -65,6 +65,12 @@ testcraft:
     temp-clone-mode: false
     max-repositories-per-scan: 100
     
+  # Security configuration
+  security:
+    jwt:
+      # 24 hours in milliseconds
+      validity-ms: 86400000
+    
 # Logging configuration
 logging:
   level:
