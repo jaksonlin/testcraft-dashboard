@@ -423,4 +423,26 @@ public class TestCaseService {
             return coveragePercentage;
         }
     }
+
+    /**
+     * Refresh coverage data by linking test methods to test cases
+     */
+    public void refreshCoverage() {
+        try {
+            System.out.println("Refreshing test case coverage...");
+            List<TestMethodInfo> methods = testCaseRepository.fetchAnnotatedTestMethods();
+            System.out.println("Found " + methods.size() + " annotated test methods");
+
+            if (!methods.isEmpty()) {
+                // We don't have repository name context here easily, but linkTestMethodsToCases
+                // uses it for logging mostly. We can pass a generic name or update the method.
+                // Actually, linkTestMethodsToCases uses repositoryName for logging only.
+                int linked = linkTestMethodsToCases(methods, "Batch Refresh");
+                System.out.println("Linked " + linked + " test methods to test cases");
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to refresh coverage: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 }

@@ -10,5 +10,6 @@
     "java.import.gradle.enabled": false,
     "maven.executable.path": "mvn",
     "java.referencesCodeLens.enabled": true,
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.compile.nullAnalysis.mode": "disabled"
 }

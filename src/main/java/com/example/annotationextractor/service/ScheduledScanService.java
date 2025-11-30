@@ -5,6 +5,7 @@ import com.example.annotationextractor.domain.model.ScanConfig;
 import com.example.annotationextractor.domain.model.ScanRepositoryEntry;
 import com.example.annotationextractor.runner.RepositoryHubScanner;
 import com.example.annotationextractor.util.GitRepositoryManager;
+import com.example.annotationextractor.testcase.TestCaseService;
 import com.example.annotationextractor.web.dto.ScanConfigDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public class ScheduledScanService {
     private static final Logger logger = LoggerFactory.getLogger(ScheduledScanService.class);
 
     private final ScanConfigService scanConfigService;
+    private final TestCaseService testCaseService;
 
     // Thread-safe state tracking
     private final AtomicBoolean isScanning = new AtomicBoolean(false);
@@ -36,8 +38,9 @@ public class ScheduledScanService {
     private final AtomicReference<String> lastScanStatus = new AtomicReference<>("Never run");
     private final AtomicReference<String> lastScanError = new AtomicReference<>();
 
-    public ScheduledScanService(ScanConfigService scanConfigService) {
+    public ScheduledScanService(ScanConfigService scanConfigService, TestCaseService testCaseService) {
         this.scanConfigService = scanConfigService;
+        this.testCaseService = testCaseService;
     }
 
     /**
@@ -76,13 +79,15 @@ public class ScheduledScanService {
             RepositoryHubScanner scanner = new RepositoryHubScanner(
                     gitManager,
                     repositoryEntries,
-                    config.getMaxRepositoriesPerScan()
-            );
+                    config.getMaxRepositoriesPerScan());
 
             boolean success = scanner.executeFullScan(config.isTempCloneMode());
             if (success) {
                 lastScanStatus.set("Success");
                 logger.info("Scheduled daily scan completed successfully");
+
+                // Refresh test case coverage
+                testCaseService.refreshCoverage();
             } else {
                 lastScanStatus.set("Failed");
                 logger.error("Scheduled daily scan failed");
@@ -133,13 +138,15 @@ public class ScheduledScanService {
             RepositoryHubScanner scanner = new RepositoryHubScanner(
                     gitManager,
                     repositoryEntries,
-                    config.getMaxRepositoriesPerScan()
-            );
+                    config.getMaxRepositoriesPerScan());
 
             boolean success = scanner.executeFullScan(config.isTempCloneMode());
             if (success) {
                 lastScanStatus.set("Success");
                 logger.info("Manual scan completed successfully");
+
+                // Refresh test case coverage
+                testCaseService.refreshCoverage();
             } else {
                 lastScanStatus.set("Failed");
                 logger.error("Manual scan failed");
@@ -177,8 +184,7 @@ public class ScheduledScanService {
                     lastScanTime.get(),
                     lastScanStatus.get(),
                     lastScanError.get(),
-                    config
-            );
+                    config);
         } catch (Exception e) {
             logger.error("Failed to load scan configuration for status", e);
             lastScanError.compareAndSet(null, e.getMessage());
@@ -187,8 +193,7 @@ public class ScheduledScanService {
                     lastScanTime.get(),
                     "Error",
                     e.getMessage(),
-                    null
-            );
+                    null);
         }
     }
 
@@ -218,8 +223,7 @@ public class ScheduledScanService {
                 gitUsername,
                 gitPassword,
                 gitSshKeyPath,
-                config.getScanBranch()
-        );
+                config.getScanBranch());
     }
 
     private List<ScanRepositoryEntry> extractActiveRepositories(ScanConfig config) {
@@ -239,7 +243,7 @@ public class ScheduledScanService {
         private final ScanConfig scanConfig;
 
         public ScanStatus(boolean isScanning, LocalDateTime lastScanTime, String lastScanStatus,
-                          String lastScanError, ScanConfig scanConfig) {
+                String lastScanError, ScanConfig scanConfig) {
             this.isScanning = isScanning;
             this.lastScanTime = lastScanTime;
             this.lastScanStatus = lastScanStatus;
@@ -247,19 +251,60 @@ public class ScheduledScanService {
             this.scanConfig = scanConfig;
         }
 
-        public boolean isScanning() { return isScanning; }
-        public LocalDateTime getLastScanTime() { return lastScanTime; }
-        public String getLastScanStatus() { return lastScanStatus; }
-        public String getLastScanError() { return lastScanError; }
-        public String getRepositoryHubPath() { return scanConfig != null ? scanConfig.getRepositoryHubPath() : null; }
-        public String getRepositoryListFile() { return scanConfig != null ? scanConfig.getRepositoryListFileLabel() : null; }
-        public boolean isTempCloneMode() { return scanConfig != null && scanConfig.isTempCloneMode(); }
-        public int getMaxRepositoriesPerScan() { return scanConfig != null ? scanConfig.getMaxRepositoriesPerScan() : 0; }
-        public boolean isSchedulerEnabled() { return scanConfig != null && scanConfig.isSchedulerEnabled(); }
-        public String getDailyScanCron() { return scanConfig != null ? scanConfig.getDailyScanCron() : null; }
-        public String getRepositoryConfigContent() { return scanConfig != null ? scanConfig.getRepositoryConfigContent() : null; }
-        public List<ScanRepositoryEntry> getRepositories() { return scanConfig != null ? scanConfig.getRepositories() : List.of(); }
-        public String getOrganization() { return scanConfig != null ? scanConfig.getOrganization() : null; }
-        public String getScanBranch() { return scanConfig != null ? scanConfig.getScanBranch() : null; }
+        public boolean isScanning() {
+            return isScanning;
+        }
+
+        public LocalDateTime getLastScanTime() {
+            return lastScanTime;
+        }
+
+        public String getLastScanStatus() {
+            return lastScanStatus;
+        }
+
+        public String getLastScanError() {
+            return lastScanError;
+        }
+
+        public String getRepositoryHubPath() {
+            return scanConfig != null ? scanConfig.getRepositoryHubPath() : null;
+        }
+
+        public String getRepositoryListFile() {
+            return scanConfig != null ? scanConfig.getRepositoryListFileLabel() : null;
+        }
+
+        public boolean isTempCloneMode() {
+            return scanConfig != null && scanConfig.isTempCloneMode();
+        }
+
+        public int getMaxRepositoriesPerScan() {
+            return scanConfig != null ? scanConfig.getMaxRepositoriesPerScan() : 0;
+        }
+
+        public boolean isSchedulerEnabled() {
+            return scanConfig != null && scanConfig.isSchedulerEnabled();
+        }
+
+        public String getDailyScanCron() {
+            return scanConfig != null ? scanConfig.getDailyScanCron() : null;
+        }
+
+        public String getRepositoryConfigContent() {
+            return scanConfig != null ? scanConfig.getRepositoryConfigContent() : null;
+        }
+
+        public List<ScanRepositoryEntry> getRepositories() {
+            return scanConfig != null ? scanConfig.getRepositories() : List.of();
+        }
+
+        public String getOrganization() {
+            return scanConfig != null ? scanConfig.getOrganization() : null;
+        }
+
+        public String getScanBranch() {
+            return scanConfig != null ? scanConfig.getScanBranch() : null;
+        }
     }
 }
