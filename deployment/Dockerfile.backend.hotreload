@@ -37,8 +37,8 @@ EXPOSE 8090 5005
 RUN echo '#!/bin/sh' > /app/startup.sh && \
     echo '# Fix permissions for mounted volumes' >> /app/startup.sh && \
     echo 'chown -R spring:spring /app/reports /app/logs /app/repos 2>/dev/null || true' >> /app/startup.sh && \
-    echo '# Start Spring Boot with DevTools as spring user' >> /app/startup.sh && \
-    echo 'exec su-exec spring mvn spring-boot:run -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005" -Dspring-boot.run.fork=false' >> /app/startup.sh && \
+    echo '# Start Spring Boot with DevTools as root (to avoid permission issues with mounted volumes)' >> /app/startup.sh && \
+    echo 'exec mvn spring-boot:run -Dspring-boot.run.fork=false' >> /app/startup.sh && \
     chmod +x /app/startup.sh
 
 # Use the startup script

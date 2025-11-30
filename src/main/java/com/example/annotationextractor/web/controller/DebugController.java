@@ -6,6 +6,7 @@ import com.example.annotationextractor.domain.model.RepositoryRecord;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.annotationextractor.domain.model.ScanSession;
 import java.sql.*;
 import java.util.*;
 
@@ -14,7 +15,7 @@ import java.util.*;
  */
 @RestController
 @RequestMapping("/debug")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"})
+@CrossOrigin(origins = { "http://localhost:3000", "http://localhost:5173" })
 public class DebugController {
 
     private final Optional<PersistenceReadFacade> persistenceReadFacade;
@@ -29,7 +30,7 @@ public class DebugController {
     @GetMapping("/database-info")
     public Map<String, Object> getDatabaseInfo() {
         Map<String, Object> info = new HashMap<>();
-        
+
         if (persistenceReadFacade.isPresent()) {
             info.put("persistenceFacadeAvailable", true);
             info.put("status", "Connected to database");
@@ -37,7 +38,7 @@ public class DebugController {
             info.put("persistenceFacadeAvailable", false);
             info.put("status", "No database connection");
         }
-        
+
         return info;
     }
 
@@ -47,21 +48,21 @@ public class DebugController {
     @GetMapping("/table-counts")
     public Map<String, Object> getTableCounts() {
         Map<String, Object> counts = new HashMap<>();
-        
+
         if (persistenceReadFacade.isPresent()) {
             try {
                 PersistenceReadFacade facade = persistenceReadFacade.get();
-                
+
                 // Try to get basic counts
                 List<?> repositories = facade.listAllRepositories();
                 List<?> teams = facade.listTeams();
                 List<?> recentSessions = facade.recentScanSessions(1);
-                
+
                 counts.put("repositories", repositories.size());
                 counts.put("teams", teams.size());
                 counts.put("recentScanSessions", recentSessions.size());
                 counts.put("status", "success");
-                
+
             } catch (Exception e) {
                 counts.put("status", "error");
                 counts.put("error", e.getMessage());
@@ -69,7 +70,7 @@ public class DebugController {
         } else {
             counts.put("status", "no_connection");
         }
-        
+
         return counts;
     }
 
@@ -86,46 +87,69 @@ public class DebugController {
     }
 
     /**
-     * Debug endpoint to check test methods for a repository without scan session filtering
+     * Debug endpoint to check test methods for a repository without scan session
+     * filtering
+     */
+    /**
+     * Debug endpoint to check test methods for a repository without scan session
+     * filtering
      */
     @GetMapping("/repository/{repositoryId}/test-methods-raw")
     public Map<String, Object> getRawTestMethods(@PathVariable Long repositoryId) {
         Map<String, Object> result = new HashMap<>();
-        
+
         if (persistenceReadFacade.isPresent()) {
             try {
                 PersistenceReadFacade facade = persistenceReadFacade.get();
-                
+
                 // Get latest scan session
-                Optional<?> latestScan = facade.getLatestCompletedScanSession();
+                Optional<ScanSession> latestScan = facade.getLatestCompletedScanSession();
+                Long scanSessionId;
+
                 if (latestScan.isPresent()) {
-                    result.put("latestScanSessionId", latestScan.get().toString());
+                    scanSessionId = latestScan.get().getId();
+                    result.put("latestScanSessionId", scanSessionId);
+                    result.put("latestScanDate", latestScan.get().getScanDate());
                 } else {
-                    result.put("latestScanSessionId", "NOT_FOUND");
-                }
-                
-                // Get test classes for repository
-                List<?> classes = facade.listClassesByRepositoryIdAndScanSessionId(repositoryId, 11L); // Use scan session 11
-                result.put("testClasses", classes.size());
-                
-                // Get test methods for repository (without scan session filter)
-                List<?> allMethods = facade.listTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, 11L, 1000);
-                result.put("testMethods", allMethods.size());
-                
-                // Check different scan session IDs
-                Map<String, Integer> scanSessionCounts = new HashMap<>();
-                for (long sessionId = 1; sessionId <= 11; sessionId++) {
-                    try {
-                        List<?> methods = facade.listTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, sessionId, 1000);
-                        scanSessionCounts.put("session_" + sessionId, methods.size());
-                    } catch (Exception e) {
-                        scanSessionCounts.put("session_" + sessionId, -1);
+                    // Fallback to most recent session if no completed one exists
+                    List<ScanSession> recent = facade.recentScanSessions(1);
+                    if (!recent.isEmpty()) {
+                        scanSessionId = recent.get(0).getId();
+                        result.put("latestScanSessionId", scanSessionId + " (Incomplete/Latest)");
+                    } else {
+                        result.put("latestScanSessionId", "NOT_FOUND");
+                        result.put("error", "No scan sessions found");
+                        return result;
                     }
                 }
-                result.put("scanSessionCounts", scanSessionCounts);
-                
+
+                // Get test classes for repository
+                List<com.example.annotationextractor.domain.model.TestClass> classes = facade
+                        .listClassesByRepositoryIdAndScanSessionId(repositoryId, scanSessionId);
+                result.put("testClasses", classes.size());
+
+                // Get test methods for repository
+                List<com.example.annotationextractor.domain.model.TestMethodDetailRecord> allMethods = facade
+                        .listTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, scanSessionId, 1000);
+                result.put("testMethods", allMethods.size());
+
+                // Check recent scan sessions for comparison
+                Map<String, Integer> scanSessionCounts = new HashMap<>();
+                List<ScanSession> recentSessions = facade.recentScanSessions(5);
+
+                for (ScanSession session : recentSessions) {
+                    try {
+                        long count = facade.countTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId,
+                                session.getId());
+                        scanSessionCounts.put("session_" + session.getId(), (int) count);
+                    } catch (Exception e) {
+                        scanSessionCounts.put("session_" + session.getId(), -1);
+                    }
+                }
+                result.put("recentSessionCounts", scanSessionCounts);
+
                 result.put("status", "success");
-                
+
             } catch (Exception e) {
                 result.put("status", "error");
                 result.put("error", e.getMessage());
@@ -134,7 +158,7 @@ public class DebugController {
         } else {
             result.put("status", "no_connection");
         }
-        
+
         return result;
     }
 }
