@@ -10,6 +10,12 @@ spring:
   application:
     name: testcraft-dashboard
   
+  # Multipart file upload configuration (configurable via environment variables)
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:10MB}
+  
   # Database configuration from environment variables
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:test_analytics}
