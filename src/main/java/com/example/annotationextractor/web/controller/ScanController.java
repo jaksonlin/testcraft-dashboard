@@ -27,13 +27,14 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/scan")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"}) // React dev server and Vite dev server
+@CrossOrigin(origins = { "http://localhost:3000", "http://localhost:5173" }) // React dev server and Vite dev server
 public class ScanController {
 
     private final ScheduledScanService scheduledScanService;
     private final Optional<PersistenceReadFacade> persistenceReadFacade;
 
-    public ScanController(ScheduledScanService scheduledScanService, Optional<PersistenceReadFacade> persistenceReadFacade) {
+    public ScanController(ScheduledScanService scheduledScanService,
+            Optional<PersistenceReadFacade> persistenceReadFacade) {
         this.scheduledScanService = scheduledScanService;
         this.persistenceReadFacade = persistenceReadFacade;
     }
@@ -42,9 +43,10 @@ public class ScanController {
      * Trigger a manual scan
      */
     @PostMapping("/trigger")
-    public ResponseEntity<Map<String, Object>> triggerScan() {
+    public ResponseEntity<Map<String, Object>> triggerScan(
+            @RequestBody(required = false) Map<String, List<Long>> payload) {
         Map<String, Object> response = new HashMap<>();
-        
+
         try {
             // Check if scan is already running
             ScheduledScanService.ScanStatus status = scheduledScanService.getScanStatus();
@@ -54,19 +56,20 @@ public class ScanController {
                 response.put("timestamp", System.currentTimeMillis());
                 return ResponseEntity.status(409).body(response); // Conflict
             }
-            
-            boolean success = scheduledScanService.triggerManualScan();
-            
+
+            List<Long> repositoryIds = payload != null ? payload.get("repositoryIds") : null;
+            boolean success = scheduledScanService.triggerManualScan(repositoryIds);
+
             response.put("success", success);
             response.put("message", success ? "Scan completed successfully" : "Scan failed");
             response.put("timestamp", System.currentTimeMillis());
-            
+
             if (success) {
                 return ResponseEntity.ok(response);
             } else {
                 return ResponseEntity.status(500).body(response);
             }
-            
+
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Scan failed with error: " + e.getMessage());
@@ -82,10 +85,12 @@ public class ScanController {
     public ResponseEntity<Map<String, Object>> getScanStatus() {
         ScheduledScanService.ScanStatus status = scheduledScanService.getScanStatus();
         Map<String, Object> response = new HashMap<>();
-        
+
         response.put("isScanning", status.isScanning());
-        response.put("lastScanTime", status.getLastScanTime() != null ? 
-            status.getLastScanTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null);
+        response.put("lastScanTime",
+                status.getLastScanTime() != null
+                        ? status.getLastScanTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                        : null);
         response.put("lastScanStatus", status.getLastScanStatus());
         response.put("lastScanError", status.getLastScanError());
         response.put("repositoryHubPath", status.getRepositoryHubPath());
@@ -94,7 +99,7 @@ public class ScanController {
         response.put("scanBranch", status.getScanBranch());
         response.put("organization", status.getOrganization());
         response.put("timestamp", System.currentTimeMillis());
-        
+
         return ResponseEntity.ok(response);
     }
 
@@ -105,7 +110,7 @@ public class ScanController {
     public ResponseEntity<Map<String, Object>> getScanConfig() {
         ScheduledScanService.ScanStatus status = scheduledScanService.getScanStatus();
         Map<String, Object> config = new HashMap<>();
-        
+
         config.put("tempCloneMode", status.isTempCloneMode());
         config.put("repositoryHubPath", status.getRepositoryHubPath());
         config.put("repositoryListFile", status.getRepositoryListFile());
@@ -116,7 +121,7 @@ public class ScanController {
         config.put("organization", status.getOrganization());
         config.put("scanBranch", status.getScanBranch());
         config.put("timestamp", System.currentTimeMillis());
-        
+
         return ResponseEntity.ok(config);
     }
 
@@ -126,7 +131,7 @@ public class ScanController {
     @PutMapping("/config")
     public ResponseEntity<Map<String, Object>> updateScanConfig(@RequestBody ScanConfigDto configDto) {
         Map<String, Object> response = new HashMap<>();
-        
+
         try {
             // Validate configuration
             if (configDto.getRepositoryHubPath() != null && configDto.getRepositoryHubPath().trim().isEmpty()) {
@@ -134,13 +139,13 @@ public class ScanController {
                 response.put("message", "Repository hub path cannot be empty");
                 return ResponseEntity.badRequest().body(response);
             }
-            
+
             if (configDto.getRepositoryListFile() != null && configDto.getRepositoryListFile().trim().isEmpty()) {
                 response.put("success", false);
                 response.put("message", "Repository list file cannot be empty");
                 return ResponseEntity.badRequest().body(response);
             }
-            
+
             if (configDto.getMaxRepositoriesPerScan() != null && configDto.getMaxRepositoriesPerScan() <= 0) {
                 response.put("success", false);
                 response.put("message", "Max repositories per scan must be greater than 0");
@@ -152,10 +157,10 @@ public class ScanController {
                 response.put("message", "Scan branch cannot be empty");
                 return ResponseEntity.badRequest().body(response);
             }
-            
+
             // Update configuration
             boolean updated = scheduledScanService.updateScanConfiguration(configDto);
-            
+
             if (updated) {
                 response.put("success", true);
                 response.put("message", "Scan configuration updated successfully");
@@ -166,7 +171,7 @@ public class ScanController {
                 response.put("message", "Failed to update scan configuration");
                 return ResponseEntity.status(500).body(response);
             }
-            
+
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Error updating scan configuration: " + e.getMessage());
@@ -200,10 +205,10 @@ public class ScanController {
         health.put("status", "healthy");
         health.put("service", "scan-service");
         health.put("timestamp", System.currentTimeMillis());
-        
+
         // Add database connectivity status
         health.put("databaseAvailable", persistenceReadFacade.isPresent());
-        
+
         return ResponseEntity.ok(health);
     }
 
@@ -218,22 +223,22 @@ public class ScanController {
             if (!persistenceReadFacade.isPresent()) {
                 return ResponseEntity.status(500).build();
             }
-            
+
             Optional<ScanSession> scanSession = persistenceReadFacade.get().recentScanSessions(100)
-                .stream()
-                .filter(s -> s.getId().equals(scanId))
-                .findFirst();
-            
+                    .stream()
+                    .filter(s -> s.getId().equals(scanId))
+                    .findFirst();
+
             if (scanSession.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             ScanSession session = scanSession.get();
-            
+
             // Use the report file path stored in the database
             String reportFilePath = session.getReportFilePath();
             File reportFile = null;
-            
+
             if (reportFilePath != null && !reportFilePath.isEmpty()) {
                 // Use the stored absolute path
                 reportFile = new File(reportFilePath);
@@ -244,11 +249,10 @@ public class ScanController {
                 if (!Files.exists(reportsDir)) {
                     return ResponseEntity.notFound().build();
                 }
-                
-                File[] reportFiles = reportsDir.toFile().listFiles((dir, name) -> 
-                    name.startsWith("weekly_report_") && name.endsWith(".xlsx")
-                );
-                
+
+                File[] reportFiles = reportsDir.toFile()
+                        .listFiles((dir, name) -> name.startsWith("weekly_report_") && name.endsWith(".xlsx"));
+
                 if (reportFiles != null && reportFiles.length > 0) {
                     // Get the most recent report
                     long latestTime = 0;
@@ -260,20 +264,20 @@ public class ScanController {
                     }
                 }
             }
-            
+
             if (reportFile == null || !reportFile.exists()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             Resource resource = new FileSystemResource(reportFile);
-            
+
             return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, 
-                    "attachment; filename=\"" + reportFile.getName() + "\"")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .contentLength(reportFile.length())
-                .body(resource);
-                
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + reportFile.getName() + "\"")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .contentLength(reportFile.length())
+                    .body(resource);
+
         } catch (Exception e) {
             System.err.println("Error downloading scan report: " + e.getMessage());
             e.printStackTrace();

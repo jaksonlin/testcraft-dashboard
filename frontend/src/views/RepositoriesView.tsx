@@ -103,17 +103,17 @@ const RepositoriesView: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.repositories.getPaginated(
-        currentPage, 
-        pageSize, 
-        searchTerm || undefined, 
-        filters.team as string || undefined, 
+        currentPage,
+        pageSize,
+        searchTerm || undefined,
+        filters.team as string || undefined,
         filters.coverage as string || undefined,
         filters.testMethods as string || undefined,
         filters.lastScan as string || undefined,
-        sortBy, 
+        sortBy,
         sortOrder
       );
-      
+
       setPagination(response);
       setRepositories(response.content);
     } catch (err) {
@@ -173,13 +173,13 @@ const RepositoriesView: React.FC = () => {
     try {
       setScanning(true);
       setScanResults(null);
-      
+
       // Trigger scan for multiple repositories
-      const result = await api.scan.trigger();
-      
+      const result = await api.scan.trigger(repositoryIds);
+
       if (result.success) {
         setScanResults({ success: repositoryIds.length, failed: 0 });
-        
+
         // Clear results after 5 seconds
         setTimeout(() => {
           setScanResults(null);
@@ -187,7 +187,7 @@ const RepositoriesView: React.FC = () => {
       } else {
         setScanResults({ success: 0, failed: repositoryIds.length });
       }
-      
+
     } catch (err) {
       console.error('Error triggering bulk scan:', err);
       setScanResults({ success: 0, failed: repositoryIds.length });
@@ -201,7 +201,7 @@ const RepositoriesView: React.FC = () => {
       setScanning(true);
       // Trigger refresh for all repositories
       const result = await api.scan.trigger();
-      
+
       if (result.success) {
         // Refresh the repositories data using paginated API
         await fetchRepositories();
@@ -245,7 +245,7 @@ const RepositoriesView: React.FC = () => {
           'selected',
           new Set(selectedIds)
         );
-        
+
         const option = {
           id: 'csv-selected',
           label: 'Export Selected (CSV)',
@@ -254,7 +254,7 @@ const RepositoriesView: React.FC = () => {
           scope: 'selected' as const,
           filename: `repositories-selected-${new Date().toISOString().split('T')[0]}.csv`
         };
-        
+
         exportDataUtil(exportData, option);
       },
       loadingText: 'Exporting...'
@@ -296,7 +296,7 @@ const RepositoriesView: React.FC = () => {
         scope,
         scope === 'selected' ? bulkOps.selectedItems : undefined
       );
-      
+
       exportDataUtil(exportData, option);
     } catch (err) {
       console.error('Error exporting repositories:', err);
@@ -361,7 +361,7 @@ const RepositoriesView: React.FC = () => {
       />
 
       {/* Repository List */}
-      <RepositoryList 
+      <RepositoryList
         repositories={repositories}
         onRepositoryClick={handleRepositoryClick}
         onBulkScan={handleBulkScan}

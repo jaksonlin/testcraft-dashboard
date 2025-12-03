@@ -59,6 +59,10 @@ public class PersistenceReadFacade {
         return scanSessionQueryService.getLatestCompleted();
     }
 
+    public Optional<Long> getLatestScanSessionIdForRepository(Long repositoryId) {
+        return scanSessionQueryService.getLatestScanSessionIdForRepository(repositoryId);
+    }
+
     // Test artifacts
     public List<TestClass> listClassesByScanSessionId(Long scanSessionId) {
         return testArtifactQueryService.listClassesByScanSessionId(scanSessionId);

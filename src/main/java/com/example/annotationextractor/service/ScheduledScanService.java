@@ -31,6 +31,7 @@ public class ScheduledScanService {
 
     private final ScanConfigService scanConfigService;
     private final TestCaseService testCaseService;
+    private final java.util.Optional<com.example.annotationextractor.application.PersistenceReadFacade> persistenceReadFacade;
 
     // Thread-safe state tracking
     private final AtomicBoolean isScanning = new AtomicBoolean(false);
@@ -38,9 +39,11 @@ public class ScheduledScanService {
     private final AtomicReference<String> lastScanStatus = new AtomicReference<>("Never run");
     private final AtomicReference<String> lastScanError = new AtomicReference<>();
 
-    public ScheduledScanService(ScanConfigService scanConfigService, TestCaseService testCaseService) {
+    public ScheduledScanService(ScanConfigService scanConfigService, TestCaseService testCaseService,
+            java.util.Optional<com.example.annotationextractor.application.PersistenceReadFacade> persistenceReadFacade) {
         this.scanConfigService = scanConfigService;
         this.testCaseService = testCaseService;
+        this.persistenceReadFacade = persistenceReadFacade;
     }
 
     /**
@@ -113,7 +116,7 @@ public class ScheduledScanService {
     /**
      * Manual scan trigger - can be called via REST API
      */
-    public boolean triggerManualScan() {
+    public boolean triggerManualScan(List<Long> repositoryIds) {
         logger.info("Starting manual repository scan");
 
         if (!isScanning.compareAndSet(false, true)) {
@@ -128,8 +131,27 @@ public class ScheduledScanService {
 
             ScanConfig config = scanConfigService.getCurrentConfig();
             List<ScanRepositoryEntry> repositoryEntries = extractActiveRepositories(config);
+
+            // Filter by repository IDs if provided
+            if (repositoryIds != null && !repositoryIds.isEmpty()) {
+                if (persistenceReadFacade.isPresent()) {
+                    java.util.Set<String> targetUrls = new java.util.HashSet<>();
+                    for (Long id : repositoryIds) {
+                        persistenceReadFacade.get().getRepositoryById(id)
+                                .ifPresent(repo -> targetUrls.add(repo.getGitUrl()));
+                    }
+
+                    repositoryEntries = repositoryEntries.stream()
+                            .filter(entry -> targetUrls.contains(entry.getRepositoryUrl()))
+                            .collect(Collectors.toList());
+                    logger.info("Filtering scan for {} repositories: {}", repositoryEntries.size(), repositoryIds);
+                } else {
+                    logger.warn("PersistenceReadFacade not available, cannot filter by ID. Scanning all.");
+                }
+            }
+
             if (repositoryEntries.isEmpty()) {
-                logger.warn("No repository entries configured; skipping manual scan.");
+                logger.warn("No repository entries configured or matched; skipping manual scan.");
                 lastScanStatus.set("Skipped (no repositories)");
                 return false;
             }
@@ -171,6 +193,13 @@ public class ScheduledScanService {
         } finally {
             isScanning.set(false);
         }
+    }
+
+    /**
+     * Overload for backward compatibility
+     */
+    public boolean triggerManualScan() {
+        return triggerManualScan(null);
     }
 
     /**

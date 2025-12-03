@@ -541,8 +541,8 @@ export const api = {
 
   // Scan endpoints
   scan: {
-    trigger: (): Promise<{ success: boolean; message: string; timestamp: number }> =>
-      apiClient.post('/scan/trigger').then(res => res.data),
+    trigger: (repositoryIds?: number[]): Promise<{ success: boolean; message: string; timestamp: number }> =>
+      apiClient.post('/scan/trigger', { repositoryIds }).then(res => res.data),
 
     getStatus: (): Promise<ScanStatus> =>
       apiClient.get('/scan/status').then(res => res.data),

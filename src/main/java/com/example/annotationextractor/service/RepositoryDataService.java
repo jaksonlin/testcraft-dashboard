@@ -743,20 +743,20 @@ public class RepositoryDataService {
             Boolean annotated) {
         if (persistenceReadFacade.isPresent()) {
             try {
-                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-                if (latestScan.isEmpty()) {
-                    System.err.println("No completed scan session found");
+                // Get latest scan session IDs for ALL repositories
+                List<Long> scanSessionIds = getLatestScanSessionIds();
+                if (scanSessionIds.isEmpty()) {
+                    System.err.println("No scan sessions found for any repository");
                     return new GroupedTestMethodResponse(List.of(),
                             new GroupedTestMethodResponse.SummaryDto(0, 0, 0, 0, 0.0));
                 }
 
-                Long scanSessionId = latestScan.get().getId();
-                System.err.println("Using scan session ID: " + scanSessionId + " for grouped test methods");
+                System.err.println("Using " + scanSessionIds.size() + " scan sessions for grouped test methods");
 
                 // Apply filters at database level (NO client-side filtering)
                 List<TestMethodDetailRecord> records = persistenceReadFacade.get()
                         .listTestMethodDetailsWithFilters(
-                                scanSessionId,
+                                scanSessionIds,
                                 null, // teamName
                                 null, // repositoryName
                                 null, // packageName
@@ -887,9 +887,10 @@ public class RepositoryDataService {
 
         if (persistenceReadFacade.isPresent()) {
             try {
-                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-                if (latestScan.isEmpty()) {
-                    System.err.println("No completed scan session found");
+                // Get latest scan session IDs for ALL repositories
+                List<Long> scanSessionIds = getLatestScanSessionIds();
+                if (scanSessionIds.isEmpty()) {
+                    System.err.println("No scan sessions found for any repository");
                     return Map.of(
                             "totalMethods", 0,
                             "totalAnnotated", 0,
@@ -897,12 +898,10 @@ public class RepositoryDataService {
                             "coverageRate", 0.0);
                 }
 
-                Long scanSessionId = latestScan.get().getId();
-
                 // Get total count with filters (from database)
                 long totalMethods = persistenceReadFacade.get()
                         .countTestMethodDetailsWithFilters(
-                                scanSessionId,
+                                scanSessionIds,
                                 null, // teamName (TODO: convert teamId to teamName if needed)
                                 repositoryName,
                                 null, // packageName
@@ -915,7 +914,7 @@ public class RepositoryDataService {
                 // Get annotated count with filters (from database)
                 long totalAnnotated = persistenceReadFacade.get()
                         .countTestMethodDetailsWithFilters(
-                                scanSessionId,
+                                scanSessionIds,
                                 null, // teamName
                                 repositoryName,
                                 null, // packageName
@@ -966,19 +965,19 @@ public class RepositoryDataService {
 
         if (persistenceReadFacade.isPresent()) {
             try {
-                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-                if (latestScan.isEmpty()) {
-                    System.err.println("No completed scan session found");
+                // Get latest scan session IDs for ALL repositories
+                List<Long> scanSessionIds = getLatestScanSessionIds();
+                if (scanSessionIds.isEmpty()) {
+                    System.err.println("No scan sessions found for any repository");
                     return new PagedResponse<>(List.of(), page, size, 0);
                 }
 
-                Long scanSessionId = latestScan.get().getId();
                 int offset = page * size;
 
                 // Get filtered data directly from database (NO client-side filtering)
                 List<TestMethodDetailRecord> records = persistenceReadFacade.get()
                         .listTestMethodDetailsWithFilters(
-                                scanSessionId,
+                                scanSessionIds,
                                 teamName,
                                 repositoryName,
                                 packageName,
@@ -992,7 +991,7 @@ public class RepositoryDataService {
                 // Get accurate count of filtered results (from database, not memory)
                 long totalCount = persistenceReadFacade.get()
                         .countTestMethodDetailsWithFilters(
-                                scanSessionId,
+                                scanSessionIds,
                                 teamName,
                                 repositoryName,
                                 packageName,
@@ -1030,21 +1029,20 @@ public class RepositoryDataService {
     public List<Map<String, Object>> getHierarchy(String level, String teamName, String packageName) {
         if (persistenceReadFacade.isPresent()) {
             try {
-                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-                if (latestScan.isEmpty()) {
-                    System.err.println("No completed scan session found");
+                // Get latest scan session IDs for ALL repositories
+                List<Long> scanSessionIds = getLatestScanSessionIds();
+                if (scanSessionIds.isEmpty()) {
+                    System.err.println("No scan sessions found for any repository");
                     return List.of();
                 }
 
-                Long scanSessionId = latestScan.get().getId();
-
                 // Return aggregated data based on hierarchy level
                 if ("TEAM".equalsIgnoreCase(level)) {
-                    return persistenceReadFacade.get().getHierarchyByTeam(scanSessionId);
+                    return persistenceReadFacade.get().getHierarchyByTeam(scanSessionIds);
                 } else if ("PACKAGE".equalsIgnoreCase(level) && teamName != null) {
-                    return persistenceReadFacade.get().getHierarchyByPackage(scanSessionId, teamName);
+                    return persistenceReadFacade.get().getHierarchyByPackage(scanSessionIds, teamName);
                 } else if ("CLASS".equalsIgnoreCase(level) && teamName != null && packageName != null) {
-                    return persistenceReadFacade.get().getHierarchyByClass(scanSessionId, teamName, packageName);
+                    return persistenceReadFacade.get().getHierarchyByClass(scanSessionIds, teamName, packageName);
                 }
 
                 return List.of();
@@ -1056,5 +1054,27 @@ public class RepositoryDataService {
             }
         }
         return List.of();
+    }
+
+    /**
+     * Helper method to get the latest scan session ID for each active repository
+     */
+    private List<Long> getLatestScanSessionIds() {
+        if (persistenceReadFacade.isEmpty()) {
+            return List.of();
+        }
+        try {
+            List<RepositoryRecord> repositories = persistenceReadFacade.get().listAllRepositories();
+            List<Long> sessionIds = new ArrayList<>();
+            for (RepositoryRecord repo : repositories) {
+                Optional<Long> sessionId = persistenceReadFacade.get()
+                        .getLatestScanSessionIdForRepository(repo.getId());
+                sessionId.ifPresent(sessionIds::add);
+            }
+            return sessionIds;
+        } catch (Exception e) {
+            System.err.println("Error fetching latest scan session IDs: " + e.getMessage());
+            return List.of();
+        }
     }
 }

@@ -26,7 +26,11 @@ public class ScanSessionQueryService {
         return scanSessionPort.findAll();
     }
 
-    public long count() { return scanSessionPort.count(); }
+    public long count() {
+        return scanSessionPort.count();
+    }
+
+    public Optional<Long> getLatestScanSessionIdForRepository(Long repositoryId) {
+        return scanSessionPort.findLatestScanSessionIdForRepository(repositoryId);
+    }
 }
-
-
