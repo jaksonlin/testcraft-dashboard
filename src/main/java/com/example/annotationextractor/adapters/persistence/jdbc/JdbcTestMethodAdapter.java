@@ -71,7 +71,16 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
 
     @Override
     public List<TestMethod> findAnnotatedByRepositoryAndScanSessionId(Long repositoryId, Long scanSessionId) {
-        String sql = "SELECT tm.* FROM test_methods tm JOIN test_classes tc ON tm.test_class_id = tc.id WHERE tc.repository_id = ? AND tc.scan_session_id = ? AND tm.has_annotation = TRUE ORDER BY tm.id";
+        String sql = """
+                SELECT tm.*
+                FROM test_methods tm
+                JOIN test_classes tc ON tm.test_class_id = tc.id
+                WHERE tc.repository_id = ? 
+                  AND tc.scan_session_id = ? 
+                  AND tm.has_annotation = TRUE
+                ORDER BY tm.id
+                """;
+        
         List<TestMethod> result = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -91,39 +100,12 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
     @Override
     public List<TestMethodDetailRecord> findTestMethodDetailsByTeamIdAndScanSessionId(Long teamId, Long scanSessionId,
             Integer limit) {
-        StringBuilder sql = new StringBuilder("""
-                SELECT
-                    tm.id,
-                    r.repository_name,
-                    tc.class_name,
-                    tm.method_name,
-                    tm.line_number,
-                    tm.annotation_title,
-                    tm.annotation_author,
-                    tm.annotation_status,
-                    tm.annotation_target_class,
-                    tm.annotation_target_method,
-                    tm.annotation_description,
-                    tm.annotation_test_points,
-                    tm.annotation_tags,
-                    tm.annotation_requirements,
-                    tm.annotation_testcases,
-                    tm.annotation_defects,
-                    tm.annotation_last_update_time,
-                    tm.annotation_last_update_author,
-                    t.team_name,
-                    t.team_code,
-                    r.git_url
-                FROM test_methods tm
-                JOIN test_classes tc ON tm.test_class_id = tc.id
-                JOIN repositories r ON tc.repository_id = r.id
-                LEFT JOIN teams t ON r.team_id = t.id
-                WHERE tc.scan_session_id = ? AND r.team_id = ?
-                ORDER BY r.repository_name, tc.class_name, tm.method_name
-                """);
+        StringBuilder sql = new StringBuilder(BASE_TEST_METHOD_DETAIL_SELECT);
+        sql.append("WHERE tc.scan_session_id = ? AND r.team_id = ?\n");
+        sql.append("ORDER BY r.repository_name, tc.class_name, tm.method_name\n");
 
         if (limit != null && limit > 0) {
-            sql.append(" LIMIT ?");
+            sql.append("LIMIT ?");
         }
 
         List<TestMethodDetailRecord> testMethods = new ArrayList<>();
@@ -137,49 +119,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Long id = rs.getLong("id");
-                    String repositoryName = rs.getString("repository_name");
-                    String testClassName = rs.getString("class_name");
-                    String testMethodName = rs.getString("method_name");
-                    Integer lineNumber = rs.getInt("line_number");
-                    String annotationTitle = rs.getString("annotation_title");
-                    String annotationAuthor = rs.getString("annotation_author");
-                    String annotationStatus = rs.getString("annotation_status");
-                    String annotationTargetClass = rs.getString("annotation_target_class");
-                    String annotationTargetMethod = rs.getString("annotation_target_method");
-                    String annotationDescription = rs.getString("annotation_description");
-                    String annotationTestPoints = rs.getString("annotation_test_points");
-
-                    // Parse comma-separated strings into lists
-                    List<String> annotationTags = parseStringArray(rs.getString("annotation_tags"));
-                    List<String> annotationRequirements = parseStringArray(rs.getString("annotation_requirements"));
-                    List<String> annotationTestcases = parseStringArray(rs.getString("annotation_testcases"));
-                    List<String> annotationDefects = parseStringArray(rs.getString("annotation_defects"));
-
-                    // Parse timestamp
-                    String lastUpdateTime = rs.getString("annotation_last_update_time");
-                    LocalDateTime lastUpdateDateTime = null;
-                    if (lastUpdateTime != null && !lastUpdateTime.trim().isEmpty()) {
-                        try {
-                            lastUpdateDateTime = LocalDateTime.parse(lastUpdateTime);
-                        } catch (Exception e) {
-                            // If parsing fails, set to null
-                            lastUpdateDateTime = null;
-                        }
-                    }
-
-                    String annotationLastUpdateAuthor = rs.getString("annotation_last_update_author");
-                    String teamName = rs.getString("team_name");
-                    String teamCode = rs.getString("team_code");
-                    String gitUrl = rs.getString("git_url");
-
-                    testMethods.add(new TestMethodDetailRecord(
-                            id, repositoryName, testClassName, testMethodName,
-                            lineNumber, annotationTitle, annotationAuthor, annotationStatus,
-                            annotationTargetClass, annotationTargetMethod, annotationDescription,
-                            annotationTestPoints, annotationTags, annotationRequirements,
-                            annotationTestcases, annotationDefects, lastUpdateDateTime,
-                            annotationLastUpdateAuthor, teamName, teamCode, gitUrl));
+                    testMethods.add(mapResultSetToTestMethodDetailRecord(rs));
                 }
             }
         } catch (SQLException e) {
@@ -210,39 +150,12 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
     @Override
     public List<TestMethodDetailRecord> findTestMethodDetailsByRepositoryIdAndScanSessionId(Long repositoryId,
             Long scanSessionId, Integer limit) {
-        StringBuilder sql = new StringBuilder("""
-                SELECT
-                    tm.id,
-                    r.repository_name,
-                    tc.class_name,
-                    tm.method_name,
-                    tm.line_number,
-                    tm.annotation_title,
-                    tm.annotation_author,
-                    tm.annotation_status,
-                    tm.annotation_target_class,
-                    tm.annotation_target_method,
-                    tm.annotation_description,
-                    tm.annotation_test_points,
-                    tm.annotation_tags,
-                    tm.annotation_requirements,
-                    tm.annotation_testcases,
-                    tm.annotation_defects,
-                    tm.annotation_last_update_time,
-                    tm.annotation_last_update_author,
-                    t.team_name,
-                    t.team_code,
-                    r.git_url
-                FROM test_methods tm
-                JOIN test_classes tc ON tm.test_class_id = tc.id
-                JOIN repositories r ON tc.repository_id = r.id
-                LEFT JOIN teams t ON r.team_id = t.id
-                WHERE tc.scan_session_id = ? AND r.id = ?
-                ORDER BY r.repository_name, tc.class_name, tm.method_name
-                """);
+        StringBuilder sql = new StringBuilder(BASE_TEST_METHOD_DETAIL_SELECT);
+        sql.append("WHERE tc.scan_session_id = ? AND r.id = ?\n");
+        sql.append("ORDER BY r.repository_name, tc.class_name, tm.method_name\n");
 
         if (limit != null && limit > 0) {
-            sql.append(" LIMIT ?");
+            sql.append("LIMIT ?");
         }
 
         List<TestMethodDetailRecord> result = new ArrayList<>();
@@ -255,49 +168,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             }
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Long id = rs.getLong("id");
-                    String repositoryName = rs.getString("repository_name");
-                    String testClassName = rs.getString("class_name");
-                    String testMethodName = rs.getString("method_name");
-                    Integer lineNumber = rs.getInt("line_number");
-                    String annotationTitle = rs.getString("annotation_title");
-                    String annotationAuthor = rs.getString("annotation_author");
-                    String annotationStatus = rs.getString("annotation_status");
-                    String annotationTargetClass = rs.getString("annotation_target_class");
-                    String annotationTargetMethod = rs.getString("annotation_target_method");
-                    String annotationDescription = rs.getString("annotation_description");
-                    String annotationTestPoints = rs.getString("annotation_test_points");
-
-                    // Parse comma-separated strings into lists
-                    List<String> annotationTags = parseStringArray(rs.getString("annotation_tags"));
-                    List<String> annotationRequirements = parseStringArray(rs.getString("annotation_requirements"));
-                    List<String> annotationTestcases = parseStringArray(rs.getString("annotation_testcases"));
-                    List<String> annotationDefects = parseStringArray(rs.getString("annotation_defects"));
-
-                    // Parse timestamp
-                    String lastUpdateTime = rs.getString("annotation_last_update_time");
-                    LocalDateTime lastUpdateDateTime = null;
-                    if (lastUpdateTime != null && !lastUpdateTime.trim().isEmpty()) {
-                        try {
-                            lastUpdateDateTime = LocalDateTime.parse(lastUpdateTime);
-                        } catch (Exception e) {
-                            // If parsing fails, set to null
-                            lastUpdateDateTime = null;
-                        }
-                    }
-
-                    String annotationLastUpdateAuthor = rs.getString("annotation_last_update_author");
-                    String teamName = rs.getString("team_name");
-                    String teamCode = rs.getString("team_code");
-                    String gitUrl = rs.getString("git_url");
-
-                    result.add(new TestMethodDetailRecord(
-                            id, repositoryName, testClassName, testMethodName,
-                            lineNumber, annotationTitle, annotationAuthor, annotationStatus,
-                            annotationTargetClass, annotationTargetMethod, annotationDescription,
-                            annotationTestPoints, annotationTags, annotationRequirements,
-                            annotationTestcases, annotationDefects, lastUpdateDateTime,
-                            annotationLastUpdateAuthor, teamName, teamCode, gitUrl));
+                    result.add(mapResultSetToTestMethodDetailRecord(rs));
                 }
             }
         } catch (SQLException e) {
@@ -328,39 +199,12 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
 
     @Override
     public List<TestMethodDetailRecord> findTestMethodDetailsByClassId(Long classId, Integer limit) {
-        StringBuilder sql = new StringBuilder("""
-                SELECT
-                    tm.id,
-                    r.repository_name,
-                    tc.class_name,
-                    tm.method_name,
-                    tm.line_number,
-                    tm.annotation_title,
-                    tm.annotation_author,
-                    tm.annotation_status,
-                    tm.annotation_target_class,
-                    tm.annotation_target_method,
-                    tm.annotation_description,
-                    tm.annotation_test_points,
-                    tm.annotation_tags,
-                    tm.annotation_requirements,
-                    tm.annotation_testcases,
-                    tm.annotation_defects,
-                    tm.annotation_last_update_time,
-                    tm.annotation_last_update_author,
-                    t.team_name,
-                    t.team_code,
-                    r.git_url
-                FROM test_methods tm
-                JOIN test_classes tc ON tm.test_class_id = tc.id
-                JOIN repositories r ON tc.repository_id = r.id
-                LEFT JOIN teams t ON r.team_id = t.id
-                WHERE tc.id = ?
-                ORDER BY r.repository_name, tc.class_name, tm.method_name
-                """);
+        StringBuilder sql = new StringBuilder(BASE_TEST_METHOD_DETAIL_SELECT);
+        sql.append("WHERE tc.id = ?\n");
+        sql.append("ORDER BY r.repository_name, tc.class_name, tm.method_name\n");
 
         if (limit != null && limit > 0) {
-            sql.append(" LIMIT ?");
+            sql.append("LIMIT ?");
         }
 
         List<TestMethodDetailRecord> result = new ArrayList<>();
@@ -372,49 +216,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             }
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Long id = rs.getLong("id");
-                    String repositoryName = rs.getString("repository_name");
-                    String testClassName = rs.getString("class_name");
-                    String testMethodName = rs.getString("method_name");
-                    Integer lineNumber = rs.getInt("line_number");
-                    String annotationTitle = rs.getString("annotation_title");
-                    String annotationAuthor = rs.getString("annotation_author");
-                    String annotationStatus = rs.getString("annotation_status");
-                    String annotationTargetClass = rs.getString("annotation_target_class");
-                    String annotationTargetMethod = rs.getString("annotation_target_method");
-                    String annotationDescription = rs.getString("annotation_description");
-                    String annotationTestPoints = rs.getString("annotation_test_points");
-
-                    // Parse comma-separated strings into lists
-                    List<String> annotationTags = parseStringArray(rs.getString("annotation_tags"));
-                    List<String> annotationRequirements = parseStringArray(rs.getString("annotation_requirements"));
-                    List<String> annotationTestcases = parseStringArray(rs.getString("annotation_testcases"));
-                    List<String> annotationDefects = parseStringArray(rs.getString("annotation_defects"));
-
-                    // Parse timestamp
-                    String lastUpdateTime = rs.getString("annotation_last_update_time");
-                    LocalDateTime lastUpdateDateTime = null;
-                    if (lastUpdateTime != null && !lastUpdateTime.trim().isEmpty()) {
-                        try {
-                            lastUpdateDateTime = LocalDateTime.parse(lastUpdateTime);
-                        } catch (Exception e) {
-                            // If parsing fails, set to null
-                            lastUpdateDateTime = null;
-                        }
-                    }
-
-                    String annotationLastUpdateAuthor = rs.getString("annotation_last_update_author");
-                    String teamName = rs.getString("team_name");
-                    String teamCode = rs.getString("team_code");
-                    String gitUrl = rs.getString("git_url");
-
-                    result.add(new TestMethodDetailRecord(
-                            id, repositoryName, testClassName, testMethodName,
-                            lineNumber, annotationTitle, annotationAuthor, annotationStatus,
-                            annotationTargetClass, annotationTargetMethod, annotationDescription,
-                            annotationTestPoints, annotationTags, annotationRequirements,
-                            annotationTestcases, annotationDefects, lastUpdateDateTime,
-                            annotationLastUpdateAuthor, teamName, teamCode, gitUrl));
+                    result.add(mapResultSetToTestMethodDetailRecord(rs));
                 }
             }
         } catch (SQLException e) {
@@ -444,39 +246,12 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
 
     @Override
     public List<TestMethodDetailRecord> findTestMethodDetailsByScanSessionId(Long scanSessionId, Integer limit) {
-        StringBuilder sql = new StringBuilder("""
-                SELECT
-                    tm.id,
-                    r.repository_name,
-                    tc.class_name,
-                    tm.method_name,
-                    tm.line_number,
-                    tm.annotation_title,
-                    tm.annotation_author,
-                    tm.annotation_status,
-                    tm.annotation_target_class,
-                    tm.annotation_target_method,
-                    tm.annotation_description,
-                    tm.annotation_test_points,
-                    tm.annotation_tags,
-                    tm.annotation_requirements,
-                    tm.annotation_testcases,
-                    tm.annotation_defects,
-                    tm.annotation_last_update_time,
-                    tm.annotation_last_update_author,
-                    t.team_name,
-                    t.team_code,
-                    r.git_url
-                FROM test_methods tm
-                JOIN test_classes tc ON tm.test_class_id = tc.id
-                JOIN repositories r ON tc.repository_id = r.id
-                LEFT JOIN teams t ON r.team_id = t.id
-                WHERE tc.scan_session_id = ?
-                ORDER BY r.repository_name, tc.class_name, tm.method_name
-                """);
+        StringBuilder sql = new StringBuilder(BASE_TEST_METHOD_DETAIL_SELECT);
+        sql.append("WHERE tc.scan_session_id = ?\n");
+        sql.append("ORDER BY r.repository_name, tc.class_name, tm.method_name\n");
 
         if (limit != null && limit > 0) {
-            sql.append(" LIMIT ?");
+            sql.append("LIMIT ?");
         }
 
         List<TestMethodDetailRecord> result = new ArrayList<>();
@@ -488,49 +263,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             }
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Long id = rs.getLong("id");
-                    String repositoryName = rs.getString("repository_name");
-                    String testClassName = rs.getString("class_name");
-                    String testMethodName = rs.getString("method_name");
-                    Integer lineNumber = rs.getInt("line_number");
-                    String annotationTitle = rs.getString("annotation_title");
-                    String annotationAuthor = rs.getString("annotation_author");
-                    String annotationStatus = rs.getString("annotation_status");
-                    String annotationTargetClass = rs.getString("annotation_target_class");
-                    String annotationTargetMethod = rs.getString("annotation_target_method");
-                    String annotationDescription = rs.getString("annotation_description");
-                    String annotationTestPoints = rs.getString("annotation_test_points");
-
-                    // Parse comma-separated strings into lists
-                    List<String> annotationTags = parseStringArray(rs.getString("annotation_tags"));
-                    List<String> annotationRequirements = parseStringArray(rs.getString("annotation_requirements"));
-                    List<String> annotationTestcases = parseStringArray(rs.getString("annotation_testcases"));
-                    List<String> annotationDefects = parseStringArray(rs.getString("annotation_defects"));
-
-                    // Parse timestamp
-                    String lastUpdateTime = rs.getString("annotation_last_update_time");
-                    LocalDateTime lastUpdateDateTime = null;
-                    if (lastUpdateTime != null && !lastUpdateTime.trim().isEmpty()) {
-                        try {
-                            lastUpdateDateTime = LocalDateTime.parse(lastUpdateTime);
-                        } catch (Exception e) {
-                            // If parsing fails, set to null
-                            lastUpdateDateTime = null;
-                        }
-                    }
-
-                    String annotationLastUpdateAuthor = rs.getString("annotation_last_update_author");
-                    String teamName = rs.getString("team_name");
-                    String teamCode = rs.getString("team_code");
-                    String gitUrl = rs.getString("git_url");
-
-                    result.add(new TestMethodDetailRecord(
-                            id, repositoryName, testClassName, testMethodName,
-                            lineNumber, annotationTitle, annotationAuthor, annotationStatus,
-                            annotationTargetClass, annotationTargetMethod, annotationDescription,
-                            annotationTestPoints, annotationTags, annotationRequirements,
-                            annotationTestcases, annotationDefects, lastUpdateDateTime,
-                            annotationLastUpdateAuthor, teamName, teamCode, gitUrl));
+                    result.add(mapResultSetToTestMethodDetailRecord(rs));
                 }
             }
         } catch (SQLException e) {
@@ -571,6 +304,171 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Base SQL SELECT query for test method details with joins.
+     * Used across multiple query methods to avoid duplication.
+     */
+    private static final String BASE_TEST_METHOD_DETAIL_SELECT = """
+            SELECT
+                tm.id,
+                r.repository_name,
+                tc.class_name,
+                tm.method_name,
+                tm.line_number,
+                tm.annotation_title,
+                tm.annotation_author,
+                tm.annotation_status,
+                tm.annotation_target_class,
+                tm.annotation_target_method,
+                tm.annotation_description,
+                tm.annotation_test_points,
+                tm.annotation_tags,
+                tm.annotation_requirements,
+                tm.annotation_testcases,
+                tm.annotation_defects,
+                tm.annotation_last_update_time,
+                tm.annotation_last_update_author,
+                t.team_name,
+                t.team_code,
+                r.git_url
+            FROM test_methods tm
+            JOIN test_classes tc ON tm.test_class_id = tc.id
+            JOIN repositories r ON tc.repository_id = r.id
+            LEFT JOIN teams t ON r.team_id = t.id
+            """;
+
+    /**
+     * Maps a ResultSet row to a TestMethodDetailRecord.
+     * Centralizes the mapping logic to avoid duplication across multiple query methods.
+     */
+    private TestMethodDetailRecord mapResultSetToTestMethodDetailRecord(ResultSet rs) throws SQLException {
+        Long id = rs.getLong("id");
+        String repositoryName = rs.getString("repository_name");
+        String testClassName = rs.getString("class_name");
+        String testMethodName = rs.getString("method_name");
+        Integer lineNumber = rs.getInt("line_number");
+        String annotationTitle = rs.getString("annotation_title");
+        String annotationAuthor = rs.getString("annotation_author");
+        String annotationStatus = rs.getString("annotation_status");
+        String annotationTargetClass = rs.getString("annotation_target_class");
+        String annotationTargetMethod = rs.getString("annotation_target_method");
+        String annotationDescription = rs.getString("annotation_description");
+        String annotationTestPoints = rs.getString("annotation_test_points");
+
+        // Parse comma-separated strings into lists
+        List<String> annotationTags = parseStringArray(rs.getString("annotation_tags"));
+        List<String> annotationRequirements = parseStringArray(rs.getString("annotation_requirements"));
+        List<String> annotationTestcases = parseStringArray(rs.getString("annotation_testcases"));
+        List<String> annotationDefects = parseStringArray(rs.getString("annotation_defects"));
+
+        // Parse timestamp
+        String lastUpdateTime = rs.getString("annotation_last_update_time");
+        LocalDateTime lastUpdateDateTime = null;
+        if (lastUpdateTime != null && !lastUpdateTime.trim().isEmpty()) {
+            try {
+                lastUpdateDateTime = LocalDateTime.parse(lastUpdateTime);
+            } catch (Exception e) {
+                // If parsing fails, set to null
+                lastUpdateDateTime = null;
+            }
+        }
+
+        String annotationLastUpdateAuthor = rs.getString("annotation_last_update_author");
+        String teamName = rs.getString("team_name");
+        String teamCode = rs.getString("team_code");
+        String gitUrl = rs.getString("git_url");
+
+        return new TestMethodDetailRecord(
+                id, repositoryName, testClassName, testMethodName,
+                lineNumber, annotationTitle, annotationAuthor, annotationStatus,
+                annotationTargetClass, annotationTargetMethod, annotationDescription,
+                annotationTestPoints, annotationTags, annotationRequirements,
+                annotationTestcases, annotationDefects, lastUpdateDateTime,
+                annotationLastUpdateAuthor, teamName, teamCode, gitUrl);
+    }
+
+    /**
+     * Applies common filters to the SQL query builder.
+     * Centralizes filter logic to avoid duplication.
+     */
+    private void applyCommonFilters(StringBuilder sql, List<Object> params,
+            String teamName, String repositoryName, String packageName,
+            String className, Boolean annotated, String searchTerm, String codePattern) {
+        
+        // Search term filter (searches across multiple fields)
+        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+            sql.append(
+                    " AND (LOWER(tm.method_name) LIKE LOWER(?) OR LOWER(tc.class_name) LIKE LOWER(?) OR LOWER(r.repository_name) LIKE LOWER(?) OR LOWER(tm.annotation_title) LIKE LOWER(?))");
+            String searchPattern = "%" + searchTerm + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
+            params.add(searchPattern);
+            params.add(searchPattern);
+        }
+
+        // Team name filter (case-insensitive)
+        if (teamName != null && !teamName.trim().isEmpty()) {
+            sql.append(" AND LOWER(t.team_name) LIKE LOWER(?)");
+            params.add("%" + teamName + "%");
+        }
+
+        // Repository name filter (case-insensitive)
+        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
+            sql.append(" AND LOWER(r.repository_name) LIKE LOWER(?)");
+            params.add("%" + repositoryName + "%");
+        }
+
+        // Package name filter (uses dedicated package_name column)
+        if (packageName != null && !packageName.trim().isEmpty()) {
+            sql.append(" AND LOWER(tc.package_name) LIKE LOWER(?)");
+            params.add("%" + packageName + "%");
+        }
+
+        // Class name filter (uses class_name column - simple class name, case-insensitive)
+        if (className != null && !className.trim().isEmpty()) {
+            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
+            params.add("%" + className + "%");
+        }
+
+        // Annotation status filter
+        if (annotated != null) {
+            if (annotated) {
+                sql.append(" AND tm.annotation_title IS NOT NULL AND tm.annotation_title != ''");
+            } else {
+                sql.append(" AND (tm.annotation_title IS NULL OR tm.annotation_title = '')");
+            }
+        }
+
+        // Code pattern filter (searches in target class, target method, and method body content)
+        if (codePattern != null && !codePattern.trim().isEmpty()) {
+            sql.append(
+                    " AND (LOWER(tm.annotation_target_class) LIKE LOWER(?) OR LOWER(tm.annotation_target_method) LIKE LOWER(?) OR LOWER(tm.method_body_content) LIKE LOWER(?))");
+            String codePatternSearch = "%" + codePattern + "%";
+            params.add(codePatternSearch);
+            params.add(codePatternSearch);
+            params.add(codePatternSearch);
+        }
+    }
+
+    /**
+     * Builds the WHERE clause for repository_id/scan_session_id pairs.
+     * Used for aggregating results across multiple scan sessions.
+     */
+    private void buildRepositoryScanSessionPairsClause(StringBuilder sql, List<Object> params, Map<Long, Long> latestSessions) {
+        sql.append("(");
+        boolean first = true;
+        for (Map.Entry<Long, Long> entry : latestSessions.entrySet()) {
+            if (!first) {
+                sql.append(" OR ");
+            }
+            sql.append("(tc.repository_id = ? AND tc.scan_session_id = ?)");
+            params.add(entry.getKey());
+            params.add(entry.getValue());
+            first = false;
+        }
+        sql.append(")");
     }
 
     private TestMethod mapRow(ResultSet rs) throws SQLException {
@@ -643,104 +541,24 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             Integer offset,
             Integer limit) {
 
-        StringBuilder sql = new StringBuilder("""
-                SELECT
-                    tm.id,
-                    r.repository_name,
-                    tc.class_name,
-                    tm.method_name,
-                    tm.line_number,
-                    tm.annotation_title,
-                    tm.annotation_author,
-                    tm.annotation_status,
-                    tm.annotation_target_class,
-                    tm.annotation_target_method,
-                    tm.annotation_description,
-                    tm.annotation_test_points,
-                    tm.annotation_tags,
-                    tm.annotation_requirements,
-                    tm.annotation_testcases,
-                    tm.annotation_defects,
-                    tm.annotation_last_update_time,
-                    tm.annotation_last_update_author,
-                    t.team_name,
-                    t.team_code,
-                    r.git_url
-                FROM test_methods tm
-                JOIN test_classes tc ON tm.test_class_id = tc.id
-                JOIN repositories r ON tc.repository_id = r.id
-                LEFT JOIN teams t ON r.team_id = t.id
-                WHERE tc.scan_session_id = ?
-                """);
+        StringBuilder sql = new StringBuilder(BASE_TEST_METHOD_DETAIL_SELECT);
+        sql.append("WHERE tc.scan_session_id = ?\n");
 
         List<Object> params = new ArrayList<>();
         params.add(scanSessionId);
 
-        // Search term filter (searches across multiple fields)
-        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-            sql.append(
-                    " AND (LOWER(tm.method_name) LIKE LOWER(?) OR LOWER(tc.class_name) LIKE LOWER(?) OR LOWER(r.repository_name) LIKE LOWER(?) OR LOWER(tm.annotation_title) LIKE LOWER(?))");
-            String searchPattern = "%" + searchTerm + "%";
-            params.add(searchPattern);
-            params.add(searchPattern);
-            params.add(searchPattern);
-            params.add(searchPattern);
-        }
+        // Apply common filters
+        applyCommonFilters(sql, params, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
 
-        // Team name filter (case-insensitive)
-        if (teamName != null && !teamName.trim().isEmpty()) {
-            sql.append(" AND LOWER(t.team_name) LIKE LOWER(?)");
-            params.add("%" + teamName + "%");
-        }
-
-        // Repository name filter (case-insensitive)
-        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
-            sql.append(" AND LOWER(r.repository_name) LIKE LOWER(?)");
-            params.add("%" + repositoryName + "%");
-        }
-
-        // Package name filter (uses dedicated package_name column)
-        if (packageName != null && !packageName.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.package_name) LIKE LOWER(?)");
-            params.add("%" + packageName + "%");
-        }
-
-        // Class name filter (uses class_name column - simple class name,
-        // case-insensitive)
-        if (className != null && !className.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
-            params.add("%" + className + "%");
-        }
-
-        // Annotation status filter
-        if (annotated != null) {
-            if (annotated) {
-                sql.append(" AND tm.annotation_title IS NOT NULL AND tm.annotation_title != ''");
-            } else {
-                sql.append(" AND (tm.annotation_title IS NULL OR tm.annotation_title = '')");
-            }
-        }
-
-        // Code pattern filter (searches in target class, target method, and method body
-        // content)
-        if (codePattern != null && !codePattern.trim().isEmpty()) {
-            sql.append(
-                    " AND (LOWER(tm.annotation_target_class) LIKE LOWER(?) OR LOWER(tm.annotation_target_method) LIKE LOWER(?) OR LOWER(tm.method_body_content) LIKE LOWER(?))");
-            String codePatternSearch = "%" + codePattern + "%";
-            params.add(codePatternSearch);
-            params.add(codePatternSearch);
-            params.add(codePatternSearch);
-        }
-
-        sql.append(" ORDER BY r.repository_name, tc.class_name, tm.method_name");
+        sql.append("ORDER BY r.repository_name, tc.class_name, tm.method_name\n");
 
         // Pagination
         if (limit != null && limit > 0) {
-            sql.append(" LIMIT ?");
+            sql.append("LIMIT ?\n");
             params.add(limit);
         }
         if (offset != null && offset > 0) {
-            sql.append(" OFFSET ?");
+            sql.append("OFFSET ?");
             params.add(offset);
         }
 
@@ -755,46 +573,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Long id = rs.getLong("id");
-                    String repoName = rs.getString("repository_name");
-                    String testClassName = rs.getString("class_name");
-                    String testMethodName = rs.getString("method_name");
-                    Integer lineNumber = rs.getInt("line_number");
-                    String annotationTitle = rs.getString("annotation_title");
-                    String annotationAuthor = rs.getString("annotation_author");
-                    String annotationStatus = rs.getString("annotation_status");
-                    String annotationTargetClass = rs.getString("annotation_target_class");
-                    String annotationTargetMethod = rs.getString("annotation_target_method");
-                    String annotationDescription = rs.getString("annotation_description");
-                    String annotationTestPoints = rs.getString("annotation_test_points");
-
-                    List<String> annotationTags = parseStringArray(rs.getString("annotation_tags"));
-                    List<String> annotationRequirements = parseStringArray(rs.getString("annotation_requirements"));
-                    List<String> annotationTestcases = parseStringArray(rs.getString("annotation_testcases"));
-                    List<String> annotationDefects = parseStringArray(rs.getString("annotation_defects"));
-
-                    String lastUpdateTime = rs.getString("annotation_last_update_time");
-                    LocalDateTime lastUpdateDateTime = null;
-                    if (lastUpdateTime != null && !lastUpdateTime.trim().isEmpty()) {
-                        try {
-                            lastUpdateDateTime = LocalDateTime.parse(lastUpdateTime);
-                        } catch (Exception e) {
-                            // Ignore parse errors
-                        }
-                    }
-
-                    String annotationLastUpdateAuthor = rs.getString("annotation_last_update_author");
-                    String teamNameResult = rs.getString("team_name");
-                    String teamCode = rs.getString("team_code");
-                    String gitUrl = rs.getString("git_url");
-
-                    result.add(new TestMethodDetailRecord(
-                            id, repoName, testClassName, testMethodName, lineNumber,
-                            annotationTitle, annotationAuthor, annotationStatus,
-                            annotationTargetClass, annotationTargetMethod, annotationDescription,
-                            annotationTestPoints, annotationTags, annotationRequirements,
-                            annotationTestcases, annotationDefects, lastUpdateDateTime,
-                            annotationLastUpdateAuthor, teamNameResult, teamCode, gitUrl));
+                    result.add(mapResultSetToTestMethodDetailRecord(rs));
                 }
             }
         } catch (SQLException e) {
@@ -830,56 +609,8 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
         List<Object> params = new ArrayList<>();
         params.add(scanSessionId);
 
-        // Search term filter (searches across multiple fields)
-        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-            sql.append(
-                    " AND (LOWER(tm.method_name) LIKE LOWER(?) OR LOWER(tc.class_name) LIKE LOWER(?) OR LOWER(r.repository_name) LIKE LOWER(?) OR LOWER(tm.annotation_title) LIKE LOWER(?))");
-            String searchPattern = "%" + searchTerm + "%";
-            params.add(searchPattern);
-            params.add(searchPattern);
-            params.add(searchPattern);
-            params.add(searchPattern);
-        }
-
-        // Apply same filters as in findTestMethodDetailsWithFilters
-        if (teamName != null && !teamName.trim().isEmpty()) {
-            sql.append(" AND LOWER(t.team_name) LIKE LOWER(?)");
-            params.add("%" + teamName + "%");
-        }
-
-        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
-            sql.append(" AND LOWER(r.repository_name) LIKE LOWER(?)");
-            params.add("%" + repositoryName + "%");
-        }
-
-        if (packageName != null && !packageName.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.package_name) LIKE LOWER(?)");
-            params.add("%" + packageName + "%");
-        }
-
-        if (className != null && !className.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
-            params.add("%" + className + "%");
-        }
-
-        if (annotated != null) {
-            if (annotated) {
-                sql.append(" AND tm.annotation_title IS NOT NULL AND tm.annotation_title != ''");
-            } else {
-                sql.append(" AND (tm.annotation_title IS NULL OR tm.annotation_title = '')");
-            }
-        }
-
-        // Code pattern filter (searches in target class, target method, and method body
-        // content)
-        if (codePattern != null && !codePattern.trim().isEmpty()) {
-            sql.append(
-                    " AND (LOWER(tm.annotation_target_class) LIKE LOWER(?) OR LOWER(tm.annotation_target_method) LIKE LOWER(?) OR LOWER(tm.method_body_content) LIKE LOWER(?))");
-            String codePatternSearch = "%" + codePattern + "%";
-            params.add(codePatternSearch);
-            params.add(codePatternSearch);
-            params.add(codePatternSearch);
-        }
+        // Apply common filters
+        applyCommonFilters(sql, params, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
 
         try (Connection conn = DatabaseConfig.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -1086,120 +817,25 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             return new ArrayList<>();
         }
 
-        StringBuilder sql = new StringBuilder(
-                """
-                        SELECT
-                            tm.id,
-                            r.repository_name,
-                            tc.class_name,
-                            tm.method_name,
-                            tm.line_number,
-                            tm.annotation_title,
-                            tm.annotation_author,
-                            tm.annotation_status,
-                            tm.annotation_target_class,
-                            tm.annotation_target_method,
-                            tm.annotation_description,
-                            tm.annotation_test_points,
-                            tm.annotation_tags,
-                            tm.annotation_requirements,
-                            tm.annotation_testcases,
-                            tm.annotation_defects,
-                            tm.annotation_last_update_time,
-                            tm.annotation_last_update_author,
-                            t.team_name,
-                            t.team_code,
-                            r.git_url
-                        FROM test_methods tm
-                        JOIN test_classes tc ON tm.test_class_id = tc.id
-                        JOIN repositories r ON tc.repository_id = r.id
-                        LEFT JOIN teams t ON r.team_id = t.id
-                        WHERE
-                        """);
-
-        // Add (repository_id, scan_session_id) pairs
-        sql.append("(");
-        boolean first = true;
-        for (int i = 0; i < latestSessions.size(); i++) {
-            if (!first) {
-                sql.append(" OR ");
-            }
-            sql.append("(tc.repository_id = ? AND tc.scan_session_id = ?)");
-            first = false;
-        }
-        sql.append(")");
+        StringBuilder sql = new StringBuilder(BASE_TEST_METHOD_DETAIL_SELECT);
+        sql.append("WHERE\n");
 
         List<Object> params = new ArrayList<>();
-        for (Map.Entry<Long, Long> entry : latestSessions.entrySet()) {
-            params.add(entry.getKey());
-            params.add(entry.getValue());
-        }
+        buildRepositoryScanSessionPairsClause(sql, params, latestSessions);
+        sql.append("\n");
 
-        // Search term filter (searches across multiple fields)
-        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-            sql.append(
-                    " AND (LOWER(tm.method_name) LIKE LOWER(?) OR LOWER(tc.class_name) LIKE LOWER(?) OR LOWER(r.repository_name) LIKE LOWER(?) OR LOWER(tm.annotation_title) LIKE LOWER(?))");
-            String searchPattern = "%" + searchTerm + "%";
-            params.add(searchPattern);
-            params.add(searchPattern);
-            params.add(searchPattern);
-            params.add(searchPattern);
-        }
+        // Apply common filters
+        applyCommonFilters(sql, params, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
 
-        // Team name filter (case-insensitive)
-        if (teamName != null && !teamName.trim().isEmpty()) {
-            sql.append(" AND LOWER(t.team_name) LIKE LOWER(?)");
-            params.add("%" + teamName + "%");
-        }
-
-        // Repository name filter (case-insensitive)
-        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
-            sql.append(" AND LOWER(r.repository_name) LIKE LOWER(?)");
-            params.add("%" + repositoryName + "%");
-        }
-
-        // Package name filter (uses dedicated package_name column)
-        if (packageName != null && !packageName.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.package_name) LIKE LOWER(?)");
-            params.add("%" + packageName + "%");
-        }
-
-        // Class name filter (uses class_name column - simple class name,
-        // case-insensitive)
-        if (className != null && !className.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
-            params.add("%" + className + "%");
-        }
-
-        // Annotation status filter
-        if (annotated != null) {
-            if (annotated) {
-                sql.append(" AND tm.annotation_title IS NOT NULL AND tm.annotation_title != ''");
-            } else {
-                sql.append(" AND (tm.annotation_title IS NULL OR tm.annotation_title = '')");
-            }
-        }
-
-        // Code pattern filter (searches in target class, target method, and method body
-        // content)
-        if (codePattern != null && !codePattern.trim().isEmpty()) {
-            sql.append(
-                    " AND (LOWER(tm.annotation_target_class) LIKE LOWER(?) OR LOWER(tm.annotation_target_method) LIKE LOWER(?) OR LOWER(tm.method_body_content) LIKE LOWER(?))");
-            String codePatternSearch = "%" + codePattern + "%";
-            params.add(codePatternSearch);
-            params.add(codePatternSearch);
-            params.add(codePatternSearch);
-        }
-
-        sql.append(" ORDER BY r.repository_name, tc.class_name, tm.method_name");
+        sql.append("ORDER BY r.repository_name, tc.class_name, tm.method_name\n");
 
         // Pagination
         if (limit != null && limit > 0) {
-            sql.append(" LIMIT ?");
+            sql.append("LIMIT ?\n");
             params.add(limit);
         }
         if (offset != null && offset > 0) {
-            sql.append(" OFFSET ?");
+            sql.append("OFFSET ?");
             params.add(offset);
         }
 
@@ -1214,47 +850,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Long id = rs.getLong("id");
-                    String repoName = rs.getString("repository_name");
-                    String testClassName = rs.getString("class_name");
-                    String testMethodName = rs.getString("method_name");
-                    Integer lineNumber = rs.getInt("line_number");
-                    String annotationTitle = rs.getString("annotation_title");
-                    String annotationAuthor = rs.getString("annotation_author");
-                    String annotationStatus = rs.getString("annotation_status");
-                    String annotationTargetClass = rs.getString("annotation_target_class");
-                    String annotationTargetMethod = rs.getString("annotation_target_method");
-                    String annotationDescription = rs.getString("annotation_description");
-                    String annotationTestPoints = rs.getString("annotation_test_points");
-
-                    List<String> annotationTags = parseStringArray(rs.getString("annotation_tags"));
-                    List<String> annotationRequirements = parseStringArray(rs.getString("annotation_requirements"));
-                    List<String> annotationTestcases = parseStringArray(rs.getString("annotation_testcases"));
-                    List<String> annotationDefects = parseStringArray(rs.getString("annotation_defects"));
-
-                    String lastUpdateTime = rs.getString("annotation_last_update_time");
-                    LocalDateTime lastUpdateDateTime = null;
-                    if (lastUpdateTime != null && !lastUpdateTime.trim().isEmpty()) {
-                        try {
-                            lastUpdateDateTime = LocalDateTime.parse(lastUpdateTime);
-                        } catch (Exception e) {
-                            // Ignore parse errors
-                        }
-                    }
-
-                    String annotationLastUpdateAuthor = rs.getString("annotation_last_update_author");
-                    String teamNameResult = rs.getString("team_name");
-                    String teamCode = rs.getString("team_code");
-                    String gitUrl = rs.getString("git_url");
-
-                    result.add(new TestMethodDetailRecord(
-                            id, repoName, testClassName, testMethodName, lineNumber, annotationTitle, annotationAuthor,
-                            annotationStatus,
-                            annotationTargetClass, annotationTargetMethod, annotationDescription, annotationTestPoints,
-                            annotationTags,
-                            annotationRequirements, annotationTestcases, annotationDefects, lastUpdateDateTime,
-                            annotationLastUpdateAuthor,
-                            teamNameResult, teamCode, gitUrl));
+                    result.add(mapResultSetToTestMethodDetailRecord(rs));
                 }
             }
         } catch (SQLException e) {
@@ -1286,77 +882,11 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
                         "LEFT JOIN teams t ON r.team_id = t.id " +
                         "WHERE ");
 
-        // Add (repository_id, scan_session_id) pairs
-        sql.append("(");
-        boolean first = true;
-        for (int i = 0; i < latestSessions.size(); i++) {
-            if (!first) {
-                sql.append(" OR ");
-            }
-            sql.append("(tc.repository_id = ? AND tc.scan_session_id = ?)");
-            first = false;
-        }
-        sql.append(")");
-
         List<Object> params = new ArrayList<>();
-        for (Map.Entry<Long, Long> entry : latestSessions.entrySet()) {
-            params.add(entry.getKey());
-            params.add(entry.getValue());
-        }
+        buildRepositoryScanSessionPairsClause(sql, params, latestSessions);
 
-        // Search term filter
-        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-            sql.append(
-                    " AND (LOWER(tm.method_name) LIKE LOWER(?) OR LOWER(tc.class_name) LIKE LOWER(?) OR LOWER(r.repository_name) LIKE LOWER(?) OR LOWER(tm.annotation_title) LIKE LOWER(?))");
-            String searchPattern = "%" + searchTerm + "%";
-            params.add(searchPattern);
-            params.add(searchPattern);
-            params.add(searchPattern);
-            params.add(searchPattern);
-        }
-
-        // Team name filter
-        if (teamName != null && !teamName.trim().isEmpty()) {
-            sql.append(" AND LOWER(t.team_name) LIKE LOWER(?)");
-            params.add("%" + teamName + "%");
-        }
-
-        // Repository name filter
-        if (repositoryName != null && !repositoryName.trim().isEmpty()) {
-            sql.append(" AND LOWER(r.repository_name) LIKE LOWER(?)");
-            params.add("%" + repositoryName + "%");
-        }
-
-        // Package name filter
-        if (packageName != null && !packageName.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.package_name) LIKE LOWER(?)");
-            params.add("%" + packageName + "%");
-        }
-
-        // Class name filter
-        if (className != null && !className.trim().isEmpty()) {
-            sql.append(" AND LOWER(tc.class_name) LIKE LOWER(?)");
-            params.add("%" + className + "%");
-        }
-
-        // Annotation status filter
-        if (annotated != null) {
-            if (annotated) {
-                sql.append(" AND tm.annotation_title IS NOT NULL AND tm.annotation_title != ''");
-            } else {
-                sql.append(" AND (tm.annotation_title IS NULL OR tm.annotation_title = '')");
-            }
-        }
-
-        // Code pattern filter
-        if (codePattern != null && !codePattern.trim().isEmpty()) {
-            sql.append(
-                    " AND (LOWER(tm.annotation_target_class) LIKE LOWER(?) OR LOWER(tm.annotation_target_method) LIKE LOWER(?) OR LOWER(tm.method_body_content) LIKE LOWER(?))");
-            String codePatternSearch = "%" + codePattern + "%";
-            params.add(codePatternSearch);
-            params.add(codePatternSearch);
-            params.add(codePatternSearch);
-        }
+        // Apply common filters
+        applyCommonFilters(sql, params, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
 
         try (Connection conn = DatabaseConfig.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
