@@ -2,6 +2,7 @@ import React from 'react';
 import { FolderOpen, Columns } from 'lucide-react';
 import DataControls, { type SortOption } from '../shared/DataControls';
 import ExportManager, { type ExportOption } from '../shared/ExportManager';
+import { type RepositorySummary } from '../../lib/api';
 
 interface RepositoriesHeaderProps {
   pageSize: number;
@@ -11,7 +12,7 @@ interface RepositoriesHeaderProps {
   sortOptions: SortOption[];
   sortOrder: 'asc' | 'desc';
   onSortOrderChange: (order: 'asc' | 'desc') => void;
-  repositories: any[];
+  repositories: RepositorySummary[];
   selectedItems: Set<number>;
   onExport: (option: ExportOption) => Promise<void>;
   onColumnManagerOpen: () => void;
@@ -39,7 +40,7 @@ const RepositoriesHeader: React.FC<RepositoriesHeaderProps> = ({
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage and analyze all repositories</p>
         </div>
       </div>
-      
+
       <div className="flex items-center gap-4">
         {/* Data Controls */}
         <DataControls

@@ -20,13 +20,13 @@ const TestMethodHierarchicalView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Load current level data
-  const loadCurrentLevel = async () => {
+  const loadCurrentLevel = React.useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const currentLevel = breadcrumbs[breadcrumbs.length - 1];
-      
+
       if (currentLevel.level === 'ROOT') {
         // Load teams
         const teams = await api.dashboard.getHierarchy('TEAM');
@@ -46,11 +46,11 @@ const TestMethodHierarchicalView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [breadcrumbs]);
 
   useEffect(() => {
     loadCurrentLevel();
-  }, [breadcrumbs]);
+  }, [loadCurrentLevel]);
 
   // Navigate into a node
   const handleNodeClick = (node: HierarchyNode) => {
@@ -74,7 +74,7 @@ const TestMethodHierarchicalView: React.FC = () => {
   // Toggle class methods expansion
   const toggleClassMethods = async (node: HierarchyNode) => {
     const nodeKey = `class-${node.id}`;
-    
+
     if (expandedNodes.has(nodeKey)) {
       // Collapse
       const newExpanded = new Set(expandedNodes);
@@ -87,13 +87,13 @@ const TestMethodHierarchicalView: React.FC = () => {
           // Load methods for this class
           const currentTeam = breadcrumbs.find(b => b.level === 'TEAM');
           if (!currentTeam?.teamName) return;
-          
+
           // For now, use the existing API to get methods by class
           // TODO: Add a specific endpoint for methods by class ID
           const allMethods = await api.dashboard.getTestMethodDetailsPaginated(
             0, 1000, undefined, currentTeam.teamName, undefined, undefined, node.fullName
           );
-          
+
           const newCache = new Map(methodsCache);
           newCache.set(node.id!, allMethods.content);
           setMethodsCache(newCache);
@@ -102,7 +102,7 @@ const TestMethodHierarchicalView: React.FC = () => {
           return;
         }
       }
-      
+
       const newExpanded = new Set(expandedNodes);
       newExpanded.add(nodeKey);
       setExpandedNodes(newExpanded);
@@ -119,7 +119,7 @@ const TestMethodHierarchicalView: React.FC = () => {
     if (node.type === 'TEAM') {
       return <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
     } else if (node.type === 'PACKAGE') {
-      return isExpanded 
+      return isExpanded
         ? <FolderOpen className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
         : <Folder className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />;
     } else {
@@ -152,7 +152,7 @@ const TestMethodHierarchicalView: React.FC = () => {
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Error</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
-          <button 
+          <button
             onClick={loadCurrentLevel}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
@@ -200,11 +200,10 @@ const TestMethodHierarchicalView: React.FC = () => {
                 )}
                 <button
                   onClick={() => handleBreadcrumbClick(index)}
-                  className={`px-3 py-1 rounded-md transition-colors ${
-                    index === breadcrumbs.length - 1
+                  className={`px-3 py-1 rounded-md transition-colors ${index === breadcrumbs.length - 1
                       ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-medium'
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
+                    }`}
                 >
                   {crumb.label}
                 </button>
@@ -245,7 +244,7 @@ const TestMethodHierarchicalView: React.FC = () => {
                               )}
                             </div>
                           )}
-                          
+
                           {/* Node Icon */}
                           <div>
                             {getNodeIcon(node, isExpanded)}
@@ -295,7 +294,7 @@ const TestMethodHierarchicalView: React.FC = () => {
                         <div className="p-4 space-y-2">
                           {methods.map((method, methodIndex) => {
                             const isAnnotated = method.title && method.title.trim() !== '';
-                            
+
                             return (
                               <div
                                 key={methodIndex}
@@ -377,8 +376,8 @@ const TestMethodHierarchicalView: React.FC = () => {
           <p className="text-sm text-blue-900 dark:text-blue-100">
             <strong>💡 Tip:</strong> Click on any {
               breadcrumbs[breadcrumbs.length - 1].level === 'ROOT' ? 'team' :
-              breadcrumbs[breadcrumbs.length - 1].level === 'TEAM' ? 'package' :
-              breadcrumbs[breadcrumbs.length - 1].level === 'PACKAGE' ? 'class' : 'item'
+                breadcrumbs[breadcrumbs.length - 1].level === 'TEAM' ? 'package' :
+                  breadcrumbs[breadcrumbs.length - 1].level === 'PACKAGE' ? 'class' : 'item'
             } to drill down. Use breadcrumbs to navigate back up the hierarchy.
           </p>
         </div>

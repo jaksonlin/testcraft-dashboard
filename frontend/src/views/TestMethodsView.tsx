@@ -12,7 +12,7 @@ import TestMethodSourceViewer from '../components/test-methods/TestMethodSourceV
 
 const TestMethodsView: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   // Initialize filters from URL query parameters
   const getInitialFilters = () => {
     return {
@@ -21,17 +21,17 @@ const TestMethodsView: React.FC = () => {
       repositoryName: searchParams.get('repo') || '',
       packageName: searchParams.get('package') || '',
       className: searchParams.get('class') || '',
-      annotated: searchParams.get('annotated') === 'true' ? true : 
-                 searchParams.get('annotated') === 'false' ? false : undefined,
+      annotated: searchParams.get('annotated') === 'true' ? true :
+        searchParams.get('annotated') === 'false' ? false : undefined,
       codePattern: searchParams.get('code') || ''
     };
   };
-  
+
   const [filters, setFilters] = useState(getInitialFilters);
-  
+
   // Organizations for dropdown
   const [organizations, setOrganizations] = useState<string[]>([]);
-  
+
   // Global statistics (not per-page)
   const [globalStats, setGlobalStats] = useState({
     totalMethods: 0,
@@ -57,16 +57,17 @@ const TestMethodsView: React.FC = () => {
     refresh
   } = usePaginatedData({
     fetchFunction: async (page, size, currentFilters) => {
+      const filtersToUse = currentFilters || filters;
       const response = await api.dashboard.getTestMethodDetailsPaginated(
         page,
         size,
-        currentFilters.organization || undefined,
-        currentFilters.teamName || undefined,
-        currentFilters.repositoryName || undefined,
-        currentFilters.packageName || undefined,
-        currentFilters.className || undefined,
-        currentFilters.annotated,
-        currentFilters.codePattern || undefined
+        filtersToUse.organization || undefined,
+        filtersToUse.teamName || undefined,
+        filtersToUse.repositoryName || undefined,
+        filtersToUse.packageName || undefined,
+        filtersToUse.className || undefined,
+        filtersToUse.annotated,
+        filtersToUse.codePattern || undefined
       );
       return {
         content: response.content,
@@ -79,7 +80,7 @@ const TestMethodsView: React.FC = () => {
     initialPageSize: 50,
     initialFilters: filters
   });
-  
+
   // Load organizations on mount
   React.useEffect(() => {
     const loadOrganizations = async () => {
@@ -92,7 +93,7 @@ const TestMethodsView: React.FC = () => {
     };
     loadOrganizations();
   }, []);
-  
+
   // Load global statistics
   React.useEffect(() => {
     const loadGlobalStats = async () => {
@@ -116,7 +117,7 @@ const TestMethodsView: React.FC = () => {
     setFilters(updatedFilters);
     setDataFilters(updatedFilters);
   };
-  
+
   // Clear all filters
   const clearAllFilters = useCallback(() => {
     const emptyFilters = {
@@ -155,7 +156,7 @@ const TestMethodsView: React.FC = () => {
     setSelectedSource(null);
     setSourceLoading(false);
   }, []);
-  
+
   // Keyboard shortcuts for power users
   useKeyboardShortcuts([
     {
@@ -209,11 +210,11 @@ const TestMethodsView: React.FC = () => {
       description: 'Refresh data'
     }
   ]);
-  
+
   // Update URL when filters change (makes filters bookmarkable and shareable)
   useEffect(() => {
     const params = new URLSearchParams();
-    
+
     if (filters.organization) params.set('org', filters.organization);
     if (filters.teamName) params.set('team', filters.teamName);
     if (filters.repositoryName) params.set('repo', filters.repositoryName);
@@ -221,7 +222,7 @@ const TestMethodsView: React.FC = () => {
     if (filters.className) params.set('class', filters.className);
     if (filters.annotated !== undefined) params.set('annotated', filters.annotated.toString());
     if (filters.codePattern) params.set('code', filters.codePattern);
-    
+
     // Update URL without triggering navigation
     setSearchParams(params, { replace: true });
   }, [filters, setSearchParams]);
@@ -290,11 +291,10 @@ const TestMethodsView: React.FC = () => {
             ) : (
               <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
             )}
-            <span className={`text-sm ${
-              isAnnotated 
-                ? 'text-green-600 dark:text-green-400' 
+            <span className={`text-sm ${isAnnotated
+                ? 'text-green-600 dark:text-green-400'
                 : 'text-red-600 dark:text-red-400'
-            }`}>
+              }`}>
               {getAnnotationStatusDisplayName(method)}
             </span>
           </div>
@@ -331,11 +331,10 @@ const TestMethodsView: React.FC = () => {
       key: 'status',
       header: 'Test Status',
       render: (method) => (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          method.status === 'PASS' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-          method.status === 'FAIL' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-          'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-        }`}>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${method.status === 'PASS' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+            method.status === 'FAIL' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+              'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+          }`}>
           {method.status || 'UNKNOWN'}
         </span>
       ),
@@ -410,7 +409,7 @@ const TestMethodsView: React.FC = () => {
         {/* Filters */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
-          
+
           {/* Primary Filters */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
@@ -513,7 +512,7 @@ const TestMethodsView: React.FC = () => {
               </select>
             </div>
           </div>
-          
+
           {/* Active Filters Display */}
           {(filters.organization || filters.teamName || filters.repositoryName || filters.packageName || filters.className || filters.codePattern || filters.annotated !== undefined) && (
             <div className="mt-4 flex items-center gap-2 flex-wrap">
@@ -644,11 +643,11 @@ const TestMethodsView: React.FC = () => {
           searchable={false}
           className="shadow-lg"
         />
-        
+
         {/* Keyboard Shortcuts Help */}
         <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
           <p className="text-xs text-blue-900 dark:text-blue-100">
-            <strong>⌨️ Keyboard Shortcuts:</strong> 
+            <strong>⌨️ Keyboard Shortcuts:</strong>
             <span className="ml-2">←/→ or PageUp/PageDown: Navigate pages</span>
             <span className="ml-3">Ctrl+/: Clear filters</span>
             <span className="ml-3">Ctrl+R: Refresh</span>

@@ -14,23 +14,23 @@ export interface ExportOption {
   filename: string;
 }
 
-export interface ExportManagerProps {
-  data: any[];
+export interface ExportManagerProps<T> {
+  data: T[];
   dataType: 'repositories' | 'teams' | 'methods' | 'classes' | 'analytics';
   selectedItems?: Set<number>;
-  filteredData?: any[];
+  filteredData?: T[];
   onExport: (option: ExportOption) => Promise<void>;
   className?: string;
 }
 
-const ExportManager: React.FC<ExportManagerProps> = ({
+const ExportManager = <T extends object>({
   data,
   dataType,
   selectedItems,
   filteredData,
   onExport,
   className = ""
-}) => {
+}: ExportManagerProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
 
@@ -145,7 +145,7 @@ const ExportManager: React.FC<ExportManagerProps> = ({
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          
+
           {/* Dropdown */}
           <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
             <div className="p-4">
@@ -155,7 +155,7 @@ const ExportManager: React.FC<ExportManagerProps> = ({
                   Export {dataType}
                 </h3>
               </div>
-              
+
               <div className="space-y-2">
                 {exportOptions.map((option) => (
                   <button
@@ -185,7 +185,7 @@ const ExportManager: React.FC<ExportManagerProps> = ({
                   </button>
                 ))}
               </div>
-              
+
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="text-xs text-gray-500">
                   <div className="flex justify-between">

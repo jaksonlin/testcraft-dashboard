@@ -27,7 +27,7 @@ const AnalyticsView: React.FC = () => {
     try {
       setLoading(true);
       const days = parseInt(timeRange);
-      
+
       // Fetch all analytics data in parallel
       const [metricsData, teamsData] = await Promise.all([
         api.analytics.getDailyMetrics(days).catch(() => []),
@@ -53,7 +53,7 @@ const AnalyticsView: React.FC = () => {
     const first = dailyMetrics[0].overallCoverageRate;
     const last = dailyMetrics[dailyMetrics.length - 1].overallCoverageRate;
     const diff = last - first;
-    
+
     if (diff > 1) return 'up';
     if (diff < -1) return 'down';
     return 'stable';
@@ -71,8 +71,8 @@ const AnalyticsView: React.FC = () => {
     try {
       const scope = option.scope as ExportScope;
       const exportData = prepareAnalyticsExportData(dailyMetrics, scope);
-      
-      exportDataUtil(exportData, option);
+
+      await exportDataUtil(exportData, option);
     } catch (err) {
       console.error('Error exporting analytics:', err);
     }
@@ -82,8 +82,8 @@ const AnalyticsView: React.FC = () => {
   const { chartData, teamComparisonData, coverageDistribution } = useChartData(dailyMetrics, teams);
 
   // Calculated metrics
-  const averageCoverage = dailyMetrics.length > 0 
-    ? dailyMetrics.reduce((sum, m) => sum + m.overallCoverageRate, 0) / dailyMetrics.length 
+  const averageCoverage = dailyMetrics.length > 0
+    ? dailyMetrics.reduce((sum, m) => sum + m.overallCoverageRate, 0) / dailyMetrics.length
     : 0;
   const coverageTrend = getCoverageTrend();
 
@@ -138,7 +138,7 @@ const AnalyticsView: React.FC = () => {
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />
-      
+
       {/* Tab Content */}
       <div className="space-y-6">
         {activeTab === 'overview' && (

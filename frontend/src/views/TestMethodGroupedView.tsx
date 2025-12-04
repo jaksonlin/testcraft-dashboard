@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, AlertCircle, FileText } from 'lucide-react';
 import { api, type GroupedTestMethodResponse } from '../lib/api';
 import { type ExportOption } from '../components/shared/ExportManager';
-import { 
-  prepareGroupedTestMethodExportData, 
+import {
+  prepareGroupedTestMethodExportData,
   exportData as exportDataUtil
 } from '../utils/exportUtils';
 import GroupedViewHeader from '../components/test-methods/GroupedViewHeader';
@@ -92,7 +92,7 @@ const TestMethodGroupedView: React.FC = () => {
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Error</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
-          <button 
+          <button
             onClick={fetchGroupedData}
             className="btn btn-primary"
           >

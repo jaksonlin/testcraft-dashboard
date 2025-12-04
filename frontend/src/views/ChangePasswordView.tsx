@@ -38,7 +38,7 @@ const ChangePasswordView: React.FC = () => {
       setConfirmPassword('');
       // Redirect to homepage after success
       navigate('/');
-    } catch (err: unknown) {
+    } catch {
       setError('Failed to change password. Please check your current password and try again.');
     } finally {
       setSubmitting(false);

@@ -255,7 +255,7 @@ const RepositoriesView: React.FC = () => {
           filename: `repositories-selected-${new Date().toISOString().split('T')[0]}.csv`
         };
 
-        exportDataUtil(exportData, option);
+        await exportDataUtil(exportData, option);
       },
       loadingText: 'Exporting...'
     },
@@ -297,7 +297,7 @@ const RepositoriesView: React.FC = () => {
         scope === 'selected' ? bulkOps.selectedItems : undefined
       );
 
-      exportDataUtil(exportData, option);
+      await exportDataUtil(exportData, option);
     } catch (err) {
       console.error('Error exporting repositories:', err);
     }

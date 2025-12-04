@@ -1358,8 +1358,6 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
         }
     }
 
-    }
-
     @Override
     public List<Map<String, Object>> getHierarchyByTeam(List<Long> scanSessionIds) {
         if (scanSessionIds == null || scanSessionIds.isEmpty()) {

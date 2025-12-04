@@ -35,10 +35,10 @@ const TeamsView: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.teams.getPaginated(
-        currentPage, 
-        pageSize, 
-        searchTerm || undefined, 
-        sortBy, 
+        currentPage,
+        pageSize,
+        searchTerm || undefined,
+        sortBy,
         sortOrder
       );
       setTeams(response.content);
@@ -97,7 +97,7 @@ const TeamsView: React.FC = () => {
     try {
       // Trigger scan for all repositories
       const result = await api.scan.trigger();
-      
+
       if (result.success) {
         // Refresh teams data after scan
         await fetchTeams();
@@ -120,7 +120,7 @@ const TeamsView: React.FC = () => {
           'selected',
           new Set(selectedIds)
         );
-        
+
         const option = {
           id: 'csv-selected',
           label: 'Export Selected (CSV)',
@@ -129,8 +129,8 @@ const TeamsView: React.FC = () => {
           scope: 'selected' as const,
           filename: `teams-selected-${new Date().toISOString().split('T')[0]}.csv`
         };
-        
-        exportDataUtil(exportData, option);
+
+        await exportDataUtil(exportData, option);
       },
       loadingText: 'Exporting...'
     },
@@ -166,8 +166,8 @@ const TeamsView: React.FC = () => {
         scope,
         scope === 'selected' ? bulkOps.selectedItems : undefined
       );
-      
-      exportDataUtil(exportData, option);
+
+      await exportDataUtil(exportData, option);
     } catch (err) {
       console.error('Error exporting teams:', err);
     }
@@ -206,13 +206,13 @@ const TeamsView: React.FC = () => {
   }
 
   const totalTeams = overview?.totalTeams ?? pagination?.totalElements ?? teams.length;
-  const totalRepositories = overview?.totalRepositories 
+  const totalRepositories = overview?.totalRepositories
     ?? teams.reduce((sum, team) => sum + team.repositoryCount, 0);
-  const totalTestMethods = overview?.totalTestMethods 
+  const totalTestMethods = overview?.totalTestMethods
     ?? teams.reduce((sum, team) => sum + team.totalTestMethods, 0);
-  const averageCoverage = overview?.overallCoverageRate 
-    ?? (teams.length > 0 
-      ? teams.reduce((sum, team) => sum + team.averageCoverageRate, 0) / teams.length 
+  const averageCoverage = overview?.overallCoverageRate
+    ?? (teams.length > 0
+      ? teams.reduce((sum, team) => sum + team.averageCoverageRate, 0) / teams.length
       : 0);
 
   return (
@@ -223,7 +223,7 @@ const TeamsView: React.FC = () => {
           <Users className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
           <h1 className="text-3xl font-bold" style={{ color: 'var(--color-foreground)' }}>Teams</h1>
         </div>
-        
+
         <div className="flex items-center gap-4">
           {/* Data Controls */}
           <DataControls
@@ -381,10 +381,9 @@ const TeamsView: React.FC = () => {
                     <div className="flex items-center">
                       <div className="w-20 rounded-full h-2 mr-3" style={{ backgroundColor: 'var(--color-border)' }}>
                         <div
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            team.averageCoverageRate >= 80 ? 'bg-green-500' :
+                          className={`h-2 rounded-full transition-all duration-300 ${team.averageCoverageRate >= 80 ? 'bg-green-500' :
                             team.averageCoverageRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}
+                            }`}
                           style={{ width: `${Math.min(team.averageCoverageRate, 100)}%` }}
                         />
                       </div>
@@ -452,7 +451,7 @@ const TeamsView: React.FC = () => {
           </div>
         </div>
       )}
-      
+
       {teams.length === 0 && !loading && (
         <div className="text-center py-12">
           <Users className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />

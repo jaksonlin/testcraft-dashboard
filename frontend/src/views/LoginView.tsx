@@ -21,7 +21,7 @@ const LoginView: React.FC = () => {
     try {
       await login(username.trim(), password);
       navigate('/', { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login failed', err);
       setError('Invalid username or password');
     } finally {
