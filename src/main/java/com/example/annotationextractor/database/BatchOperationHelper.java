@@ -3,6 +3,7 @@ package com.example.annotationextractor.database;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
+import java.sql.Savepoint;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -111,7 +112,8 @@ public class BatchOperationHelper {
     }
 
     /**
-     * Try to execute as batch, fallback to individual if batch fails
+     * Try to execute as batch, fallback to individual if batch fails.
+     * Uses savepoints for PostgreSQL to prevent transaction abort from cascading.
      */
     private static <T> List<T> executeBatchOrFallback(
             Connection conn,
@@ -119,19 +121,65 @@ public class BatchOperationHelper {
             BiConsumer<PreparedStatement, T> parameterSetter,
             String sql) throws SQLException {
         
-        // Try batch operation first
+        DatabaseVendor vendor = detectDatabaseVendor(conn);
+        boolean useSavepoint = (vendor == DatabaseVendor.POSTGRESQL);
+        Savepoint savepoint = null;
+        
         try {
-            executeBatch(conn, items, parameterSetter, sql);
-            return new ArrayList<>(); // Success - no failures
-        } catch (SQLException batchException) {
-            // Check if it's a duplicate/key constraint error
-            if (isDuplicateKeyError(batchException)) {
-                // Fallback to individual operations with error tolerance
-                return executeIndividuallyWithTolerance(conn, items, parameterSetter, sql);
-            } else {
-                // Non-duplicate error - rethrow
-                throw batchException;
+            // Create savepoint for PostgreSQL to isolate batch operations
+            if (useSavepoint) {
+                savepoint = conn.setSavepoint("batch_operation");
             }
+            
+            // Try batch operation first
+            try {
+                executeBatch(conn, items, parameterSetter, sql);
+                // Success - release savepoint if used
+                if (useSavepoint && savepoint != null) {
+                    try {
+                        conn.releaseSavepoint(savepoint);
+                    } catch (SQLException releaseEx) {
+                        // Ignore release errors - savepoint will be released on commit/rollback
+                    }
+                }
+                return new ArrayList<>(); // Success - no failures
+            } catch (SQLException batchException) {
+                // Check if it's a duplicate/key constraint error
+                if (isDuplicateKeyError(batchException)) {
+                    // Rollback to savepoint to recover from transaction abort
+                    if (useSavepoint && savepoint != null) {
+                        try {
+                            conn.rollback(savepoint);
+                            // Note: After rollback, savepoint is automatically released - don't release again
+                        } catch (SQLException rollbackEx) {
+                            // If rollback fails, check if transaction is aborted
+                            if (isTransactionAbortedError(rollbackEx)) {
+                                // Transaction is in bad state - need to throw
+                                throw new SQLException("Transaction aborted and cannot recover. Please rollback the transaction.", rollbackEx);
+                            }
+                            // Otherwise, try to continue - savepoint rollback might have worked
+                        }
+                    }
+                    // Fallback to individual operations with error tolerance
+                    return executeIndividuallyWithTolerance(conn, items, parameterSetter, sql);
+                } else {
+                    // Non-duplicate error - rollback savepoint if used, then rethrow
+                    if (useSavepoint && savepoint != null) {
+                        try {
+                            conn.rollback(savepoint);
+                        } catch (SQLException rollbackEx) {
+                            // Log but continue - we're about to throw anyway
+                        }
+                    }
+                    throw batchException;
+                }
+            }
+        } catch (SQLException e) {
+            // Check if transaction is aborted (PostgreSQL specific)
+            if (isTransactionAbortedError(e)) {
+                throw new SQLException("Transaction aborted. Please rollback the transaction before retrying.", e);
+            }
+            throw e;
         }
     }
 
@@ -163,7 +211,8 @@ public class BatchOperationHelper {
     }
 
     /**
-     * Execute items individually, collecting failures
+     * Execute items individually, collecting failures.
+     * Handles transaction aborted errors for PostgreSQL.
      */
     private static <T> List<T> executeIndividuallyWithTolerance(
             Connection conn,
@@ -180,6 +229,12 @@ public class BatchOperationHelper {
                     stmt.executeUpdate();
                 }
             } catch (SQLException e) {
+                // Check for transaction aborted error
+                if (isTransactionAbortedError(e)) {
+                    // Transaction is aborted - cannot continue
+                    throw new SQLException("Transaction aborted during individual operation. All operations failed.", e);
+                }
+                
                 // Log individual failure but continue processing
                 if (isDuplicateKeyError(e)) {
                     // Duplicate - expected in some cases, can be ignored or logged
@@ -192,6 +247,35 @@ public class BatchOperationHelper {
         }
         
         return failedItems;
+    }
+    
+    /**
+     * Check if SQLException indicates a transaction aborted error.
+     * PostgreSQL: SQLState "25P02" = in_failed_sql_transaction
+     */
+    private static boolean isTransactionAbortedError(SQLException e) {
+        String sqlState = e.getSQLState();
+        String message = e.getMessage();
+        
+        if (message == null) {
+            return false;
+        }
+        
+        String lowerMessage = message.toLowerCase();
+        
+        // PostgreSQL: 25P02 = in_failed_sql_transaction
+        if ("25P02".equals(sqlState)) {
+            return true;
+        }
+        
+        // Check for transaction aborted messages
+        if (lowerMessage.contains("current transaction is aborted") ||
+            lowerMessage.contains("commands ignored until end of transaction block") ||
+            lowerMessage.contains("transaction aborted")) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**

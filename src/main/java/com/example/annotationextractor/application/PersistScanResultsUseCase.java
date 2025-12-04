@@ -327,12 +327,12 @@ public class PersistScanResultsUseCase {
         // Step 1: Try UPDATE in batch
         String updateSql = """
                 UPDATE test_classes 
-                SET file_path = ?, total_test_methods = ?, annotated_test_methods = ?,
+                SET total_test_methods = ?, annotated_test_methods = ?,
                     coverage_rate = ?, class_line_number = ?, test_class_content = ?,
                     helper_classes_line_numbers = ?, class_loc = ?, imported_types = ?,
                     referenced_types = ?
                 WHERE scan_session_id = ? AND repository_id = ? 
-                  AND class_name = ? AND package_name = ?
+                  AND class_name = ? AND package_name = ? AND file_path = ?
                 """;
         
         List<TestClassBatchData> toInsert = new ArrayList<>();
@@ -340,20 +340,20 @@ public class PersistScanResultsUseCase {
         try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
             for (TestClassBatchData data : batchData) {
                 TestClassInfo tc = data.tc;
-                updateStmt.setString(1, tc.getFilePath());
-                updateStmt.setInt(2, tc.getTotalTestMethods());
-                updateStmt.setInt(3, tc.getAnnotatedTestMethods());
-                updateStmt.setDouble(4, data.coverage);
-                updateStmt.setInt(5, tc.getClassLineNumber());
-                updateStmt.setString(6, tc.getTestClassContent());
-                updateStmt.setString(7, tc.getHelperClassesLineNumbers());
-                updateStmt.setInt(8, tc.getClassLoc());
-                setLargeString(updateStmt, 9, data.importedTypes);
-                setLargeString(updateStmt, 10, data.referencedTypes);
-                updateStmt.setLong(11, scanSessionId);
-                updateStmt.setLong(12, repositoryId);
-                updateStmt.setString(13, tc.getClassName());
-                updateStmt.setString(14, tc.getPackageName());
+                updateStmt.setInt(1, tc.getTotalTestMethods());
+                updateStmt.setInt(2, tc.getAnnotatedTestMethods());
+                updateStmt.setDouble(3, data.coverage);
+                updateStmt.setInt(4, tc.getClassLineNumber());
+                updateStmt.setString(5, tc.getTestClassContent());
+                updateStmt.setString(6, tc.getHelperClassesLineNumbers());
+                updateStmt.setInt(7, tc.getClassLoc());
+                setLargeString(updateStmt, 8, data.importedTypes);
+                setLargeString(updateStmt, 9, data.referencedTypes);
+                updateStmt.setLong(10, scanSessionId);
+                updateStmt.setLong(11, repositoryId);
+                updateStmt.setString(12, tc.getClassName());
+                updateStmt.setString(13, tc.getPackageName());
+                updateStmt.setString(14, tc.getFilePath());
                 updateStmt.addBatch();
             }
             
@@ -364,8 +364,8 @@ public class PersistScanResultsUseCase {
                 if (updateResults[i] > 0) {
                     // Updated successfully - get ID
                     TestClassInfo tc = batchData.get(i).tc;
-                    long classId = getTestClassId(conn, repositoryId, tc.getClassName(), tc.getPackageName(), scanSessionId);
-                    testClassIds.put(buildTestClassKey(tc.getPackageName(), tc.getClassName()), classId);
+                    long classId = getTestClassId(conn, repositoryId, tc.getClassName(), tc.getPackageName(), tc.getFilePath(), scanSessionId);
+                    testClassIds.put(buildTestClassKey(tc.getPackageName(), tc.getClassName(), tc.getFilePath()), classId);
                 } else {
                     // No update - needs insert
                     toInsert.add(batchData.get(i));
@@ -416,8 +416,8 @@ public class PersistScanResultsUseCase {
                 if (!failedItems.contains(data)) {
                     TestClassInfo tc = data.tc;
                     try {
-                        long classId = getTestClassId(conn, repositoryId, tc.getClassName(), tc.getPackageName(), scanSessionId);
-                        testClassIds.put(buildTestClassKey(tc.getPackageName(), tc.getClassName()), classId);
+                        long classId = getTestClassId(conn, repositoryId, tc.getClassName(), tc.getPackageName(), tc.getFilePath(), scanSessionId);
+                        testClassIds.put(buildTestClassKey(tc.getPackageName(), tc.getClassName(), tc.getFilePath()), classId);
                     } catch (SQLException e) {
                         // If getTestClassId fails, item might have been a duplicate - skip it
                     }
@@ -438,10 +438,10 @@ public class PersistScanResultsUseCase {
         // Prepare all method data upfront
         List<TestMethodBatchData> batchData = new ArrayList<>();
         for (TestMethodInfo method : allMethods) {
-            String key = buildTestClassKey(method.getPackageName(), method.getClassName());
+            String key = buildTestClassKey(method.getPackageName(), method.getClassName(), method.getFilePath());
             Long testClassId = testClassIds.get(key);
             if (testClassId == null) {
-                testClassId = getTestClassId(conn, repositoryId, method.getClassName(), method.getPackageName(), scanSessionId);
+                testClassId = getTestClassId(conn, repositoryId, method.getClassName(), method.getPackageName(), method.getFilePath(), scanSessionId);
                 testClassIds.put(key, testClassId);
             }
             
@@ -653,11 +653,11 @@ public class PersistScanResultsUseCase {
         BatchOperationHelper.executeBatchWithFallback(conn, helperClasses, BATCH_SIZE, setter, insertSql);
     }
 
-    private long getTestClassId(Connection conn, long repositoryId, String className, String packageName, long scanSessionId) throws SQLException {
+    private long getTestClassId(Connection conn, long repositoryId, String className, String packageName, String filePath, long scanSessionId) throws SQLException {
         String sql = """
                 SELECT id FROM test_classes 
                 WHERE repository_id = ? AND class_name = ? 
-                  AND package_name = ? AND scan_session_id = ? 
+                  AND package_name = ? AND file_path = ? AND scan_session_id = ? 
                 ORDER BY id DESC 
                 LIMIT 1
                 """;
@@ -665,16 +665,17 @@ public class PersistScanResultsUseCase {
             stmt.setLong(1, repositoryId);
             stmt.setString(2, className);
             stmt.setString(3, packageName);
-            stmt.setLong(4, scanSessionId);
+            stmt.setString(4, filePath);
+            stmt.setLong(5, scanSessionId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) return rs.getLong(1);
             }
         }
-        throw new SQLException("Test class not found for session: " + scanSessionId + ", " + packageName + "." + className);
+        throw new SQLException("Test class not found for session: " + scanSessionId + ", " + packageName + "." + className + " at " + filePath);
     }
 
-    private static String buildTestClassKey(String packageName, String className) {
-        return (packageName != null ? packageName : "") + "#" + className;
+    private static String buildTestClassKey(String packageName, String className, String filePath) {
+        return (packageName != null ? packageName : "") + "#" + className + "#" + (filePath != null ? filePath : "");
     }
 
     /**

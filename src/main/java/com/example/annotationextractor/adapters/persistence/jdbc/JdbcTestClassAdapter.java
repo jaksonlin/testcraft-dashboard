@@ -141,24 +141,7 @@ public class JdbcTestClassAdapter implements TestClassPort {
         );
     }
 
-    @Override
-    public Optional<Long> findLatestScanSessionIdForRepository(Long repositoryId) {
-        // Find the latest scan session that contains test classes for this repository
-        String sql = "SELECT MAX(scan_session_id) FROM test_classes WHERE repository_id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, repositoryId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    long id = rs.getLong(1);
-                    return rs.wasNull() ? Optional.empty() : Optional.of(id);
-                }
-                return Optional.empty();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
+
 }
 
 
