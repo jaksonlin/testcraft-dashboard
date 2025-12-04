@@ -60,6 +60,10 @@ services:
       # Application Settings
       JAVA_OPTS: "-Xms256m -Xmx1g -XX:+UseG1GC"
       
+      # File Upload Settings
+      SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:-10MB}
+      SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:-10MB}
+      
       # Git Authentication Settings
       GIT_USERNAME: ${GIT_USERNAME:-}
       GIT_PASSWORD: ${GIT_PASSWORD:-}
