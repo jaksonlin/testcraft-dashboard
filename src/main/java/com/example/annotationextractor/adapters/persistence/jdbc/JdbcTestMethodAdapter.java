@@ -1071,7 +1071,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
 
     @Override
     public List<TestMethodDetailRecord> findTestMethodDetailsWithFilters(
-            List<Long> scanSessionIds,
+            Map<Long, Long> latestSessions,
             String teamName,
             String repositoryName,
             String packageName,
@@ -1082,47 +1082,58 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             Integer offset,
             Integer limit) {
 
-        if (scanSessionIds == null || scanSessionIds.isEmpty()) {
+        if (latestSessions == null || latestSessions.isEmpty()) {
             return new ArrayList<>();
         }
 
-        StringBuilder sql = new StringBuilder("""
-                SELECT
-                    tm.id,
-                    r.repository_name,
-                    tc.class_name,
-                    tm.method_name,
-                    tm.line_number,
-                    tm.annotation_title,
-                    tm.annotation_author,
-                    tm.annotation_status,
-                    tm.annotation_target_class,
-                    tm.annotation_target_method,
-                    tm.annotation_description,
-                    tm.annotation_test_points,
-                    tm.annotation_tags,
-                    tm.annotation_requirements,
-                    tm.annotation_testcases,
-                    tm.annotation_defects,
-                    tm.annotation_last_update_time,
-                    tm.annotation_last_update_author,
-                    t.team_name,
-                    t.team_code,
-                    r.git_url
-                FROM test_methods tm
-                JOIN test_classes tc ON tm.test_class_id = tc.id
-                JOIN repositories r ON tc.repository_id = r.id
-                LEFT JOIN teams t ON r.team_id = t.id
-                WHERE tc.scan_session_id IN (
-                """);
+        StringBuilder sql = new StringBuilder(
+                """
+                        SELECT
+                            tm.id,
+                            r.repository_name,
+                            tc.class_name,
+                            tm.method_name,
+                            tm.line_number,
+                            tm.annotation_title,
+                            tm.annotation_author,
+                            tm.annotation_status,
+                            tm.annotation_target_class,
+                            tm.annotation_target_method,
+                            tm.annotation_description,
+                            tm.annotation_test_points,
+                            tm.annotation_tags,
+                            tm.annotation_requirements,
+                            tm.annotation_testcases,
+                            tm.annotation_defects,
+                            tm.annotation_last_update_time,
+                            tm.annotation_last_update_author,
+                            t.team_name,
+                            t.team_code,
+                            r.git_url
+                        FROM test_methods tm
+                        JOIN test_classes tc ON tm.test_class_id = tc.id
+                        JOIN repositories r ON tc.repository_id = r.id
+                        LEFT JOIN teams t ON r.team_id = t.id
+                        WHERE
+                        """);
 
-        // Add placeholders for IN clause
-        for (int i = 0; i < scanSessionIds.size(); i++) {
-            sql.append(i == 0 ? "?" : ", ?");
+        // Add (repository_id, scan_session_id) pairs
+        sql.append("(");
+        boolean first = true;
+        for (int i = 0; i < latestSessions.size(); i++) {
+            if (!first) {
+                sql.append(" OR ");
+            }
+            sql.append("(tc.repository_id = ? AND tc.scan_session_id = ?)");
+            first = false;
         }
         sql.append(")");
 
-        List<Object> params = new ArrayList<>(scanSessionIds);
+        List<Object> params = new ArrayList<>();
+        for (Map.Entry<Long, Long> entry : latestSessions.entrySet()) {
+            params.add(entry.getKey());
+            params.add(entry.getValue());
+        }
 
         // Search term filter (searches across multiple fields)
         if (searchTerm != null && !searchTerm.trim().isEmpty()) {
@@ -1255,7 +1266,7 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
 
     @Override
     public long countTestMethodDetailsWithFilters(
-            List<Long> scanSessionIds,
+            Map<Long, Long> latestSessions,
             String teamName,
             String repositoryName,
             String packageName,
@@ -1264,26 +1275,34 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
             String searchTerm,
             String codePattern) {
 
-        if (scanSessionIds == null || scanSessionIds.isEmpty()) {
+        if (latestSessions == null || latestSessions.isEmpty()) {
             return 0;
         }
 
-        StringBuilder sql = new StringBuilder("""
-                SELECT COUNT(*)
-                FROM test_methods tm
-                JOIN test_classes tc ON tm.test_class_id = tc.id
-                JOIN repositories r ON tc.repository_id = r.id
-                LEFT JOIN teams t ON r.team_id = t.id
-                WHERE tc.scan_session_id IN (
-                """);
+        StringBuilder sql = new StringBuilder(
+                "SELECT COUNT(*) FROM test_methods tm " +
+                        "JOIN test_classes tc ON tm.test_class_id = tc.id " +
+                        "JOIN repositories r ON tc.repository_id = r.id " +
+                        "LEFT JOIN teams t ON r.team_id = t.id " +
+                        "WHERE ");
 
-        // Add placeholders for IN clause
-        for (int i = 0; i < scanSessionIds.size(); i++) {
-            sql.append(i == 0 ? "?" : ", ?");
+        // Add (repository_id, scan_session_id) pairs
+        sql.append("(");
+        boolean first = true;
+        for (int i = 0; i < latestSessions.size(); i++) {
+            if (!first) {
+                sql.append(" OR ");
+            }
+            sql.append("(tc.repository_id = ? AND tc.scan_session_id = ?)");
+            first = false;
         }
         sql.append(")");
 
-        List<Object> params = new ArrayList<>(scanSessionIds);
+        List<Object> params = new ArrayList<>();
+        for (Map.Entry<Long, Long> entry : latestSessions.entrySet()) {
+            params.add(entry.getKey());
+            params.add(entry.getValue());
+        }
 
         // Search term filter
         if (searchTerm != null && !searchTerm.trim().isEmpty()) {
@@ -1359,8 +1378,8 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
     }
 
     @Override
-    public List<Map<String, Object>> getHierarchyByTeam(List<Long> scanSessionIds) {
-        if (scanSessionIds == null || scanSessionIds.isEmpty()) {
+    public List<Map<String, Object>> getHierarchyByTeam(Map<Long, Long> latestSessions) {
+        if (latestSessions == null || latestSessions.isEmpty()) {
             return new ArrayList<>();
         }
 
@@ -1377,12 +1396,18 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
                         JOIN test_classes tc ON tm.test_class_id = tc.id
                         JOIN repositories r ON tc.repository_id = r.id
                         LEFT JOIN teams t ON r.team_id = t.id
-                        WHERE tc.scan_session_id IN (
+                        WHERE
                         """);
 
-        // Add placeholders for IN clause
-        for (int i = 0; i < scanSessionIds.size(); i++) {
-            sql.append(i == 0 ? "?" : ", ?");
+        // Add (repository_id, scan_session_id) pairs
+        sql.append("(");
+        boolean first = true;
+        for (int i = 0; i < latestSessions.size(); i++) {
+            if (!first) {
+                sql.append(" OR ");
+            }
+            sql.append("(tc.repository_id = ? AND tc.scan_session_id = ?)");
+            first = false;
         }
         sql.append(")");
 
@@ -1395,8 +1420,10 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
         try (Connection conn = DatabaseConfig.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
 
-            for (int i = 0; i < scanSessionIds.size(); i++) {
-                stmt.setLong(i + 1, scanSessionIds.get(i));
+            int paramIndex = 1;
+            for (Map.Entry<Long, Long> entry : latestSessions.entrySet()) {
+                stmt.setLong(paramIndex++, entry.getKey()); // repository_id
+                stmt.setLong(paramIndex++, entry.getValue()); // scan_session_id
             }
 
             try (ResultSet rs = stmt.executeQuery()) {
@@ -1424,8 +1451,8 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
     }
 
     @Override
-    public List<Map<String, Object>> getHierarchyByPackage(List<Long> scanSessionIds, String teamName) {
-        if (scanSessionIds == null || scanSessionIds.isEmpty()) {
+    public List<Map<String, Object>> getHierarchyByPackage(Map<Long, Long> latestSessions, String teamName) {
+        if (latestSessions == null || latestSessions.isEmpty()) {
             return new ArrayList<>();
         }
 
@@ -1440,12 +1467,18 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
                         JOIN test_classes tc ON tm.test_class_id = tc.id
                         JOIN repositories r ON tc.repository_id = r.id
                         LEFT JOIN teams t ON r.team_id = t.id
-                        WHERE tc.scan_session_id IN (
+                        WHERE
                         """);
 
-        // Add placeholders for IN clause
-        for (int i = 0; i < scanSessionIds.size(); i++) {
-            sql.append(i == 0 ? "?" : ", ?");
+        // Add (repository_id, scan_session_id) pairs
+        sql.append("(");
+        boolean first = true;
+        for (int i = 0; i < latestSessions.size(); i++) {
+            if (!first) {
+                sql.append(" OR ");
+            }
+            sql.append("(tc.repository_id = ? AND tc.scan_session_id = ?)");
+            first = false;
         }
         sql.append(")");
 
@@ -1462,8 +1495,9 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
 
             int paramIndex = 1;
-            for (Long id : scanSessionIds) {
-                stmt.setLong(paramIndex++, id);
+            for (Map.Entry<Long, Long> entry : latestSessions.entrySet()) {
+                stmt.setLong(paramIndex++, entry.getKey()); // repository_id
+                stmt.setLong(paramIndex++, entry.getValue()); // scan_session_id
             }
             stmt.setString(paramIndex, teamName);
 
@@ -1495,9 +1529,9 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
     }
 
     @Override
-    public List<Map<String, Object>> getHierarchyByClass(List<Long> scanSessionIds, String teamName,
+    public List<Map<String, Object>> getHierarchyByClass(Map<Long, Long> latestSessions, String teamName,
             String packageName) {
-        if (scanSessionIds == null || scanSessionIds.isEmpty()) {
+        if (latestSessions == null || latestSessions.isEmpty()) {
             return new ArrayList<>();
         }
 
@@ -1513,12 +1547,18 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
                         JOIN test_classes tc ON tm.test_class_id = tc.id
                         JOIN repositories r ON tc.repository_id = r.id
                         LEFT JOIN teams t ON r.team_id = t.id
-                        WHERE tc.scan_session_id IN (
+                        WHERE
                         """);
 
-        // Add placeholders for IN clause
-        for (int i = 0; i < scanSessionIds.size(); i++) {
-            sql.append(i == 0 ? "?" : ", ?");
+        // Add (repository_id, scan_session_id) pairs
+        sql.append("(");
+        boolean first = true;
+        for (int i = 0; i < latestSessions.size(); i++) {
+            if (!first) {
+                sql.append(" OR ");
+            }
+            sql.append("(tc.repository_id = ? AND tc.scan_session_id = ?)");
+            first = false;
         }
         sql.append(")");
 
@@ -1534,8 +1574,9 @@ public class JdbcTestMethodAdapter implements TestMethodPort {
                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
 
             int paramIndex = 1;
-            for (Long id : scanSessionIds) {
-                stmt.setLong(paramIndex++, id);
+            for (Map.Entry<Long, Long> entry : latestSessions.entrySet()) {
+                stmt.setLong(paramIndex++, entry.getKey()); // repository_id
+                stmt.setLong(paramIndex++, entry.getValue()); // scan_session_id
             }
             stmt.setString(paramIndex++, teamName);
             stmt.setString(paramIndex, packageName);

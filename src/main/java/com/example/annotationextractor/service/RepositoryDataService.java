@@ -2,6 +2,7 @@ package com.example.annotationextractor.service;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -389,18 +390,19 @@ public class RepositoryDataService {
     public List<TestClassSummaryDto> getRepositoryClasses(Long repositoryId) {
         if (persistenceReadFacade.isPresent()) {
             try {
-                // Get the latest completed scan session
-                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-                if (latestScan.isEmpty()) {
-                    System.err.println("No completed scan session found");
+                // Get the latest scan session for this specific repository
+                Optional<Long> latestScanId = persistenceReadFacade.get()
+                        .getLatestScanSessionIdForRepository(repositoryId);
+                if (latestScanId.isEmpty()) {
+                    System.err.println("No completed scan session found for repository: " + repositoryId);
                     return List.of();
                 }
 
-                Long scanSessionId = latestScan.get().getId();
+                Long scanSessionId = latestScanId.get();
                 List<TestClass> classes = persistenceReadFacade.get()
                         .listClassesByRepositoryIdAndScanSessionId(repositoryId, scanSessionId);
 
-                // Filter classes by scan session ID
+                // Filter classes by scan session ID (redundant but safe)
                 List<TestClass> filteredClasses = classes.stream()
                         .filter(testClass -> testClass.getScanSessionId() != null &&
                                 testClass.getScanSessionId().equals(scanSessionId))
@@ -427,18 +429,19 @@ public class RepositoryDataService {
             String className, Boolean annotated) {
         if (persistenceReadFacade.isPresent()) {
             try {
-                // Get the latest completed scan session
-                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-                if (latestScan.isEmpty()) {
-                    System.err.println("No completed scan session found");
+                // Get the latest scan session for this specific repository
+                Optional<Long> latestScanId = persistenceReadFacade.get()
+                        .getLatestScanSessionIdForRepository(repositoryId);
+                if (latestScanId.isEmpty()) {
+                    System.err.println("No completed scan session found for repository: " + repositoryId);
                     return new PagedResponse<TestClassSummaryDto>(List.of(), page, size, 0);
                 }
 
-                Long scanSessionId = latestScan.get().getId();
+                Long scanSessionId = latestScanId.get();
                 List<TestClass> allClasses = persistenceReadFacade.get()
                         .listClassesByRepositoryIdAndScanSessionId(repositoryId, scanSessionId);
 
-                // Filter classes by scan session ID
+                // Filter classes by scan session ID (redundant but safe)
                 List<TestClass> filteredClasses = allClasses.stream()
                         .filter(testClass -> testClass.getScanSessionId() != null &&
                                 testClass.getScanSessionId().equals(scanSessionId))
@@ -610,15 +613,21 @@ public class RepositoryDataService {
     public List<TestMethodDetailDto> getAllTestMethodDetails(Integer limit) {
         if (persistenceReadFacade.isPresent()) {
             try {
-                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-                if (latestScan.isEmpty()) {
-                    System.err.println("No completed scan session found");
+                // Use aggregated scan session IDs (latest per repository)
+                Map<Long, Long> latestSessions = getLatestScanSessionIds();
+                if (latestSessions.isEmpty()) {
+                    System.err.println("No completed scan sessions found");
                     return List.of();
                 }
-                Long scanSessionId = latestScan.get().getId();
-                System.err.println("Using scan session ID: " + scanSessionId + " for all test methods");
+
+                System.err.println("Using " + latestSessions.size() + " scan sessions for all test methods");
+
+                // Use the filter-based method which supports list of session IDs
                 List<TestMethodDetailRecord> records = persistenceReadFacade.get()
-                        .listTestMethodDetailsByScanSessionId(scanSessionId, limit);
+                        .listTestMethodDetailsWithFilters(
+                                latestSessions,
+                                null, null, null, null, null, null, null,
+                                0, limit);
                 System.err.println("Found " + records.size() + " total test method records");
                 return records.stream()
                         .map(this::convertToTestMethodDetailDto)
@@ -643,12 +652,14 @@ public class RepositoryDataService {
                 // Find the latest scan session that has data for this repository
                 // Long scanSessionId =
                 // findLatestScanSessionWithDataForRepository(repositoryId);
-                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-                if (latestScan.isEmpty()) {
+                // Get the latest scan session for this specific repository
+                Optional<Long> latestScanId = persistenceReadFacade.get()
+                        .getLatestScanSessionIdForRepository(repositoryId);
+                if (latestScanId.isEmpty()) {
                     System.err.println("No scan session found with data for repository: " + repositoryId);
                     return List.of();
                 }
-                Long scanSessionId = latestScan.get().getId();
+                Long scanSessionId = latestScanId.get();
                 System.err.println("Using scan session ID: " + scanSessionId + " for repository: " + repositoryId);
                 List<TestMethodDetailRecord> records = persistenceReadFacade.get()
                         .listTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, scanSessionId, limit);
@@ -708,15 +719,34 @@ public class RepositoryDataService {
     public List<TestMethodDetailDto> getTestMethodDetailsByTeamId(Long teamId, Integer limit) {
         if (persistenceReadFacade.isPresent()) {
             try {
-                Optional<ScanSession> latestScan = persistenceReadFacade.get().getLatestCompletedScanSession();
-                if (latestScan.isEmpty()) {
-                    System.err.println("No completed scan session found");
+                // Use aggregated scan session IDs (latest per repository)
+                Map<Long, Long> latestSessions = getLatestScanSessionIds();
+                if (latestSessions.isEmpty()) {
+                    System.err.println("No completed scan sessions found");
                     return List.of();
                 }
-                Long scanSessionId = latestScan.get().getId();
-                System.err.println("Using scan session ID: " + scanSessionId + " for team: " + teamId);
+
+                // Get team name to use with filter
+                String teamName = persistenceReadFacade.get().listTeams().stream()
+                        .filter(t -> t.getId().equals(teamId))
+                        .findFirst()
+                        .map(Team::getTeamName)
+                        .orElse(null);
+
+                if (teamName == null) {
+                    System.err.println("Team not found for ID: " + teamId);
+                    return List.of();
+                }
+
+                System.err.println("Using " + latestSessions.size() + " scan sessions for team: " + teamName);
+
+                // Use the filter-based method which supports list of session IDs
                 List<TestMethodDetailRecord> records = persistenceReadFacade.get()
-                        .listTestMethodDetailsByTeamIdAndScanSessionId(teamId, scanSessionId, limit);
+                        .listTestMethodDetailsWithFilters(
+                                latestSessions,
+                                teamName,
+                                null, null, null, null, null, null,
+                                0, limit);
                 System.err.println("Found " + records.size() + " test method records");
                 return records.stream()
                         .map(this::convertToTestMethodDetailDto)
@@ -744,19 +774,19 @@ public class RepositoryDataService {
         if (persistenceReadFacade.isPresent()) {
             try {
                 // Get latest scan session IDs for ALL repositories
-                List<Long> scanSessionIds = getLatestScanSessionIds();
-                if (scanSessionIds.isEmpty()) {
+                Map<Long, Long> latestSessions = getLatestScanSessionIds();
+                if (latestSessions.isEmpty()) {
                     System.err.println("No scan sessions found for any repository");
                     return new GroupedTestMethodResponse(List.of(),
                             new GroupedTestMethodResponse.SummaryDto(0, 0, 0, 0, 0.0));
                 }
 
-                System.err.println("Using " + scanSessionIds.size() + " scan sessions for grouped test methods");
+                System.err.println("Using " + latestSessions.size() + " scan sessions for grouped test methods");
 
                 // Apply filters at database level (NO client-side filtering)
                 List<TestMethodDetailRecord> records = persistenceReadFacade.get()
                         .listTestMethodDetailsWithFilters(
-                                scanSessionIds,
+                                latestSessions,
                                 null, // teamName
                                 null, // repositoryName
                                 null, // packageName
@@ -888,8 +918,8 @@ public class RepositoryDataService {
         if (persistenceReadFacade.isPresent()) {
             try {
                 // Get latest scan session IDs for ALL repositories
-                List<Long> scanSessionIds = getLatestScanSessionIds();
-                if (scanSessionIds.isEmpty()) {
+                Map<Long, Long> latestSessions = getLatestScanSessionIds();
+                if (latestSessions.isEmpty()) {
                     System.err.println("No scan sessions found for any repository");
                     return Map.of(
                             "totalMethods", 0,
@@ -901,7 +931,7 @@ public class RepositoryDataService {
                 // Get total count with filters (from database)
                 long totalMethods = persistenceReadFacade.get()
                         .countTestMethodDetailsWithFilters(
-                                scanSessionIds,
+                                latestSessions,
                                 null, // teamName (TODO: convert teamId to teamName if needed)
                                 repositoryName,
                                 null, // packageName
@@ -914,7 +944,7 @@ public class RepositoryDataService {
                 // Get annotated count with filters (from database)
                 long totalAnnotated = persistenceReadFacade.get()
                         .countTestMethodDetailsWithFilters(
-                                scanSessionIds,
+                                latestSessions,
                                 null, // teamName
                                 repositoryName,
                                 null, // packageName
@@ -966,8 +996,8 @@ public class RepositoryDataService {
         if (persistenceReadFacade.isPresent()) {
             try {
                 // Get latest scan session IDs for ALL repositories
-                List<Long> scanSessionIds = getLatestScanSessionIds();
-                if (scanSessionIds.isEmpty()) {
+                Map<Long, Long> latestSessions = getLatestScanSessionIds();
+                if (latestSessions.isEmpty()) {
                     System.err.println("No scan sessions found for any repository");
                     return new PagedResponse<>(List.of(), page, size, 0);
                 }
@@ -977,7 +1007,7 @@ public class RepositoryDataService {
                 // Get filtered data directly from database (NO client-side filtering)
                 List<TestMethodDetailRecord> records = persistenceReadFacade.get()
                         .listTestMethodDetailsWithFilters(
-                                scanSessionIds,
+                                latestSessions,
                                 teamName,
                                 repositoryName,
                                 packageName,
@@ -991,7 +1021,7 @@ public class RepositoryDataService {
                 // Get accurate count of filtered results (from database, not memory)
                 long totalCount = persistenceReadFacade.get()
                         .countTestMethodDetailsWithFilters(
-                                scanSessionIds,
+                                latestSessions,
                                 teamName,
                                 repositoryName,
                                 packageName,
@@ -1030,19 +1060,19 @@ public class RepositoryDataService {
         if (persistenceReadFacade.isPresent()) {
             try {
                 // Get latest scan session IDs for ALL repositories
-                List<Long> scanSessionIds = getLatestScanSessionIds();
-                if (scanSessionIds.isEmpty()) {
+                Map<Long, Long> latestSessions = getLatestScanSessionIds();
+                if (latestSessions.isEmpty()) {
                     System.err.println("No scan sessions found for any repository");
                     return List.of();
                 }
 
                 // Return aggregated data based on hierarchy level
                 if ("TEAM".equalsIgnoreCase(level)) {
-                    return persistenceReadFacade.get().getHierarchyByTeam(scanSessionIds);
+                    return persistenceReadFacade.get().getHierarchyByTeam(latestSessions);
                 } else if ("PACKAGE".equalsIgnoreCase(level) && teamName != null) {
-                    return persistenceReadFacade.get().getHierarchyByPackage(scanSessionIds, teamName);
+                    return persistenceReadFacade.get().getHierarchyByPackage(latestSessions, teamName);
                 } else if ("CLASS".equalsIgnoreCase(level) && teamName != null && packageName != null) {
-                    return persistenceReadFacade.get().getHierarchyByClass(scanSessionIds, teamName, packageName);
+                    return persistenceReadFacade.get().getHierarchyByClass(latestSessions, teamName, packageName);
                 }
 
                 return List.of();
@@ -1059,22 +1089,22 @@ public class RepositoryDataService {
     /**
      * Helper method to get the latest scan session ID for each active repository
      */
-    private List<Long> getLatestScanSessionIds() {
+    private Map<Long, Long> getLatestScanSessionIds() {
         if (persistenceReadFacade.isEmpty()) {
-            return List.of();
+            return Map.of();
         }
         try {
             List<RepositoryRecord> repositories = persistenceReadFacade.get().listAllRepositories();
-            List<Long> sessionIds = new ArrayList<>();
+            Map<Long, Long> sessionIds = new HashMap<>();
             for (RepositoryRecord repo : repositories) {
                 Optional<Long> sessionId = persistenceReadFacade.get()
                         .getLatestScanSessionIdForRepository(repo.getId());
-                sessionId.ifPresent(sessionIds::add);
+                sessionId.ifPresent(id -> sessionIds.put(repo.getId(), id));
             }
             return sessionIds;
         } catch (Exception e) {
             System.err.println("Error fetching latest scan session IDs: " + e.getMessage());
-            return List.of();
+            return Map.of();
         }
     }
 }

@@ -37,7 +37,7 @@ public interface TestMethodPort {
 
         // Filtered queries
         List<TestMethodDetailRecord> findTestMethodDetailsWithFilters(
-                        List<Long> scanSessionIds,
+                        java.util.Map<Long, Long> latestSessions,
                         String teamName,
                         String repositoryName,
                         String packageName,
@@ -49,7 +49,7 @@ public interface TestMethodPort {
                         Integer limit);
 
         long countTestMethodDetailsWithFilters(
-                        List<Long> scanSessionIds,
+                        java.util.Map<Long, Long> latestSessions,
                         String teamName,
                         String repositoryName,
                         String packageName,
@@ -59,10 +59,12 @@ public interface TestMethodPort {
                         String codePattern);
 
         // Hierarchy methods
-        List<java.util.Map<String, Object>> getHierarchyByTeam(List<Long> scanSessionIds);
+        List<java.util.Map<String, Object>> getHierarchyByTeam(java.util.Map<Long, Long> latestSessions);
 
-        List<java.util.Map<String, Object>> getHierarchyByPackage(List<Long> scanSessionIds, String teamName);
+        List<java.util.Map<String, Object>> getHierarchyByPackage(java.util.Map<Long, Long> latestSessions,
+                        String teamName);
 
-        List<java.util.Map<String, Object>> getHierarchyByClass(List<Long> scanSessionIds, String teamName,
+        List<java.util.Map<String, Object>> getHierarchyByClass(java.util.Map<Long, Long> latestSessions,
+                        String teamName,
                         String packageName);
 }

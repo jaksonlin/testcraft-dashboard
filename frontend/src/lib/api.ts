@@ -45,6 +45,9 @@ apiClient.interceptors.response.use(
     // Handle 401 Unauthorized: Session expired or invalid credentials
     if (status === 401) {
       setAuthToken(null);
+      // Explicitly clear localStorage to prevent infinite redirect loops
+      window.localStorage.removeItem('testcraft-auth');
+
       // Dispatch event for UI updates (e.g. clearing user state)
       window.dispatchEvent(new CustomEvent('api:unauthorized'));
       // Redirect to login if not already there

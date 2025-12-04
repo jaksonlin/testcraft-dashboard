@@ -14,7 +14,7 @@ interface AuthContextValue extends AuthState {
   needsPasswordChange: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-   markPasswordChanged: () => void;
+  markPasswordChanged: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -60,6 +60,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.localStorage.removeItem(STORAGE_KEY);
     }
   }, [state]);
+
+  // Listen for unauthorized events from api interceptor
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setState({ user: null, token: null, defaultPasswordInUse: false });
+    };
+
+    window.addEventListener('api:unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('api:unauthorized', handleUnauthorized);
+    };
+  }, []);
 
   const login = async (username: string, password: string) => {
     const response = await import('../lib/api').then(m => m.api.auth.login(username, password));

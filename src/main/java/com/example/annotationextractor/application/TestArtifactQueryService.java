@@ -114,7 +114,7 @@ public class TestArtifactQueryService {
     }
 
     public List<TestMethodDetailRecord> listTestMethodDetailsWithFilters(
-            List<Long> scanSessionIds,
+            java.util.Map<Long, Long> latestSessions,
             String teamName,
             String repositoryName,
             String packageName,
@@ -125,7 +125,7 @@ public class TestArtifactQueryService {
             Integer offset,
             Integer limit) {
         return testMethodPort.findTestMethodDetailsWithFilters(
-                scanSessionIds, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern,
+                latestSessions, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern,
                 offset, limit);
     }
 
@@ -153,7 +153,7 @@ public class TestArtifactQueryService {
     }
 
     public long countTestMethodDetailsWithFilters(
-            List<Long> scanSessionIds,
+            java.util.Map<Long, Long> latestSessions,
             String teamName,
             String repositoryName,
             String packageName,
@@ -162,7 +162,7 @@ public class TestArtifactQueryService {
             String searchTerm,
             String codePattern) {
         return testMethodPort.countTestMethodDetailsWithFilters(
-                scanSessionIds, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
+                latestSessions, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
     }
 
     public Optional<TestMethod> getTestMethodById(Long methodId) {
@@ -180,8 +180,8 @@ public class TestArtifactQueryService {
         return java.util.List.of();
     }
 
-    public List<java.util.Map<String, Object>> getHierarchyByTeam(List<Long> scanSessionIds) {
-        return testMethodPort.getHierarchyByTeam(scanSessionIds);
+    public List<java.util.Map<String, Object>> getHierarchyByTeam(java.util.Map<Long, Long> latestSessions) {
+        return testMethodPort.getHierarchyByTeam(latestSessions);
     }
 
     /**
@@ -195,8 +195,9 @@ public class TestArtifactQueryService {
         return java.util.List.of();
     }
 
-    public List<java.util.Map<String, Object>> getHierarchyByPackage(List<Long> scanSessionIds, String teamName) {
-        return testMethodPort.getHierarchyByPackage(scanSessionIds, teamName);
+    public List<java.util.Map<String, Object>> getHierarchyByPackage(java.util.Map<Long, Long> latestSessions,
+            String teamName) {
+        return testMethodPort.getHierarchyByPackage(latestSessions, teamName);
     }
 
     /**
@@ -211,9 +212,10 @@ public class TestArtifactQueryService {
         return java.util.List.of();
     }
 
-    public List<java.util.Map<String, Object>> getHierarchyByClass(List<Long> scanSessionIds, String teamName,
+    public List<java.util.Map<String, Object>> getHierarchyByClass(java.util.Map<Long, Long> latestSessions,
+            String teamName,
             String packageName) {
-        return testMethodPort.getHierarchyByClass(scanSessionIds, teamName, packageName);
+        return testMethodPort.getHierarchyByClass(latestSessions, teamName, packageName);
     }
 
 }
