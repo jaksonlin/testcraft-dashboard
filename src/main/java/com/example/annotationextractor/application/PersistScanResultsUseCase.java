@@ -442,6 +442,208 @@ public class PersistScanResultsUseCase {
         if (array.length == 0) return "";
         return String.join(";", array);
     }
+
+    /**
+     * Merge repository scan results into an existing scan session.
+     * This deletes old data for the specified repositories from the session and inserts new data.
+     * Used for repository-level scans that should update the latest scan session instead of creating a new one.
+     * 
+     * @param summary The scan summary containing repository results to merge
+     * @param scanSessionId The existing scan session ID to merge into
+     * @param repositoryIds The repository IDs being rescanned (for cleanup) - can be null to use git URLs from summary
+     * @throws SQLException if database operations fail
+     */
+    public void mergeIntoExistingSession(TestCollectionSummary summary, long scanSessionId, 
+            java.util.List<Long> repositoryIds) throws SQLException {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // Delete old data for the repositories being rescanned from this session
+                // Use git URLs from summary if repositoryIds not provided
+                if (repositoryIds != null && !repositoryIds.isEmpty()) {
+                    deleteRepositoryDataFromSession(conn, scanSessionId, repositoryIds);
+                } else {
+                    // Fallback: delete by git URLs from the scan summary
+                    java.util.List<String> gitUrls = summary.getRepositories().stream()
+                            .map(RepositoryTestInfo::getGitUrl)
+                            .filter(url -> url != null && !url.isEmpty())
+                            .collect(java.util.stream.Collectors.toList());
+                    deleteRepositoryDataFromSessionByGitUrls(conn, scanSessionId, gitUrls);
+                }
+
+                // Insert/update new data for the scanned repositories
+                java.util.List<Long> scannedRepositoryIds = new java.util.ArrayList<>();
+                for (RepositoryTestInfo repo : summary.getRepositories()) {
+                    int teamId = ensureTeamExists(conn, repo.getTeamName(), repo.getTeamCode());
+                    long repositoryId = upsertRepository(conn, repo, teamId);
+                    scannedRepositoryIds.add(repositoryId);
+                    Map<String, Long> testClassIds = persistTestClassesBatch(conn, repo, repositoryId, scanSessionId);
+                    persistTestMethodsBatch(conn, repo, repositoryId, scanSessionId, testClassIds);
+                    persistHelperClassesBatch(conn, repo, repositoryId, scanSessionId);
+                }
+
+                // Update scan session metadata (recalculate totals)
+                updateScanSessionTotals(conn, scanSessionId);
+                
+                // Update daily metrics
+                updateDailyMetrics(conn, summary);
+                
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Delete old test data for specific repositories from a scan session.
+     * This cleans up existing data before merging new results.
+     */
+    private void deleteRepositoryDataFromSession(Connection conn, long scanSessionId, 
+            java.util.List<Long> repositoryIds) throws SQLException {
+        if (repositoryIds == null || repositoryIds.isEmpty()) {
+            return;
+        }
+
+        // Build IN clause placeholders
+        StringBuilder placeholders = new StringBuilder();
+        for (int i = 0; i < repositoryIds.size(); i++) {
+            if (i > 0) placeholders.append(",");
+            placeholders.append("?");
+        }
+        String inClause = placeholders.toString();
+
+        // Delete test methods for these repositories in this session
+        String deleteMethodsSql = 
+            "DELETE FROM test_methods " +
+            "WHERE scan_session_id = ? AND test_class_id IN (" +
+            "  SELECT id FROM test_classes WHERE scan_session_id = ? AND repository_id IN (" + inClause + ")" +
+            ")";
+        
+        try (PreparedStatement stmt = conn.prepareStatement(deleteMethodsSql)) {
+            int paramIndex = 1;
+            stmt.setLong(paramIndex++, scanSessionId);
+            stmt.setLong(paramIndex++, scanSessionId);
+            for (Long repoId : repositoryIds) {
+                stmt.setLong(paramIndex++, repoId);
+            }
+            stmt.executeUpdate();
+        }
+
+        // Delete test classes for these repositories in this session
+        String deleteClassesSql = 
+            "DELETE FROM test_classes WHERE scan_session_id = ? AND repository_id IN (" + inClause + ")";
+        try (PreparedStatement stmt = conn.prepareStatement(deleteClassesSql)) {
+            int paramIndex = 1;
+            stmt.setLong(paramIndex++, scanSessionId);
+            for (Long repoId : repositoryIds) {
+                stmt.setLong(paramIndex++, repoId);
+            }
+            stmt.executeUpdate();
+        }
+
+        // Delete helper classes for these repositories in this session
+        String deleteHelperClassesSql = 
+            "DELETE FROM test_helper_classes WHERE scan_session_id = ? AND repository_id IN (" + inClause + ")";
+        try (PreparedStatement stmt = conn.prepareStatement(deleteHelperClassesSql)) {
+            int paramIndex = 1;
+            stmt.setLong(paramIndex++, scanSessionId);
+            for (Long repoId : repositoryIds) {
+                stmt.setLong(paramIndex++, repoId);
+            }
+            stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Delete old test data for specific repositories (identified by git URLs) from a scan session.
+     * Alternative method that uses git URLs instead of repository IDs.
+     */
+    private void deleteRepositoryDataFromSessionByGitUrls(Connection conn, long scanSessionId, 
+            java.util.List<String> gitUrls) throws SQLException {
+        if (gitUrls == null || gitUrls.isEmpty()) {
+            return;
+        }
+
+        // Build IN clause placeholders for git URLs
+        StringBuilder placeholders = new StringBuilder();
+        for (int i = 0; i < gitUrls.size(); i++) {
+            if (i > 0) placeholders.append(",");
+            placeholders.append("?");
+        }
+        String inClause = placeholders.toString();
+
+        // Delete test methods for these repositories in this session
+        String deleteMethodsSql = 
+            "DELETE FROM test_methods " +
+            "WHERE scan_session_id = ? AND test_class_id IN (" +
+            "  SELECT id FROM test_classes WHERE scan_session_id = ? AND repository_id IN (" +
+            "    SELECT id FROM repositories WHERE git_url IN (" + inClause + ")" +
+            "  )" +
+            ")";
+        
+        try (PreparedStatement stmt = conn.prepareStatement(deleteMethodsSql)) {
+            int paramIndex = 1;
+            stmt.setLong(paramIndex++, scanSessionId);
+            stmt.setLong(paramIndex++, scanSessionId);
+            for (String gitUrl : gitUrls) {
+                stmt.setString(paramIndex++, gitUrl);
+            }
+            stmt.executeUpdate();
+        }
+
+        // Delete test classes for these repositories in this session
+        String deleteClassesSql = 
+            "DELETE FROM test_classes WHERE scan_session_id = ? AND repository_id IN (" +
+            "  SELECT id FROM repositories WHERE git_url IN (" + inClause + ")" +
+            ")";
+        try (PreparedStatement stmt = conn.prepareStatement(deleteClassesSql)) {
+            int paramIndex = 1;
+            stmt.setLong(paramIndex++, scanSessionId);
+            for (String gitUrl : gitUrls) {
+                stmt.setString(paramIndex++, gitUrl);
+            }
+            stmt.executeUpdate();
+        }
+
+        // Delete helper classes for these repositories in this session
+        String deleteHelperClassesSql = 
+            "DELETE FROM test_helper_classes WHERE scan_session_id = ? AND repository_id IN (" +
+            "  SELECT id FROM repositories WHERE git_url IN (" + inClause + ")" +
+            ")";
+        try (PreparedStatement stmt = conn.prepareStatement(deleteHelperClassesSql)) {
+            int paramIndex = 1;
+            stmt.setLong(paramIndex++, scanSessionId);
+            for (String gitUrl : gitUrls) {
+                stmt.setString(paramIndex++, gitUrl);
+            }
+            stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Update scan session totals based on current data in the session.
+     */
+    private void updateScanSessionTotals(Connection conn, long scanSessionId) throws SQLException {
+        // Recalculate totals from actual data in the session
+        String updateSql = 
+            "UPDATE scan_sessions SET " +
+            "  total_repositories = (SELECT COUNT(DISTINCT repository_id) FROM test_classes WHERE scan_session_id = ?), " +
+            "  total_test_classes = (SELECT COUNT(*) FROM test_classes WHERE scan_session_id = ?), " +
+            "  total_test_methods = (SELECT COUNT(*) FROM test_methods WHERE scan_session_id = ?), " +
+            "  total_annotated_methods = (SELECT COUNT(*) FROM test_methods WHERE scan_session_id = ? AND has_annotation = TRUE) " +
+            "WHERE id = ?";
+        
+        try (PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+            stmt.setLong(1, scanSessionId);
+            stmt.setLong(2, scanSessionId);
+            stmt.setLong(3, scanSessionId);
+            stmt.setLong(4, scanSessionId);
+            stmt.setLong(5, scanSessionId);
+            stmt.executeUpdate();
+        }
+    }
 }
 
 

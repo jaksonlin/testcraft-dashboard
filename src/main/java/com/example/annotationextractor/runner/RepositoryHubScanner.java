@@ -136,4 +136,94 @@ public class RepositoryHubScanner {
         return scanSessionId;
     }
 
+    /**
+     * Execute a repository-level scan and merge results into the latest existing scan session.
+     * This is used for scanning specific repositories that should update the latest scan session
+     * instead of creating a new one, maintaining consistency with the aggregation logic.
+     * 
+     * @param tempCloneMode Whether to use temporary clone mode
+     * @param existingScanSessionId The scan session ID to merge into (if null, uses latest completed session)
+     * @param repositoryIds The repository IDs being scanned (for cleanup)
+     * @return true if scan and merge succeeded, false otherwise
+     */
+    public boolean executeRepositoryScan(boolean tempCloneMode, Long existingScanSessionId, 
+            java.util.List<Long> repositoryIds) {
+        try {
+            System.out.println("Starting Repository-Level Scan");
+            System.out.println("==============================");
+            System.out.println("Timestamp: " + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            System.out.println("Temporary Clone Mode: " + (tempCloneMode ? "ENABLED" : "DISABLED"));
+            System.out.println();
+
+            // Database schema is now managed by Flyway
+            try {
+                org.flywaydb.core.Flyway flyway = org.flywaydb.core.Flyway.configure()
+                        .dataSource(DatabaseConfig.getDataSource())
+                        .load();
+                flyway.migrate();
+            } catch (Exception e) {
+                System.err.println("Failed to run database migrations: " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("Database migration failed", e);
+            }
+
+            // Scan repositories
+            long startTime = System.currentTimeMillis();
+            TestCollectionSummary scanSummary = repositoryScanner.scanRepositories(tempCloneMode);
+            long endTime = System.currentTimeMillis();
+            long duration = endTime - startTime;
+            System.out.println("Scan completed in " + duration + " milliseconds");
+
+            if (scanSummary == null || scanSummary.getRepositories().isEmpty()) {
+                System.err.println("Repository scan failed or no repositories found");
+                return false;
+            }
+
+            // Get or use the existing scan session ID
+            long scanSessionId;
+            if (existingScanSessionId != null) {
+                scanSessionId = existingScanSessionId;
+                System.out.println("Using provided scan session ID: " + scanSessionId);
+            } else {
+                // Find the latest completed scan session
+                scanSessionId = findOrCreateLatestScanSession();
+                System.out.println("Using latest scan session ID: " + scanSessionId);
+            }
+
+            // Merge results into the existing scan session
+            PersistScanResultsUseCase persistUseCase = new PersistScanResultsUseCase();
+            persistUseCase.mergeIntoExistingSession(scanSummary, scanSessionId, repositoryIds);
+            System.out.println("Repository scan results merged into scan session: " + scanSessionId);
+
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("Repository-level scan failed: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Find the latest completed scan session, or create a new one if none exists.
+     */
+    private long findOrCreateLatestScanSession() throws SQLException {
+        // Try to get the latest completed scan session
+        com.example.annotationextractor.application.PersistenceReadFacade readFacade = 
+            new com.example.annotationextractor.application.PersistenceReadFacade();
+        
+        java.util.Optional<com.example.annotationextractor.domain.model.ScanSession> latestSession = 
+            readFacade.getLatestCompletedScanSession();
+        
+        if (latestSession.isPresent()) {
+            return latestSession.get().getId();
+        }
+        
+        // If no completed session exists, create a new one
+        // This shouldn't happen in normal operation, but handle it gracefully
+        System.out.println("No completed scan session found, creating a new one");
+        TestCollectionSummary emptySummary = new TestCollectionSummary("");
+        return DataPersistenceService.persistScanSession(emptySummary, 0);
+    }
+
 }
