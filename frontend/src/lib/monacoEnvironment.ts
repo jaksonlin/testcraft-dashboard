@@ -1,3 +1,4 @@
+import * as monaco from 'monaco-editor';
 import { loader } from '@monaco-editor/react';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
@@ -6,7 +7,6 @@ import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 
 let isConfigured = false;
-let monacoLoadPromise: Promise<typeof import('monaco-editor')> | null = null;
 
 // Debug flag - set to true to enable verbose logging
 const DEBUG = true;
@@ -21,17 +21,12 @@ const debugError = (...args: unknown[]) => {
   console.error('[Monaco Debug Error]', ...args);
 };
 
-// Configure loader to use local Monaco assets from /monaco/vs
-// This prevents it from trying to load from https://cdn.jsdelivr.net/
-// The assets are copied by the prepare script from node_modules/monaco-editor/min/vs to public/monaco/vs
+// Configure loader to use the bundled Monaco instance
+// This avoids loading from CDN or external paths and ensures compatibility
 const configureLoader = () => {
   try {
-    loader.config({
-      paths: {
-        vs: '/monaco/vs' // Point to the copied Monaco assets in public/monaco/vs
-      }
-    });
-    debugLog('✓ Loader configured - will use local assets from /monaco/vs (CDN disabled)');
+    loader.config({ monaco });
+    debugLog('✓ Loader configured - using bundled Monaco instance');
   } catch (error) {
     debugError('Failed to configure loader:', error);
   }
@@ -52,6 +47,7 @@ export const ensureMonacoEnvironment = () => {
   (self as unknown as { MonacoEnvironment?: { getWorker: (workerId: string, label: string) => Worker } }).MonacoEnvironment = {
     getWorker(_: string, label: string) {
       debugLog('Creating bundled worker for label:', label);
+      console.log('[Monaco] Creating worker for:', label);
       try {
         switch (label) {
           case 'json':
@@ -80,21 +76,8 @@ export const ensureMonacoEnvironment = () => {
   isConfigured = true;
   debugLog('✓ Monaco environment configured (CDN disabled, using local assets from /monaco/vs)');
   console.log('[Monaco] ✓ Environment setup complete - CDN disabled, using local assets from /monaco/vs');
-  
+
   // Pre-load Monaco to make it available for @monaco-editor/react
-  // This ensures Monaco is loaded before the Editor component tries to use it
-  debugLog('Pre-loading Monaco editor...');
-  if (!monacoLoadPromise) {
-    monacoLoadPromise = loader.init().then((monaco) => {
-      debugLog('✓ Monaco editor pre-loaded successfully');
-      console.log('[Monaco] ✓ Monaco editor loaded and ready');
-      return monaco;
-    }).catch((error) => {
-      debugError('Failed to pre-load Monaco editor:', error);
-      monacoLoadPromise = null; // Reset so we can retry
-      throw error;
-    });
-  }
+  // With bundled Monaco, we don't need to call loader.init() manually
+  debugLog('Monaco environment ready (bundled)');
 };
-
-
