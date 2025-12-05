@@ -47,7 +47,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Auth & health endpoints (only login is anonymous; password change requires
                         // auth)
-                        .requestMatchers("/auth/login", "/actuator/health", "/dashboard/health", "/scan/health")
+                        .requestMatchers("/auth/login", "/actuator/health", "/dashboard/health", "/scan/health",
+                                "/sse/**", "/mcp/**")
                         .permitAll()
                         // Read‑only scan information can be viewed by any authenticated user
                         .requestMatchers(HttpMethod.GET, "/scan/config", "/scan/status", "/scan/sessions",
@@ -77,4 +78,5 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
     }
+
 }
