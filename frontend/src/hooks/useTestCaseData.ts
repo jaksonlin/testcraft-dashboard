@@ -94,7 +94,8 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
     try {
       const gaps = await getUntestedCases({
         page: state.gapsPagination.page,
-        size: state.gapsPagination.pageSize
+        size: state.gapsPagination.pageSize,
+        ...state.filters
       });
       
       setState(prev => ({
@@ -113,7 +114,7 @@ export const useTestCaseData = (): UseTestCaseDataReturn => {
         error: 'Failed to load automation gaps'
       }));
     }
-  }, [state.gapsPagination.page, state.gapsPagination.pageSize]);
+  }, [state.gapsPagination.page, state.gapsPagination.pageSize, state.filters]);
 
   // Load all data
   const loadData = useCallback(async () => {

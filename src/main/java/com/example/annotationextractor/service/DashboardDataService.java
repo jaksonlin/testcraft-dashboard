@@ -72,7 +72,7 @@ public class DashboardDataService {
                     .atZone(ZoneId.systemDefault()).toLocalDateTime());
             }
             
-            // Get top teams (by repository count)
+            // Get top teams (by test method count)
             if (teamDataService != null) {
                 overview.setTopTeams(teamDataService.getTopTeams(teams, repositories, 5));
             } else {

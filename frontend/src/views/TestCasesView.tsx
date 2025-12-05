@@ -31,7 +31,8 @@ export const TestCasesView: React.FC = () => {
     priority: '',
     type: '',
     status: '',
-    search: ''
+    idSearch: '',
+    titleSearch: ''
   });
 
   // Use the custom hook for data management
@@ -115,7 +116,8 @@ export const TestCasesView: React.FC = () => {
       uiFilters.priority ||
       uiFilters.type ||
       uiFilters.status ||
-      uiFilters.search
+      uiFilters.idSearch ||
+      uiFilters.titleSearch
     );
 
     if (!hasActiveFilters) {
@@ -136,7 +138,8 @@ export const TestCasesView: React.FC = () => {
       uiFilters.type && `Type: ${uiFilters.type}`,
       uiFilters.priority && `Priority: ${uiFilters.priority}`,
       uiFilters.status && `Status: ${uiFilters.status}`,
-      uiFilters.search && `Search: ${uiFilters.search}`,
+      uiFilters.idSearch && `ID Search: ${uiFilters.idSearch}`,
+      uiFilters.titleSearch && `Title Search: ${uiFilters.titleSearch}`,
     ].filter(Boolean).join('\n');
 
     const confirmed = window.confirm(
@@ -160,14 +163,17 @@ export const TestCasesView: React.FC = () => {
     if (!doubleConfirmed) return;
 
     try {
-      // Execute bulk delete
+      // Execute bulk delete - combine idSearch and titleSearch into search
+      const searchParts = [uiFilters.idSearch, uiFilters.titleSearch].filter(Boolean);
+      const searchValue = searchParts.length > 0 ? searchParts.join(' ') : undefined;
+      
       const result = await deleteAllTestCases(
         {
           teamId: uiFilters.teamId ? Number(uiFilters.teamId) : undefined,
           type: uiFilters.type || undefined,
           priority: uiFilters.priority || undefined,
           status: uiFilters.status || undefined,
-          search: uiFilters.search || undefined,
+          search: searchValue,
         },
         true // confirm
       );
@@ -207,7 +213,11 @@ export const TestCasesView: React.FC = () => {
     if (newFilters.priority) backendFilters.priority = newFilters.priority;
     if (newFilters.type) backendFilters.type = newFilters.type;
     if (newFilters.status) backendFilters.status = newFilters.status;
-    if (newFilters.search) backendFilters.search = newFilters.search;
+    // Combine idSearch and titleSearch into search for backend
+    const searchParts = [newFilters.idSearch, newFilters.titleSearch].filter(Boolean);
+    if (searchParts.length > 0) {
+      backendFilters.search = searchParts.join(' ');
+    }
     
     setFilters(backendFilters);
   };
@@ -233,7 +243,8 @@ export const TestCasesView: React.FC = () => {
           uiFilters.priority ||
           uiFilters.type ||
           uiFilters.status ||
-          uiFilters.search
+          uiFilters.idSearch ||
+          uiFilters.titleSearch
         )}
       />
 

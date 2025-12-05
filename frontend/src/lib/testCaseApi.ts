@@ -173,7 +173,15 @@ export const getCoverageStats = async (): Promise<CoverageStats> => {
 /**
  * Get untested test cases (gaps)
  */
-export const getUntestedCases = async (params?: { page?: number; size?: number }): Promise<PageResponse<TestCase>> => {
+export const getUntestedCases = async (params?: { 
+  page?: number; 
+  size?: number;
+  type?: string;
+  priority?: string;
+  teamId?: number;
+  status?: string;
+  search?: string;
+}): Promise<PageResponse<TestCase>> => {
   const response = await apiClient.get('/testcases/gaps', { params });
   return response.data as PageResponse<TestCase>;
 };

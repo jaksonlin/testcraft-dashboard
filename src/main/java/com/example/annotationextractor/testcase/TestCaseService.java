@@ -317,7 +317,17 @@ public class TestCaseService {
     }
 
     public int countUntestedCases() throws SQLException {
-        return testCaseRepository.countWithoutCoverage();
+        String organization = deriveOrganizationFromSystemSetting();
+        return testCaseRepository.countWithoutCoverage(organization, null, null, null, null, null);
+    }
+
+    /**
+     * Count untested cases with filters
+     */
+    public int countUntestedCases(String type, String priority, Long teamId, String status, String search)
+            throws SQLException {
+        String organization = deriveOrganizationFromSystemSetting();
+        return testCaseRepository.countWithoutCoverage(organization, type, priority, teamId, status, search);
     }
 
     /**
@@ -328,10 +338,17 @@ public class TestCaseService {
     }
 
     public List<TestCase> getUntestedCasesPaged(Integer page, Integer size) throws SQLException {
+        return getUntestedCasesPaged(page, size, null, null, null, null, null);
+    }
+
+    public List<TestCase> getUntestedCasesPaged(Integer page, Integer size, String type, String priority, Long teamId,
+            String status, String search) throws SQLException {
+        String organization = deriveOrganizationFromSystemSetting();
         int pageNum = page != null && page >= 0 ? page : 0;
         int pageSize = size != null && size > 0 ? size : 20;
         int offset = pageNum * pageSize;
-        return testCaseRepository.findWithoutCoveragePaged(offset, pageSize);
+        return testCaseRepository.findWithoutCoveragePaged(organization, type, priority, teamId, status, search, offset,
+                pageSize);
     }
 
     /**

@@ -16,7 +16,6 @@ const TestMethodsView: React.FC = () => {
   // Initialize filters from URL query parameters
   const getInitialFilters = () => {
     return {
-      organization: searchParams.get('org') || '',
       teamName: searchParams.get('team') || '',
       repositoryName: searchParams.get('repo') || '',
       packageName: searchParams.get('package') || '',
@@ -28,9 +27,6 @@ const TestMethodsView: React.FC = () => {
   };
 
   const [filters, setFilters] = useState(getInitialFilters);
-
-  // Organizations for dropdown
-  const [organizations, setOrganizations] = useState<string[]>([]);
 
   // Global statistics (not per-page)
   const [globalStats, setGlobalStats] = useState({
@@ -61,7 +57,7 @@ const TestMethodsView: React.FC = () => {
       const response = await api.dashboard.getTestMethodDetailsPaginated(
         page,
         size,
-        filtersToUse.organization || undefined,
+        undefined, // organization filter removed
         filtersToUse.teamName || undefined,
         filtersToUse.repositoryName || undefined,
         filtersToUse.packageName || undefined,
@@ -80,19 +76,6 @@ const TestMethodsView: React.FC = () => {
     initialPageSize: 50,
     initialFilters: filters
   });
-
-  // Load organizations on mount
-  React.useEffect(() => {
-    const loadOrganizations = async () => {
-      try {
-        const orgs = await api.dashboard.getOrganizations();
-        setOrganizations(orgs);
-      } catch (error) {
-        console.error('Failed to load organizations:', error);
-      }
-    };
-    loadOrganizations();
-  }, []);
 
   // Load global statistics
   React.useEffect(() => {
@@ -121,7 +104,6 @@ const TestMethodsView: React.FC = () => {
   // Clear all filters
   const clearAllFilters = useCallback(() => {
     const emptyFilters = {
-      organization: '',
       teamName: '',
       repositoryName: '',
       packageName: '',
@@ -215,7 +197,6 @@ const TestMethodsView: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams();
 
-    if (filters.organization) params.set('org', filters.organization);
     if (filters.teamName) params.set('team', filters.teamName);
     if (filters.repositoryName) params.set('repo', filters.repositoryName);
     if (filters.packageName) params.set('package', filters.packageName);
@@ -411,22 +392,7 @@ const TestMethodsView: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
 
           {/* Primary Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Organization
-              </label>
-              <select
-                value={filters.organization}
-                onChange={(e) => handleFilterChange({ organization: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Organizations</option>
-                {organizations.map(org => (
-                  <option key={org} value={org}>{org}</option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Team
@@ -514,14 +480,9 @@ const TestMethodsView: React.FC = () => {
           </div>
 
           {/* Active Filters Display */}
-          {(filters.organization || filters.teamName || filters.repositoryName || filters.packageName || filters.className || filters.codePattern || filters.annotated !== undefined) && (
+          {(filters.teamName || filters.repositoryName || filters.packageName || filters.className || filters.codePattern || filters.annotated !== undefined) && (
             <div className="mt-4 flex items-center gap-2 flex-wrap">
               <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
-              {filters.organization && (
-                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
-                  Org: {filters.organization}
-                </span>
-              )}
               {filters.teamName && (
                 <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
                   Team: {filters.teamName}

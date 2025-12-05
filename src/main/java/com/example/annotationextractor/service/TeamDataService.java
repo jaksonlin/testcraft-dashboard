@@ -132,7 +132,7 @@ public class TeamDataService {
                 
                 return summary;
             })
-            .sorted((a, b) -> Integer.compare(b.getRepositoryCount(), a.getRepositoryCount()))
+            .sorted((a, b) -> Integer.compare(b.getTotalTestMethods(), a.getTotalTestMethods()))
             .limit(limit)
             .collect(Collectors.toList());
     }

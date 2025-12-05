@@ -492,16 +492,58 @@ public class TestCaseRepository {
      * Count test cases without coverage
      */
     public int countWithoutCoverage() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM test_cases tc " +
-                "LEFT JOIN test_case_coverage tcc ON tc.internal_id = tcc.test_case_internal_id " +
-                "WHERE tcc.test_case_internal_id IS NULL";
+        return countWithoutCoverage(null, null, null, null, null, null);
+    }
+
+    /**
+     * Count test cases without coverage with filters
+     */
+    public int countWithoutCoverage(String organization, String type, String priority, Long teamId, String status,
+            String search) throws SQLException {
+        StringBuilder sql = new StringBuilder(
+                "SELECT COUNT(*) FROM test_cases tc " +
+                        "LEFT JOIN test_case_coverage tcc ON tc.internal_id = tcc.test_case_internal_id " +
+                        "WHERE tcc.test_case_internal_id IS NULL");
+        List<Object> params = new ArrayList<>();
+
+        if (organization != null) {
+            sql.append(" AND tc.organization = ?");
+            params.add(organization);
+        }
+        if (type != null) {
+            sql.append(" AND tc.type = ?");
+            params.add(type);
+        }
+        if (priority != null) {
+            sql.append(" AND tc.priority = ?");
+            params.add(priority);
+        }
+        if (teamId != null) {
+            sql.append(" AND tc.team_id = ?");
+            params.add(teamId);
+        }
+        if (status != null) {
+            sql.append(" AND tc.status = ?");
+            params.add(status);
+        }
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (LOWER(tc.external_id) LIKE ? OR LOWER(tc.title) LIKE ?)");
+            String searchPattern = "%" + search.toLowerCase() + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
+        }
 
         try (Connection conn = DatabaseConfig.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(sql);
-                ResultSet rs = stmt.executeQuery()) {
+                PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
 
-            if (rs.next()) {
-                return rs.getInt(1);
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
             }
         }
 
@@ -535,17 +577,60 @@ public class TestCaseRepository {
      * Find untested cases with pagination
      */
     public List<TestCase> findWithoutCoveragePaged(int offset, int limit) throws SQLException {
-        String sql = "SELECT tc.* FROM test_cases tc " +
-                "LEFT JOIN test_case_coverage tcc ON tc.internal_id = tcc.test_case_internal_id " +
-                "WHERE tcc.test_case_internal_id IS NULL " +
-                "ORDER BY tc.priority DESC, tc.internal_id OFFSET ? LIMIT ?";
+        return findWithoutCoveragePaged(null, null, null, null, null, null, offset, limit);
+    }
+
+    /**
+     * Find untested cases with pagination and filters
+     */
+    public List<TestCase> findWithoutCoveragePaged(String organization, String type, String priority, Long teamId,
+            String status, String search, int offset, int limit) throws SQLException {
+        StringBuilder sql = new StringBuilder(
+                "SELECT tc.*, COALESCE(t.team_name, tc.team_name) as team_name FROM test_cases tc " +
+                        "LEFT JOIN teams t ON tc.team_id = t.id " +
+                        "LEFT JOIN test_case_coverage tcc ON tc.internal_id = tcc.test_case_internal_id " +
+                        "WHERE tcc.test_case_internal_id IS NULL");
+        List<Object> params = new ArrayList<>();
+
+        if (organization != null) {
+            sql.append(" AND tc.organization = ?");
+            params.add(organization);
+        }
+        if (type != null) {
+            sql.append(" AND tc.type = ?");
+            params.add(type);
+        }
+        if (priority != null) {
+            sql.append(" AND tc.priority = ?");
+            params.add(priority);
+        }
+        if (teamId != null) {
+            sql.append(" AND tc.team_id = ?");
+            params.add(teamId);
+        }
+        if (status != null) {
+            sql.append(" AND tc.status = ?");
+            params.add(status);
+        }
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append(" AND (LOWER(tc.external_id) LIKE ? OR LOWER(tc.title) LIKE ?)");
+            String searchPattern = "%" + search.toLowerCase() + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
+        }
+
+        sql.append(" ORDER BY tc.priority DESC, tc.internal_id OFFSET ? LIMIT ?");
+        params.add(offset);
+        params.add(limit);
 
         List<TestCase> testCases = new ArrayList<>();
 
         try (Connection conn = DatabaseConfig.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, offset);
-            stmt.setInt(2, limit);
+                PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                stmt.setObject(i + 1, params.get(i));
+            }
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {

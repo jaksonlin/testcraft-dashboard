@@ -301,14 +301,21 @@ public class TestCaseController {
      * GET /api/testcases/gaps
      */
     @GetMapping("/gaps")
-    public ResponseEntity<?> getUntestedCases(@RequestParam(required = false) Integer page,
+    public ResponseEntity<?> getUntestedCases(
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) Long teamId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
         try {
             int pageNum = page != null && page >= 0 ? page : 0;
             int pageSize = size != null && size > 0 ? size : 20;
 
-            List<TestCase> untested = testCaseService.getUntestedCasesPaged(pageNum, pageSize);
-            int total = testCaseService.countUntestedCases();
+            List<TestCase> untested = testCaseService.getUntestedCasesPaged(pageNum, pageSize, type, priority, teamId,
+                    status, search);
+            int total = testCaseService.countUntestedCases(type, priority, teamId, status, search);
 
             return ResponseEntity.ok(Map.of(
                     "content", untested,

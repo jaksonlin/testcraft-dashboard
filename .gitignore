@@ -57,3 +57,6 @@ deployment/nginx/ssl/*.crt
 testcraft-images-20251020.tar
 
 .playwright-mcp
+
+deployment/production-images/
+deployment/*.tar.gz
