@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy package files
 COPY frontend/package*.json ./
-COPY frontend/scripts ./scripts
+
 
 # Install dependencies
 RUN npm ci
@@ -26,7 +26,7 @@ WORKDIR /app
 
 # Copy package files
 COPY frontend/package*.json ./
-COPY frontend/scripts ./scripts
+
 
 # Install dependencies (including devDependencies)
 RUN npm ci
@@ -37,7 +37,7 @@ COPY frontend/ .
 # Build the application
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 # Production Stage
 FROM nginx:alpine AS production

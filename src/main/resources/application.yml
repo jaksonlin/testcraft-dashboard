@@ -7,6 +7,12 @@ spring:
   application:
     name: testcraft-dashboard
   
+  # Multipart file upload configuration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  
   # Database configuration - matches existing database.properties
   datasource:
     url: jdbc:postgresql://localhost:5432/test_analytics_v2
@@ -64,6 +70,12 @@ testcraft:
   scanning:
     temp-clone-mode: false
     max-repositories-per-scan: 100
+    
+  # Security configuration
+  security:
+    jwt:
+      # 24 hours in milliseconds
+      validity-ms: 86400000
     
 # Logging configuration
 logging:

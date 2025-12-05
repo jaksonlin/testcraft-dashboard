@@ -118,6 +118,21 @@ Add to `.vscode/launch.json`:
 }
 ```
 
+## 🔍 Debug Endpoints
+
+The backend exposes several debug endpoints to help verify the system state:
+
+### Database & Connection
+- `GET /debug/database-info`: Check database connection status
+- `GET /debug/table-counts`: View record counts for key tables
+
+### Repository Data
+- `GET /debug/repositories-raw`: List all repositories directly from the database
+- `GET /debug/repository/{id}/test-methods-raw`: View test methods for a specific repository
+  - Shows data for the **latest completed scan session**
+  - Includes comparison counts from recent sessions
+  - Useful for verifying data ingestion without UI filtering logic
+
 ## 🔍 Troubleshooting
 
 ### Restart not happening?

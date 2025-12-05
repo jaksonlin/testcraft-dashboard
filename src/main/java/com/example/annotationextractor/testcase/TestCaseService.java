@@ -10,6 +10,8 @@ import java.sql.SQLException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -165,36 +167,67 @@ public class TestCaseService {
         int linked = 0;
         String effectiveOrganization = deriveOrganizationFromSystemSetting();
 
-        for (TestMethodInfo method : testMethods) {
-            String[] testCaseIds = method.getTestCaseIds();
+        // Process in batches to avoid memory issues and huge transactions
+        int batchSize = 1000;
+        for (int i = 0; i < testMethods.size(); i += batchSize) {
+            int end = Math.min(i + batchSize, testMethods.size());
+            List<TestMethodInfo> batch = testMethods.subList(i, end);
 
-            if (testCaseIds != null && testCaseIds.length > 0) {
-                for (String externalTestCaseId : testCaseIds) {
-                    TestCase testCase = null;
-
-                    if (effectiveOrganization != null && !effectiveOrganization.isEmpty()) {
-                        // Prefer org-aware lookup to avoid cross-tenant linking
-                        testCase = testCaseRepository.findByExternalId(externalTestCaseId, effectiveOrganization);
-                    }
-
-                    if (testCase == null) {
-                        // Fallback to legacy lookup when org cannot be determined
-                        testCase = testCaseRepository.findByIdLegacy(externalTestCaseId);
-                    }
-
-                    if (testCase != null && testCase.getInternalId() != null) {
-                        // Link using internal ID
-                        testCaseRepository.linkTestCaseToMethod(
-                                testCase.getInternalId(),
-                                repositoryName,
-                                method.getPackageName(),
-                                method.getClassName(),
-                                method.getMethodName(),
-                                method.getFilePath(),
-                                method.getLineNumber());
-                        linked++;
+            // 1. Collect all external IDs in this batch
+            List<String> externalIds = new ArrayList<>();
+            for (TestMethodInfo method : batch) {
+                if (method.getTestCaseIds() != null) {
+                    for (String id : method.getTestCaseIds()) {
+                        if (id != null && !id.trim().isEmpty()) {
+                            externalIds.add(id.trim());
+                        }
                     }
                 }
+            }
+
+            if (externalIds.isEmpty()) {
+                continue;
+            }
+
+            // 2. Bulk lookup internal IDs
+            Map<String, Long> idMap = new HashMap<>();
+            if (effectiveOrganization != null && !effectiveOrganization.isEmpty()) {
+                idMap = testCaseRepository.findInternalIdsByExternalIds(externalIds, effectiveOrganization);
+            }
+
+            // 3. Prepare link objects
+            List<TestCaseRepository.TestCaseLinkDto> linksToInsert = new ArrayList<>();
+            for (TestMethodInfo method : batch) {
+                if (method.getTestCaseIds() != null) {
+                    for (String externalId : method.getTestCaseIds()) {
+                        Long internalId = idMap.get(externalId);
+
+                        // Fallback for legacy support if not found in org
+                        if (internalId == null) {
+                            TestCase legacyCase = testCaseRepository.findByIdLegacy(externalId);
+                            if (legacyCase != null) {
+                                internalId = legacyCase.getInternalId();
+                            }
+                        }
+
+                        if (internalId != null) {
+                            linksToInsert.add(new TestCaseRepository.TestCaseLinkDto(
+                                    internalId,
+                                    repositoryName,
+                                    method.getPackageName(),
+                                    method.getClassName(),
+                                    method.getMethodName(),
+                                    method.getFilePath(),
+                                    method.getLineNumber()));
+                            linked++;
+                        }
+                    }
+                }
+            }
+
+            // 4. Batch insert
+            if (!linksToInsert.isEmpty()) {
+                testCaseRepository.batchLinkTestCaseToMethod(linksToInsert);
             }
         }
 

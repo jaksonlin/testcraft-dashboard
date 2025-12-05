@@ -140,6 +140,8 @@ public class JdbcTestClassAdapter implements TestClassPort {
             referencedTypes
         );
     }
+
+
 }
 
 

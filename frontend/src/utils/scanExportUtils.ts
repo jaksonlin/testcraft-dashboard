@@ -1,13 +1,14 @@
 import { type ScanSession } from '../lib/api';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 export const exportScanDataToCSV = (scan: ScanSession): void => {
-  const coverageRate = scan.totalTestMethods > 0 
-    ? ((scan.totalAnnotatedMethods / scan.totalTestMethods) * 100).toFixed(1) 
+  const coverageRate = scan.totalTestMethods > 0
+    ? ((scan.totalAnnotatedMethods / scan.totalTestMethods) * 100).toFixed(1)
     : '0.0';
-  
+
   let csvContent = '';
-  
+
   // Scan Information
   csvContent += 'Scan Session Export\n';
   csvContent += 'Scan Information\n';
@@ -16,34 +17,39 @@ export const exportScanDataToCSV = (scan: ScanSession): void => {
   csvContent += `Scan Directory,"${scan.scanDirectory}"\n`;
   csvContent += `Scan Status,"${scan.scanStatus}"\n`;
   csvContent += '\n';
-  
+
   // Scan Results
   csvContent += 'Scan Results\n';
   csvContent += 'Total Repositories,Total Test Classes,Total Test Methods,Total Annotated Methods,Coverage Rate,Scan Duration (ms)\n';
   csvContent += `${scan.totalRepositories},${scan.totalTestClasses},${scan.totalTestMethods},${scan.totalAnnotatedMethods},${coverageRate}%,${scan.scanDurationMs}\n`;
-  
+
   // Coverage Analysis
   csvContent += '\nCoverage Analysis\n';
   csvContent += 'Annotated Methods,Remaining Methods,Coverage Rate\n';
   csvContent += `${scan.totalAnnotatedMethods},${scan.totalTestMethods - scan.totalAnnotatedMethods},${coverageRate}%\n`;
-  
+
   // Error Log if present
   if (scan.errorLog) {
     csvContent += '\nError Log\n';
     csvContent += 'Error Details\n';
     csvContent += `"${scan.errorLog.replace(/"/g, '""')}"\n`;
   }
-  
+
   downloadFile(csvContent, `scan-${scan.id}-${new Date(scan.scanDate).toISOString().split('T')[0]}.csv`, 'text/csv');
 };
 
-export const exportScanDataToExcel = (scan: ScanSession): void => {
-  const workbook = XLSX.utils.book_new();
-  const coverageRate = scan.totalTestMethods > 0 
-    ? ((scan.totalAnnotatedMethods / scan.totalTestMethods) * 100).toFixed(1) 
+export const exportScanDataToExcel = async (scan: ScanSession): Promise<void> => {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'TestCraft Dashboard';
+  workbook.created = new Date();
+
+  const coverageRate = scan.totalTestMethods > 0
+    ? ((scan.totalAnnotatedMethods / scan.totalTestMethods) * 100).toFixed(1)
     : '0.0';
-  
+
   // Scan Information Sheet
+  const sheet = workbook.addWorksheet('Scan Details');
+
   const scanInfoData = [
     ['Scan Information', ''],
     ['Scan ID', scan.id],
@@ -64,19 +70,25 @@ export const exportScanDataToExcel = (scan: ScanSession): void => {
     ['Remaining Methods', scan.totalTestMethods - scan.totalAnnotatedMethods],
     ['Coverage Percentage', `${coverageRate}%`]
   ];
-  
+
   if (scan.errorLog) {
     scanInfoData.push(['', '']);
     scanInfoData.push(['Error Log', '']);
     scanInfoData.push(['Error Details', scan.errorLog]);
   }
-  
-  const scanInfoSheet = XLSX.utils.aoa_to_sheet(scanInfoData);
-  XLSX.utils.book_append_sheet(workbook, scanInfoSheet, 'Scan Details');
-  
+
+  scanInfoData.forEach(row => sheet.addRow(row));
+
+  // Style header
+  sheet.getColumn(1).width = 25;
+  sheet.getColumn(2).width = 40;
+  sheet.getRow(1).font = { bold: true, size: 14 };
+
   // Download the file
   const filename = `scan-${scan.id}-${new Date(scan.scanDate).toISOString().split('T')[0]}.xlsx`;
-  XLSX.writeFile(workbook, filename);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, filename);
 };
 
 const formatDuration = (ms: number): string => {
@@ -89,16 +101,6 @@ const formatDuration = (ms: number): string => {
 
 const downloadFile = (content: string, filename: string, mimeType: string): void => {
   const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
-  link.style.visibility = 'hidden';
-  
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  
-  URL.revokeObjectURL(url);
+  saveAs(blob, filename);
 };
+

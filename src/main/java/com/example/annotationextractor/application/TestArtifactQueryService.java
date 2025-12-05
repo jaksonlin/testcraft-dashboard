@@ -23,7 +23,8 @@ public class TestArtifactQueryService {
         return testClassPort.findByRepositoryIdAndScanSessionId(repositoryId, scanSessionId);
     }
 
-    public Optional<TestClass> listClassByRepositoryIdAndScanSessionIdAndFilePath(Long repositoryId, Long scanSessionId, String filePath) {
+    public Optional<TestClass> listClassByRepositoryIdAndScanSessionIdAndFilePath(Long repositoryId, Long scanSessionId,
+            String filePath) {
         return testClassPort.findByRepositoryIdAndScanSessionIdAndFilePath(repositoryId, scanSessionId, filePath);
     }
 
@@ -51,7 +52,8 @@ public class TestArtifactQueryService {
         return testMethodPort.findAnnotatedByRepositoryAndScanSessionId(repositoryId, scanSessionId);
     }
 
-    public List<TestMethodDetailRecord> listTestMethodDetailsByTeamIdAndScanSessionId(Long teamId, Long scanSessionId, Integer limit) {
+    public List<TestMethodDetailRecord> listTestMethodDetailsByTeamIdAndScanSessionId(Long teamId, Long scanSessionId,
+            Integer limit) {
         return testMethodPort.findTestMethodDetailsByTeamIdAndScanSessionId(teamId, scanSessionId, limit);
     }
 
@@ -59,15 +61,14 @@ public class TestArtifactQueryService {
         return testMethodPort.countByTeamIdAndScanSessionId(teamId, scanSessionId);
     }
 
-    public List<TestMethodDetailRecord> listTestMethodDetailsByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId, Integer limit) {
+    public List<TestMethodDetailRecord> listTestMethodDetailsByRepositoryIdAndScanSessionId(Long repositoryId,
+            Long scanSessionId, Integer limit) {
         return testMethodPort.findTestMethodDetailsByRepositoryIdAndScanSessionId(repositoryId, scanSessionId, limit);
     }
 
     public long countTestMethodDetailsByRepositoryIdAndScanSessionId(Long repositoryId, Long scanSessionId) {
         return testMethodPort.countByRepositoryIdAndScanSessionId(repositoryId, scanSessionId);
     }
-
-    
 
     public List<TestMethodDetailRecord> listTestMethodDetailsByClassId(Long classId, Integer limit) {
         return testMethodPort.findTestMethodDetailsByClassId(classId, limit);
@@ -76,18 +77,18 @@ public class TestArtifactQueryService {
     public long countTestMethodDetailsByClassId(Long classId) {
         return testMethodPort.countByClassId(classId);
     }
-    
 
     public List<TestMethodDetailRecord> listTestMethodDetailsByScanSessionId(Long scanSessionId, Integer limit) {
         return testMethodPort.findTestMethodDetailsByScanSessionId(scanSessionId, limit);
     }
-    
+
     public long countTestMethodDetailsByScanSessionId(Long scanSessionId) {
         return testMethodPort.countByScanSessionId(scanSessionId);
     }
-    
+
     /**
-     * List test method details with DATABASE-level filtering (no client-side filtering)
+     * List test method details with DATABASE-level filtering (no client-side
+     * filtering)
      * All filters are applied via SQL WHERE clauses for optimal performance
      */
     public List<TestMethodDetailRecord> listTestMethodDetailsWithFilters(
@@ -103,15 +104,31 @@ public class TestArtifactQueryService {
             Integer limit) {
         // Cast to concrete implementation to access new method
         if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
-            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
-                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
             return adapter.findTestMethodDetailsWithFilters(
-                scanSessionId, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern, offset, limit);
+                    scanSessionId, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern,
+                    offset, limit);
         }
         // Fallback for other implementations (shouldn't happen)
         return List.of();
     }
-    
+
+    public List<TestMethodDetailRecord> listTestMethodDetailsWithFilters(
+            java.util.Map<Long, Long> latestSessions,
+            String teamName,
+            String repositoryName,
+            String packageName,
+            String className,
+            Boolean annotated,
+            String searchTerm,
+            String codePattern,
+            Integer offset,
+            Integer limit) {
+        return testMethodPort.findTestMethodDetailsWithFilters(
+                latestSessions, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern,
+                offset, limit);
+    }
+
     /**
      * Count test method details with filters for pagination
      */
@@ -126,55 +143,79 @@ public class TestArtifactQueryService {
             String codePattern) {
         // Cast to concrete implementation to access new method
         if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
-            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
-                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
             return adapter.countTestMethodDetailsWithFilters(
-                scanSessionId, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
+                    scanSessionId, teamName, repositoryName, packageName, className, annotated, searchTerm,
+                    codePattern);
         }
         // Fallback for other implementations (shouldn't happen)
         return 0;
     }
 
+    public long countTestMethodDetailsWithFilters(
+            java.util.Map<Long, Long> latestSessions,
+            String teamName,
+            String repositoryName,
+            String packageName,
+            String className,
+            Boolean annotated,
+            String searchTerm,
+            String codePattern) {
+        return testMethodPort.countTestMethodDetailsWithFilters(
+                latestSessions, teamName, repositoryName, packageName, className, annotated, searchTerm, codePattern);
+    }
+
     public Optional<TestMethod> getTestMethodById(Long methodId) {
         return testMethodPort.findById(methodId);
     }
-    
+
     /**
      * Get hierarchical summary grouped by teams
      */
     public List<java.util.Map<String, Object>> getHierarchyByTeam(Long scanSessionId) {
         if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
-            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
-                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
             return adapter.getHierarchyByTeam(scanSessionId);
         }
         return java.util.List.of();
     }
-    
+
+    public List<java.util.Map<String, Object>> getHierarchyByTeam(java.util.Map<Long, Long> latestSessions) {
+        return testMethodPort.getHierarchyByTeam(latestSessions);
+    }
+
     /**
      * Get hierarchical summary grouped by packages within a team
      */
     public List<java.util.Map<String, Object>> getHierarchyByPackage(Long scanSessionId, String teamName) {
         if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
-            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
-                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
             return adapter.getHierarchyByPackage(scanSessionId, teamName);
         }
         return java.util.List.of();
     }
-    
+
+    public List<java.util.Map<String, Object>> getHierarchyByPackage(java.util.Map<Long, Long> latestSessions,
+            String teamName) {
+        return testMethodPort.getHierarchyByPackage(latestSessions, teamName);
+    }
+
     /**
      * Get hierarchical summary grouped by classes within a package
      */
-    public List<java.util.Map<String, Object>> getHierarchyByClass(Long scanSessionId, String teamName, String packageName) {
+    public List<java.util.Map<String, Object>> getHierarchyByClass(Long scanSessionId, String teamName,
+            String packageName) {
         if (testMethodPort instanceof com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) {
-            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = 
-                (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
+            com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter adapter = (com.example.annotationextractor.adapters.persistence.jdbc.JdbcTestMethodAdapter) testMethodPort;
             return adapter.getHierarchyByClass(scanSessionId, teamName, packageName);
         }
         return java.util.List.of();
     }
 
+    public List<java.util.Map<String, Object>> getHierarchyByClass(java.util.Map<Long, Long> latestSessions,
+            String teamName,
+            String packageName) {
+        return testMethodPort.getHierarchyByClass(latestSessions, teamName, packageName);
+    }
+
 }
-
-

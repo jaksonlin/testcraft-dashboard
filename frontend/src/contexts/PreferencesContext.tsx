@@ -107,10 +107,10 @@ export const PreferencesProvider: React.FC<PreferencesProviderProps> = ({ childr
   // Apply theme to document using Tailwind's dark mode
   useEffect(() => {
     if (isLoaded) {
-      const effectiveTheme = preferences.theme === 'system' 
+      const effectiveTheme = preferences.theme === 'system'
         ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         : preferences.theme;
-      
+
       // Use Tailwind's dark mode class system
       if (effectiveTheme === 'dark') {
         document.documentElement.classList.add('dark');
@@ -175,6 +175,7 @@ export const PreferencesProvider: React.FC<PreferencesProviderProps> = ({ childr
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const usePreferences = (): PreferencesContextType => {
   const context = useContext(PreferencesContext);
   if (context === undefined) {
@@ -184,6 +185,7 @@ export const usePreferences = (): PreferencesContextType => {
 };
 
 // Hook for table-specific preferences
+// eslint-disable-next-line react-refresh/only-export-components
 export const useTablePreferences = (tableId: string) => {
   const { preferences, updateTablePreference } = usePreferences();
   const tablePrefs = preferences.tables[tableId] || { columns: [] };
@@ -203,13 +205,13 @@ export const useTablePreferences = (tableId: string) => {
     const columns = [...tablePrefs.columns];
     const [movedColumn] = columns.splice(fromIndex, 1);
     columns.splice(toIndex, 0, movedColumn);
-    
+
     // Update order numbers
     const reorderedColumns = columns.map((col, index) => ({
       ...col,
       order: index,
     }));
-    
+
     updateColumns(reorderedColumns);
   };
 

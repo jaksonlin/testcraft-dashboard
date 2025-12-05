@@ -3,7 +3,7 @@ target/
 dependency-reduced-pom.xml
 
 # Reports and logs
-reports/
+/reports/
 *.log
 
 # IDE files

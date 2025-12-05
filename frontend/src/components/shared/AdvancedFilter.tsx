@@ -52,7 +52,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
     onFilterChange({});
   };
 
-  const hasActiveFilters = searchTerm || Object.values(filterState).some(value => 
+  const hasActiveFilters = searchTerm || Object.values(filterState).some(value =>
     value !== null && value !== '' && (Array.isArray(value) ? value.length > 0 : true)
   );
 
@@ -107,7 +107,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
           </select>
         );
 
-      case 'multiselect':
+      case 'multiselect': {
         const multiValue = (value as string[]) || [];
         return (
           <div className="space-y-2">
@@ -129,6 +129,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
             ))}
           </div>
         );
+      }
 
       case 'range':
         return (
@@ -270,7 +271,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
                   if (value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
                     return null;
                   }
-                  
+
                   const filter = filters.find(f => f.id === key);
                   if (!filter) return null;
 

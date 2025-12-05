@@ -41,6 +41,22 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status;
+
+    // Handle 401 Unauthorized: Session expired or invalid credentials
+    if (status === 401) {
+      setAuthToken(null);
+      // Explicitly clear localStorage to prevent infinite redirect loops
+      window.localStorage.removeItem('testcraft-auth');
+
+      // Dispatch event for UI updates (e.g. clearing user state)
+      window.dispatchEvent(new CustomEvent('api:unauthorized'));
+      // Redirect to login if not already there
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+
+    // Handle 403 Forbidden: Access Denied (stay logged in)
     if (status === 403) {
       try {
         const detail = {
@@ -372,16 +388,16 @@ export const api = {
   dashboard: {
     getOverview: (): Promise<DashboardOverview> =>
       apiClient.get('/dashboard/overview').then(res => res.data),
-    
+
     getTeamMetrics: (): Promise<TeamSummary[]> =>
       apiClient.get('/dashboard/teams').then(res => res.data),
-    
+
     getRepositoryMetrics: (): Promise<RepositorySummary[]> =>
       apiClient.get('/dashboard/repositories').then(res => res.data),
-    
+
     getRepositoryDetails: (): Promise<RepositoryDetail[]> =>
       apiClient.get('/dashboard/repositories/details').then(res => res.data),
-    
+
     getTestMethodDetails: (teamId?: number, limit?: number): Promise<TestMethodDetail[]> => {
       const params = new URLSearchParams();
       if (teamId) params.append('teamId', teamId.toString());
@@ -389,19 +405,19 @@ export const api = {
       const queryString = params.toString();
       return apiClient.get(`/dashboard/test-methods/details${queryString ? `?${queryString}` : ''}`).then(res => res.data);
     },
-    
+
     getAllTestMethodDetails: (limit?: number): Promise<TestMethodDetail[]> =>
       apiClient.get(`/dashboard/test-methods/all${limit ? `?limit=${limit}` : ''}`).then(res => res.data),
-    
+
     // Paginated test method details for better performance (enhanced with more filters)
     getTestMethodDetailsPaginated: (
-      page: number, 
-      size: number, 
+      page: number,
+      size: number,
       organization?: string,
-      teamName?: string, 
-      repositoryName?: string, 
-      packageName?: string, 
-      className?: string, 
+      teamName?: string,
+      repositoryName?: string,
+      packageName?: string,
+      className?: string,
       annotated?: boolean,
       codePattern?: string
     ): Promise<PagedResponse<TestMethodDetail>> => {
@@ -417,7 +433,7 @@ export const api = {
       if (codePattern) params.append('codePattern', codePattern);
       return apiClient.get(`/dashboard/test-methods/paginated?${params.toString()}`).then(res => res.data);
     },
-    
+
     // Grouped test method details for hierarchical display (with backend filtering)
     getAllTestMethodDetailsGrouped: (limit?: number, searchTerm?: string, annotated?: boolean): Promise<GroupedTestMethodResponse> => {
       const params = new URLSearchParams();
@@ -426,7 +442,7 @@ export const api = {
       if (annotated !== undefined) params.append('annotated', annotated.toString());
       return apiClient.get(`/dashboard/test-methods/grouped?${params.toString()}`).then(res => res.data);
     },
-    
+
     // Get global test method statistics (not limited to current page)
     getGlobalTestMethodStats: (organization?: string, teamId?: number, repositoryName?: string, annotated?: boolean): Promise<{
       totalMethods: number;
@@ -442,11 +458,11 @@ export const api = {
       const queryString = params.toString();
       return apiClient.get(`/dashboard/test-methods/stats/global${queryString ? `?${queryString}` : ''}`).then(res => res.data);
     },
-    
+
     // Get distinct organizations for filter dropdown
     getOrganizations: (): Promise<string[]> =>
       apiClient.get('/dashboard/test-methods/organizations').then(res => res.data),
-    
+
     // Get hierarchical data for progressive loading
     getHierarchy: (level: 'TEAM' | 'PACKAGE' | 'CLASS', teamName?: string, packageName?: string): Promise<HierarchyNode[]> => {
       const params = new URLSearchParams();
@@ -467,10 +483,10 @@ export const api = {
 
     getPaginated: (page: number, size: number, search?: string, team?: string, coverage?: string, testMethods?: string, lastScan?: string, sortBy?: string, sortOrder?: string): Promise<PagedResponse<RepositorySummary>> =>
       apiClient.get(`/repositories/paginated?page=${page}&size=${size}${search ? `&search=${encodeURIComponent(search)}` : ''}${team ? `&team=${encodeURIComponent(team)}` : ''}${coverage ? `&coverage=${coverage}` : ''}${testMethods ? `&testMethods=${testMethods}` : ''}${lastScan ? `&lastScan=${lastScan}` : ''}${sortBy ? `&sortBy=${sortBy}` : ''}${sortOrder ? `&sortOrder=${sortOrder}` : ''}`).then(res => res.data),
-    
+
     getById: (id: number): Promise<RepositoryDetail> =>
       apiClient.get(`/repositories/${id}`).then(res => res.data),
-    
+
     getTestMethods: (repositoryId: number, limit?: number): Promise<TestMethodDetail[]> => {
       const params = new URLSearchParams();
       if (limit) params.append('limit', limit.toString());
@@ -487,10 +503,10 @@ export const api = {
 
     getClassMethods: (repositoryId: number, classId: number, limit: number = 200): Promise<TestMethodDetail[]> =>
       apiClient.get(`/repositories/${repositoryId}/classes/${classId}/methods?limit=${limit}`).then(res => res.data),
-    
+
     getByTeam: (teamId: number): Promise<RepositorySummary[]> =>
       apiClient.get(`/repositories/team/${teamId}`).then(res => res.data),
-    
+
     search: (name?: string, team?: string, coverage?: string): Promise<RepositorySummary[]> => {
       const params = new URLSearchParams();
       if (name) params.append('name', name);
@@ -505,7 +521,7 @@ export const api = {
   teams: {
     getAll: (): Promise<TeamMetrics[]> =>
       apiClient.get('/dashboard/teams').then(res => res.data),
-    
+
     getPaginated: (page: number, size: number, search?: string, sortBy?: string, sortOrder?: string): Promise<PagedResponse<TeamMetrics>> => {
       const params = new URLSearchParams();
       params.append('page', page.toString());
@@ -515,40 +531,40 @@ export const api = {
       if (sortOrder) params.append('sortOrder', sortOrder);
       return apiClient.get(`/teams/paginated?${params.toString()}`).then(res => res.data);
     },
-    
+
     getById: (id: number): Promise<TeamMetrics> =>
       apiClient.get(`/teams/${id}`).then(res => res.data),
-    
+
     getRepositories: (teamId: number): Promise<RepositorySummary[]> =>
       apiClient.get(`/teams/${teamId}/repositories`).then(res => res.data),
-    
+
     getComparison: (): Promise<TeamMetrics[]> =>
       apiClient.get('/teams/comparison').then(res => res.data),
   },
 
   // Scan endpoints
   scan: {
-    trigger: (): Promise<{ success: boolean; message: string; timestamp: number }> =>
-      apiClient.post('/scan/trigger').then(res => res.data),
-    
+    trigger: (repositoryIds?: number[]): Promise<{ success: boolean; message: string; timestamp: number }> =>
+      apiClient.post('/scan/trigger', { repositoryIds }).then(res => res.data),
+
     getStatus: (): Promise<ScanStatus> =>
       apiClient.get('/scan/status').then(res => res.data),
-    
+
     getConfig: (): Promise<ScanConfig> =>
       apiClient.get('/scan/config').then(res => res.data),
-    
+
     updateConfig: (config: Partial<ScanConfig>): Promise<{ success: boolean; message: string; timestamp: number }> =>
       apiClient.put('/scan/config', config).then(res => res.data),
-    
-        getSessions: (limit: number = 10): Promise<ScanSession[]> =>
-          apiClient.get(`/scan/sessions?limit=${limit}`).then(res => res.data),
-        
-        getHistory: (limit: number = 20): Promise<ScanSession[]> =>
-          apiClient.get(`/scan/sessions?limit=${limit}`).then(res => res.data),
-    
+
+    getSessions: (limit: number = 10): Promise<ScanSession[]> =>
+      apiClient.get(`/scan/sessions?limit=${limit}`).then(res => res.data),
+
+    getHistory: (limit: number = 20): Promise<ScanSession[]> =>
+      apiClient.get(`/scan/sessions?limit=${limit}`).then(res => res.data),
+
     getHealth: (): Promise<{ status: string; service: string; databaseAvailable: boolean; timestamp: number }> =>
       apiClient.get('/scan/health').then(res => res.data),
-    
+
     downloadReport: (scanId: number): Promise<Blob> =>
       apiClient.get(`/scan/${scanId}/report`, { responseType: 'blob' }).then(res => res.data),
   },
@@ -557,16 +573,16 @@ export const api = {
   analytics: {
     getDailyMetrics: (days: number = 30): Promise<DailyMetric[]> =>
       apiClient.get(`/analytics/daily-metrics?days=${days}`).then(res => res.data),
-    
+
     getCoverageTrend: (days: number = 30): Promise<{ date: string; coverage: number }[]> =>
       apiClient.get(`/analytics/coverage-trend?days=${days}`).then(res => res.data),
-    
+
     getTeamComparison: (): Promise<TeamMetrics[]> =>
       apiClient.get('/analytics/team-comparison').then(res => res.data),
-    
+
     getGrowthMetrics: (days: number = 30): Promise<{ date: string; repositories: number; testMethods: number; annotatedMethods: number }[]> =>
       apiClient.get(`/analytics/growth-metrics?days=${days}`).then(res => res.data),
-    
+
     getOverview: (): Promise<AnalyticsOverview> =>
       apiClient.get('/analytics/overview').then(res => res.data),
   },
@@ -575,7 +591,7 @@ export const api = {
   debug: {
     getDatabaseInfo: (): Promise<{ persistenceFacadeAvailable: boolean; status: string }> =>
       apiClient.get('/debug/database-info').then(res => res.data),
-    
+
     getTableCounts: (): Promise<{ repositories: number; teams: number; recentScanSessions: number; status: string }> =>
       apiClient.get('/debug/table-counts').then(res => res.data),
   },
@@ -584,16 +600,16 @@ export const api = {
   export: {
     initiate: (request: ExportRequest): Promise<ExportStatus> =>
       apiClient.post('/export/initiate', request).then(res => res.data),
-    
+
     getStatus: (jobId: string): Promise<ExportStatus> =>
       apiClient.get(`/export/status/${jobId}`).then(res => res.data),
-    
+
     download: (jobId: string): Promise<Blob> =>
       apiClient.get(`/export/download/${jobId}`, { responseType: 'blob' }).then(res => res.data),
-    
+
     cancel: (jobId: string): Promise<void> =>
       apiClient.delete(`/export/cancel/${jobId}`).then(res => res.data),
-    
+
     cleanup: (): Promise<void> =>
       apiClient.delete('/export/cleanup').then(res => res.data),
   },

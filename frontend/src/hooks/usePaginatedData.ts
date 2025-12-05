@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-interface UsePaginatedDataOptions<T> {
-  fetchFunction: (page: number, size: number, filters?: any) => Promise<{
+interface UsePaginatedDataOptions<T, F = Record<string, unknown>> {
+  fetchFunction: (page: number, size: number, filters?: F) => Promise<{
     content: T[];
     totalElements: number;
     page: number;
@@ -10,11 +10,11 @@ interface UsePaginatedDataOptions<T> {
   }>;
   initialPage?: number;
   initialPageSize?: number;
-  initialFilters?: any;
+  initialFilters?: F;
   debounceMs?: number;
 }
 
-interface UsePaginatedDataReturn<T> {
+interface UsePaginatedDataReturn<T, F = Record<string, unknown>> {
   data: T[];
   loading: boolean;
   error: string | null;
@@ -26,65 +26,66 @@ interface UsePaginatedDataReturn<T> {
   hasPrevious: boolean;
   setPage: (page: number) => void;
   setPageSize: (size: number) => void;
-  setFilters: (filters: any) => void;
+  setFilters: (filters: F) => void;
   refresh: () => void;
 }
 
-export const usePaginatedData = <T>({
+export const usePaginatedData = <T, F = Record<string, unknown>>({
   fetchFunction,
   initialPage = 0,
   initialPageSize = 50,
-  initialFilters = {},
+  initialFilters = {} as F,
   debounceMs = 300
-}: UsePaginatedDataOptions<T>): UsePaginatedDataReturn<T> => {
+}: UsePaginatedDataOptions<T, F>): UsePaginatedDataReturn<T, F> => {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
-  const [filters, setFilters] = useState(initialFilters);
+  const [filters, setFilters] = useState<F>(initialFilters);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
-  const fetchData = useCallback(async (page: number, size: number, currentFilters: any) => {
+  const fetchData = useCallback(async (page: number, size: number, currentFilters: F) => {
     // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     abortControllerRef.current = new AbortController();
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       const result = await fetchFunction(page, size, currentFilters);
-      
+
       if (!abortControllerRef.current.signal.aborted) {
         setData(result.content);
         setTotalElements(result.totalElements);
         setTotalPages(result.totalPages);
       }
-    } catch (err: any) {
-      if (!abortControllerRef.current.signal.aborted) {
-        setError(err.message || 'Failed to fetch data');
+    } catch (err: unknown) {
+      if (!abortControllerRef.current?.signal.aborted) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch data';
+        setError(errorMessage);
         console.error('Error fetching paginated data:', err);
       }
     } finally {
-      if (!abortControllerRef.current.signal.aborted) {
+      if (!abortControllerRef.current?.signal.aborted) {
         setLoading(false);
       }
     }
   }, [fetchFunction]);
 
-  const debouncedFetchData = useCallback((page: number, size: number, currentFilters: any) => {
+  const debouncedFetchData = useCallback((page: number, size: number, currentFilters: F) => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
-    
+
     debounceTimeoutRef.current = setTimeout(() => {
       fetchData(page, size, currentFilters);
     }, debounceMs);
@@ -101,7 +102,7 @@ export const usePaginatedData = <T>({
     debouncedFetchData(0, size, filters);
   }, [filters, debouncedFetchData]);
 
-  const handleSetFilters = useCallback((newFilters: any) => {
+  const handleSetFilters = useCallback((newFilters: F) => {
     setFilters(newFilters);
     setCurrentPage(0); // Reset to first page when changing filters
     debouncedFetchData(0, pageSize, newFilters);
@@ -114,7 +115,7 @@ export const usePaginatedData = <T>({
   // Initial load
   useEffect(() => {
     fetchData(currentPage, pageSize, filters);
-    
+
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();

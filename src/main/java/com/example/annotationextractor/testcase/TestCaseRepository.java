@@ -825,11 +825,112 @@ public class TestCaseRepository {
     }
 
     /**
+     * Bulk lookup for internal IDs by external IDs
+     */
+    public Map<String, Long> findInternalIdsByExternalIds(List<String> externalIds, String organization)
+            throws SQLException {
+        if (externalIds == null || externalIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        Map<String, Long> result = new HashMap<>();
+
+        // Create placeholders for IN clause
+        String placeholders = String.join(",", java.util.Collections.nCopies(externalIds.size(), "?"));
+        String sql = "SELECT external_id, internal_id FROM test_cases WHERE organization = ? AND external_id IN ("
+                + placeholders + ")";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, organization);
+            for (int i = 0; i < externalIds.size(); i++) {
+                stmt.setString(i + 2, externalIds.get(i));
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    result.put(rs.getString("external_id"), rs.getLong("internal_id"));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Batch insert/update test case coverage links
+     */
+    public void batchLinkTestCaseToMethod(List<TestCaseLinkDto> links) throws SQLException {
+        if (links == null || links.isEmpty()) {
+            return;
+        }
+
+        String sql = "INSERT INTO test_case_coverage " +
+                "(test_case_internal_id, repository_name, package_name, class_name, method_name, file_path, line_number) "
+                +
+                "VALUES (?, ?, ?, ?, ?, ?, ?) " +
+                "ON CONFLICT (test_case_internal_id, repository_name, package_name, class_name, method_name) " +
+                "DO UPDATE SET file_path = EXCLUDED.file_path, line_number = EXCLUDED.line_number, " +
+                "scan_date = CURRENT_TIMESTAMP";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            conn.setAutoCommit(false);
+
+            try {
+                for (TestCaseLinkDto link : links) {
+                    stmt.setLong(1, link.testCaseInternalId);
+                    stmt.setString(2, link.repositoryName);
+                    stmt.setString(3, link.packageName);
+                    stmt.setString(4, link.className);
+                    stmt.setString(5, link.methodName);
+                    stmt.setString(6, link.filePath);
+                    stmt.setInt(7, link.lineNumber);
+                    stmt.addBatch();
+                }
+
+                stmt.executeBatch();
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+    }
+
+    public static class TestCaseLinkDto {
+        public Long testCaseInternalId;
+        public String repositoryName;
+        public String packageName;
+        public String className;
+        public String methodName;
+        public String filePath;
+        public int lineNumber;
+
+        public TestCaseLinkDto(Long testCaseInternalId, String repositoryName, String packageName,
+                String className, String methodName, String filePath, int lineNumber) {
+            this.testCaseInternalId = testCaseInternalId;
+            this.repositoryName = repositoryName;
+            this.packageName = packageName;
+            this.className = className;
+            this.methodName = methodName;
+            this.filePath = filePath;
+            this.lineNumber = lineNumber;
+        }
+    }
+
+    /**
      * Fetch all test methods that have annotations
      * Used for refreshing coverage data
+     * Optimized to exclude method body content for memory efficiency
      */
     public List<TestMethodInfo> fetchAnnotatedTestMethods() throws SQLException {
-        String sql = "SELECT tm.*, r.repository_name, tc.package_name, tc.class_name, tc.file_path " +
+        String sql = "SELECT tm.method_name, tm.line_number, tm.method_loc, tm.annotation_data, " +
+                "r.repository_name, tc.package_name, tc.class_name, tc.file_path " +
                 "FROM test_methods tm " +
                 "JOIN test_classes tc ON tm.test_class_id = tc.id " +
                 "JOIN repositories r ON tc.repository_id = r.id " +
@@ -849,7 +950,7 @@ public class TestCaseRepository {
                 method.setFilePath(rs.getString("file_path"));
                 method.setLineNumber(rs.getInt("line_number"));
                 method.setMethodLoc(rs.getInt("method_loc"));
-                method.setMethodBodyContent(rs.getString("method_body_content"));
+                // method_body_content excluded for memory optimization
 
                 // Parse annotation data
                 String annotationJson = rs.getString("annotation_data");

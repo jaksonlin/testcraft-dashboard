@@ -4,17 +4,17 @@ import { ChevronRight, Home } from 'lucide-react';
 
 const BreadcrumbNavigation: React.FC = () => {
   const location = useLocation();
-  
+
   const getBreadcrumbs = () => {
     const pathSegments = location.pathname.split('/').filter(segment => segment !== '');
-    const breadcrumbs: { name: string; path: string; icon: React.ForwardRefExoticComponent<any> | null }[] = [
+    const breadcrumbs: { name: string; path: string; icon: React.ElementType | null }[] = [
       { name: 'Dashboard', path: '/', icon: Home }
     ];
-    
+
     let currentPath = '';
     pathSegments.forEach((segment) => {
       currentPath += `/${segment}`;
-      
+
       // Map segments to readable names
       let name = segment;
       if (segment === 'repositories') {
@@ -31,23 +31,23 @@ const BreadcrumbNavigation: React.FC = () => {
         // This is likely an ID, try to get repository name
         name = `Repository ${segment}`;
       }
-      
+
       breadcrumbs.push({
         name,
         path: currentPath,
         icon: null
       });
     });
-    
+
     return breadcrumbs;
   };
-  
+
   const breadcrumbs = getBreadcrumbs();
-  
+
   if (breadcrumbs.length <= 1) {
     return null; // Don't show breadcrumbs on dashboard
   }
-  
+
   return (
     <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
       {breadcrumbs.map((breadcrumb, index) => (

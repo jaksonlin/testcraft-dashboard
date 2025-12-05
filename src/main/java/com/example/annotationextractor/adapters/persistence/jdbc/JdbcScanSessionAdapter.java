@@ -16,7 +16,7 @@ public class JdbcScanSessionAdapter implements ScanSessionPort {
     public Optional<ScanSession> findById(Long id) {
         String sql = "SELECT * FROM scan_sessions WHERE id = ?";
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -34,8 +34,8 @@ public class JdbcScanSessionAdapter implements ScanSessionPort {
         String sql = "SELECT * FROM scan_sessions ORDER BY id DESC";
         List<ScanSession> result = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 result.add(mapRow(rs));
             }
@@ -50,7 +50,7 @@ public class JdbcScanSessionAdapter implements ScanSessionPort {
         String sql = "SELECT * FROM scan_sessions ORDER BY scan_date DESC LIMIT ?";
         List<ScanSession> result = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, limit);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -67,8 +67,8 @@ public class JdbcScanSessionAdapter implements ScanSessionPort {
     public Optional<ScanSession> findLatestCompleted() {
         String sql = "SELECT * FROM scan_sessions WHERE scan_status = 'COMPLETED' ORDER BY scan_date DESC LIMIT 1";
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
             if (rs.next()) {
                 return Optional.of(mapRow(rs));
             }
@@ -82,12 +82,31 @@ public class JdbcScanSessionAdapter implements ScanSessionPort {
     public long count() {
         String sql = "SELECT COUNT(*) FROM scan_sessions";
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
             if (rs.next()) {
                 return rs.getLong(1);
             }
             return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public Optional<Long> findLatestScanSessionIdForRepository(Long repositoryId) {
+        // Find the latest scan session that contains test classes for this repository
+        String sql = "SELECT MAX(scan_session_id) FROM test_classes WHERE repository_id = ?";
+        try (Connection conn = DatabaseConfig.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, repositoryId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    long id = rs.getLong(1);
+                    return rs.wasNull() ? Optional.empty() : Optional.of(id);
+                }
+                return Optional.empty();
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -107,20 +126,17 @@ public class JdbcScanSessionAdapter implements ScanSessionPort {
         String metadata = rs.getString("metadata");
         String reportFilePath = rs.getString("report_file_path");
         return new ScanSession(
-            id,
-            scanDate != null ? scanDate.toInstant() : null,
-            scanDirectory,
-            totalRepositories,
-            totalTestClasses,
-            totalTestMethods,
-            totalAnnotatedMethods,
-            scanDurationMs,
-            scanStatus,
-            errorLog,
-            metadata,
-            reportFilePath
-        );
+                id,
+                scanDate != null ? scanDate.toInstant() : null,
+                scanDirectory,
+                totalRepositories,
+                totalTestClasses,
+                totalTestMethods,
+                totalAnnotatedMethods,
+                scanDurationMs,
+                scanStatus,
+                errorLog,
+                metadata,
+                reportFilePath);
     }
 }
-
-

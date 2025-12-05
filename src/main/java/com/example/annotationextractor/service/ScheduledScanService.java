@@ -31,6 +31,7 @@ public class ScheduledScanService {
 
     private final ScanConfigService scanConfigService;
     private final TestCaseService testCaseService;
+    private final java.util.Optional<com.example.annotationextractor.application.PersistenceReadFacade> persistenceReadFacade;
 
     // Thread-safe state tracking
     private final AtomicBoolean isScanning = new AtomicBoolean(false);
@@ -38,9 +39,11 @@ public class ScheduledScanService {
     private final AtomicReference<String> lastScanStatus = new AtomicReference<>("Never run");
     private final AtomicReference<String> lastScanError = new AtomicReference<>();
 
-    public ScheduledScanService(ScanConfigService scanConfigService, TestCaseService testCaseService) {
+    public ScheduledScanService(ScanConfigService scanConfigService, TestCaseService testCaseService,
+            java.util.Optional<com.example.annotationextractor.application.PersistenceReadFacade> persistenceReadFacade) {
         this.scanConfigService = scanConfigService;
         this.testCaseService = testCaseService;
+        this.persistenceReadFacade = persistenceReadFacade;
     }
 
     /**
@@ -113,7 +116,7 @@ public class ScheduledScanService {
     /**
      * Manual scan trigger - can be called via REST API
      */
-    public boolean triggerManualScan() {
+    public boolean triggerManualScan(List<Long> repositoryIds) {
         logger.info("Starting manual repository scan");
 
         if (!isScanning.compareAndSet(false, true)) {
@@ -128,8 +131,27 @@ public class ScheduledScanService {
 
             ScanConfig config = scanConfigService.getCurrentConfig();
             List<ScanRepositoryEntry> repositoryEntries = extractActiveRepositories(config);
+
+            // Filter by repository IDs if provided
+            if (repositoryIds != null && !repositoryIds.isEmpty()) {
+                if (persistenceReadFacade.isPresent()) {
+                    java.util.Set<String> targetUrls = new java.util.HashSet<>();
+                    for (Long id : repositoryIds) {
+                        persistenceReadFacade.get().getRepositoryById(id)
+                                .ifPresent(repo -> targetUrls.add(repo.getGitUrl()));
+                    }
+
+                    repositoryEntries = repositoryEntries.stream()
+                            .filter(entry -> targetUrls.contains(entry.getRepositoryUrl()))
+                            .collect(Collectors.toList());
+                    logger.info("Filtering scan for {} repositories: {}", repositoryEntries.size(), repositoryIds);
+                } else {
+                    logger.warn("PersistenceReadFacade not available, cannot filter by ID. Scanning all.");
+                }
+            }
+
             if (repositoryEntries.isEmpty()) {
-                logger.warn("No repository entries configured; skipping manual scan.");
+                logger.warn("No repository entries configured or matched; skipping manual scan.");
                 lastScanStatus.set("Skipped (no repositories)");
                 return false;
             }
@@ -140,17 +162,45 @@ public class ScheduledScanService {
                     repositoryEntries,
                     config.getMaxRepositoriesPerScan());
 
-            boolean success = scanner.executeFullScan(config.isTempCloneMode());
-            if (success) {
-                lastScanStatus.set("Success");
-                logger.info("Manual scan completed successfully");
-
-                // Refresh test case coverage
-                testCaseService.refreshCoverage();
+            boolean success;
+            
+            // If repositoryIds are provided, this is a repository-level scan
+            // Merge results into the latest scan session instead of creating a new one
+            if (repositoryIds != null && !repositoryIds.isEmpty()) {
+                logger.info("Repository-level scan detected: merging results into latest scan session");
+                
+                // Find the latest scan session that contains these repositories, or use latest completed session
+                Long targetScanSessionId = findLatestScanSessionForRepositories(repositoryIds);
+                
+                success = scanner.executeRepositoryScan(config.isTempCloneMode(), targetScanSessionId, repositoryIds);
+                
+                if (success) {
+                    lastScanStatus.set("Success (merged into existing session)");
+                    logger.info("Manual repository-level scan completed successfully and merged into scan session: {}", targetScanSessionId);
+                    
+                    // Refresh test case coverage
+                    testCaseService.refreshCoverage();
+                } else {
+                    lastScanStatus.set("Failed");
+                    logger.error("Manual repository-level scan failed");
+                }
             } else {
-                lastScanStatus.set("Failed");
-                logger.error("Manual scan failed");
+                // Full scan: create a new scan session as before
+                logger.info("Full scan detected: creating new scan session");
+                success = scanner.executeFullScan(config.isTempCloneMode());
+                
+                if (success) {
+                    lastScanStatus.set("Success");
+                    logger.info("Manual scan completed successfully");
+
+                    // Refresh test case coverage
+                    testCaseService.refreshCoverage();
+                } else {
+                    lastScanStatus.set("Failed");
+                    logger.error("Manual scan failed");
+                }
             }
+            
             return success;
 
         } catch (SQLException e) {
@@ -171,6 +221,13 @@ public class ScheduledScanService {
         } finally {
             isScanning.set(false);
         }
+    }
+
+    /**
+     * Overload for backward compatibility
+     */
+    public boolean triggerManualScan() {
+        return triggerManualScan(null);
     }
 
     /**
@@ -230,6 +287,43 @@ public class ScheduledScanService {
         return config.getRepositories().stream()
                 .filter(ScanRepositoryEntry::isActive)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Find the latest scan session that contains data for the specified repositories.
+     * Falls back to the latest completed scan session if no repository-specific session is found.
+     */
+    private Long findLatestScanSessionForRepositories(List<Long> repositoryIds) {
+        if (persistenceReadFacade.isEmpty() || repositoryIds == null || repositoryIds.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Try to find the latest scan session that has data for these repositories
+            for (Long repositoryId : repositoryIds) {
+                java.util.Optional<Long> sessionId = persistenceReadFacade.get()
+                        .getLatestScanSessionIdForRepository(repositoryId);
+                if (sessionId.isPresent()) {
+                    logger.info("Found scan session {} for repository {}", sessionId.get(), repositoryId);
+                    // Use the first found session (should be consistent across repositories in aggregation)
+                    return sessionId.get();
+                }
+            }
+            
+            // Fallback: use the latest completed scan session
+            java.util.Optional<com.example.annotationextractor.domain.model.ScanSession> latestSession = 
+                    persistenceReadFacade.get().getLatestCompletedScanSession();
+            if (latestSession.isPresent()) {
+                logger.info("Using latest completed scan session: {}", latestSession.get().getId());
+                return latestSession.get().getId();
+            }
+            
+            logger.warn("No scan session found for repositories, will create a new one if needed");
+            return null;
+        } catch (Exception e) {
+            logger.error("Error finding scan session for repositories: {}", e.getMessage(), e);
+            return null;
+        }
     }
 
     /**

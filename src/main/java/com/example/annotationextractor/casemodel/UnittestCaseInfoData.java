@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * Data model to hold all the extracted values from UnittestCaseInfo annotation
  */
@@ -175,6 +177,7 @@ public class UnittestCaseInfoData {
      * 
      * @return Array of test case IDs from either testCaseIds or tags
      */
+    @JsonIgnore
     public String[] getAllTestCaseIds() {
         // If the new field is populated, use it
         if (testCaseIds != null && testCaseIds.length > 0) {
