@@ -14,6 +14,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_test_classes_session_repo_class_package_pat
 
 -- Add comment explaining the constraint
 COMMENT ON INDEX ux_test_classes_session_repo_class_package_path IS 
-    'Ensures uniqueness per scan session: repository, class name, package, and file path. ' ||
-    'Allows same class name/package in different files within the same repository.';
+    'Ensures uniqueness per scan session: repository, class name, package, and file path. Allows same class name/package in different files within the same repository.';
 

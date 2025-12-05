@@ -235,6 +235,34 @@ public class TestClassParser {
     }
     
     /**
+     * Normalize file path to be relative to repository root and use forward slashes.
+     * This ensures OS-independent path format in the database.
+     * 
+     * @param filePath The absolute file path
+     * @param repositoryRoot The repository root path
+     * @return Normalized relative path with forward slashes (e.g., "src/test/java/Test.java")
+     */
+    private static String normalizeFilePath(Path filePath, Path repositoryRoot) {
+        if (repositoryRoot == null || filePath == null) {
+            // Fallback: return path as-is, but normalize separators
+            return filePath != null ? filePath.toString().replace('\\', '/') : "";
+        }
+        
+        try {
+            // Make path relative to repository root
+            Path normalizedFile = filePath.toAbsolutePath().normalize();
+            Path normalizedRoot = repositoryRoot.toAbsolutePath().normalize();
+            Path relativePath = normalizedRoot.relativize(normalizedFile);
+            
+            // Convert to string and normalize separators to forward slashes
+            return relativePath.toString().replace('\\', '/');
+        } catch (Exception e) {
+            // Fallback: return path as-is, but normalize separators
+            return filePath.toString().replace('\\', '/');
+        }
+    }
+    
+    /**
      * Visitor class to traverse the AST and extract test method information
      */
     private static class TestClassVisitor extends VoidVisitorAdapter<Void> {
@@ -302,7 +330,8 @@ public class TestClassParser {
                     System.out.println("✅ Processing test class: " + className);
                     testClassInfo.setClassName(classDecl.getNameAsString());
                     testClassInfo.setPackageName(packageName);
-                    testClassInfo.setFilePath(filePath.toString());
+                    // Normalize file path to be relative to repository root with forward slashes (OS-independent)
+                    testClassInfo.setFilePath(normalizeFilePath(filePath, activeRepositoryRoot));
                     testClassInfo.setClassLineNumber(classLineNumber);
                     // Store the entire file content
                     testClassInfo.setTestClassContent(fileContent);
@@ -326,7 +355,8 @@ public class TestClassParser {
                     TestHelperClassInfo helperClass = new TestHelperClassInfo();
                     helperClass.setClassName(className);
                     helperClass.setPackageName(packageName);
-                    helperClass.setFilePath(filePath.toString());
+                    // Normalize file path to be relative to repository root with forward slashes (OS-independent)
+                    helperClass.setFilePath(normalizeFilePath(filePath, activeRepositoryRoot));
                     helperClass.setClassLineNumber(classLineNumber);
                     // Store full file content for each helper class in the file
                     helperClass.setHelperClassContent(fileContent);

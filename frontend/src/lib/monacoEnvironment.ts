@@ -1,3 +1,4 @@
+import { loader } from '@monaco-editor/react';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
@@ -5,6 +6,7 @@ import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 
 let isConfigured = false;
+let monacoLoadPromise: Promise<typeof import('monaco-editor')> | null = null;
 
 // Debug flag - set to true to enable verbose logging
 const DEBUG = true;
@@ -19,18 +21,27 @@ const debugError = (...args: unknown[]) => {
   console.error('[Monaco Debug Error]', ...args);
 };
 
-/**
- * Ensure Monaco environment is set up with bundled worker configuration.
- * This uses Vite's bundled workers for reliable offline functionality.
- * 
- * @monaco-editor/react will handle Monaco loading automatically.
- * We only need to configure the workers.
- */
+// Configure loader to use local Monaco assets from /monaco/vs
+// This prevents it from trying to load from https://cdn.jsdelivr.net/
+// The assets are copied by the prepare script from node_modules/monaco-editor/min/vs to public/monaco/vs
+const configureLoader = () => {
+  try {
+    loader.config({
+      paths: {
+        vs: '/monaco/vs' // Point to the copied Monaco assets in public/monaco/vs
+      }
+    });
+    debugLog('✓ Loader configured - will use local assets from /monaco/vs (CDN disabled)');
+  } catch (error) {
+    debugError('Failed to configure loader:', error);
+  }
+};
+
+// Configure loader immediately when module loads
+configureLoader();
+
 export const ensureMonacoEnvironment = () => {
-  debugLog('ensureMonacoEnvironment called');
-  
   if (isConfigured) {
-    debugLog('Monaco environment already configured');
     return;
   }
 
@@ -42,30 +53,23 @@ export const ensureMonacoEnvironment = () => {
     getWorker(_: string, label: string) {
       debugLog('Creating bundled worker for label:', label);
       try {
-        let worker: Worker;
         switch (label) {
           case 'json':
-            worker = new jsonWorker();
-            break;
+            return new jsonWorker();
           case 'css':
           case 'scss':
           case 'less':
-            worker = new cssWorker();
-            break;
+            return new cssWorker();
           case 'html':
           case 'handlebars':
           case 'razor':
-            worker = new htmlWorker();
-            break;
+            return new htmlWorker();
           case 'typescript':
           case 'javascript':
-            worker = new tsWorker();
-            break;
+            return new tsWorker();
           default:
-            worker = new editorWorker();
+            return new editorWorker();
         }
-        debugLog('✓ Bundled worker created for:', label);
-        return worker;
       } catch (error) {
         debugError('Failed to create worker for label:', label, error);
         throw error;
@@ -74,7 +78,23 @@ export const ensureMonacoEnvironment = () => {
   };
 
   isConfigured = true;
-  debugLog('✓ Monaco environment configured (using bundled workers)');
-  console.log('[Monaco] ✓ Environment setup complete - using bundled workers');
+  debugLog('✓ Monaco environment configured (CDN disabled, using local assets from /monaco/vs)');
+  console.log('[Monaco] ✓ Environment setup complete - CDN disabled, using local assets from /monaco/vs');
+  
+  // Pre-load Monaco to make it available for @monaco-editor/react
+  // This ensures Monaco is loaded before the Editor component tries to use it
+  debugLog('Pre-loading Monaco editor...');
+  if (!monacoLoadPromise) {
+    monacoLoadPromise = loader.init().then((monaco) => {
+      debugLog('✓ Monaco editor pre-loaded successfully');
+      console.log('[Monaco] ✓ Monaco editor loaded and ready');
+      return monaco;
+    }).catch((error) => {
+      debugError('Failed to pre-load Monaco editor:', error);
+      monacoLoadPromise = null; // Reset so we can retry
+      throw error;
+    });
+  }
 };
+
 
