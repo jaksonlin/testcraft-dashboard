@@ -27,6 +27,7 @@ import com.example.annotationextractor.web.dto.TestMethodDetailDto;
 import com.example.annotationextractor.web.dto.TestClassSummaryDto;
 import com.example.annotationextractor.web.dto.GroupedTestMethodResponse;
 import com.example.annotationextractor.web.dto.TestMethodSourceDto;
+import com.example.annotationextractor.web.dto.McpSearchRequest;
 
 @Service
 public class RepositoryDataService {
@@ -1087,9 +1088,78 @@ public class RepositoryDataService {
     }
 
     /**
+     * Search for code patterns in test methods across all repositories (latest scan
+     * session)
+     */
+    /**
+     * Search for code patterns in test methods across all repositories (latest scan
+     * session)
+     */
+    public List<TestMethodDetailDto> searchCodePattern(McpSearchRequest request) {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                // Get latest scan session IDs for ALL repositories
+                Map<Long, Long> latestSessions = getLatestScanSessionIds();
+                if (latestSessions.isEmpty()) {
+                    return List.of();
+                }
+
+                // Use the filter-based method which supports list of session IDs
+                List<TestMethodDetailRecord> records = persistenceReadFacade.get()
+                        .listTestMethodDetailsWithFilters(
+                                latestSessions,
+                                null, // teamName
+                                request.repositoryName(), // repositoryName
+                                null, // packageName
+                                null, // className
+                                null, // annotated
+                                null, // searchTerm
+                                request.pattern(), // codePattern
+                                0, request.limit() != null ? request.limit() : 100);
+
+                return records.stream()
+                        .map(this::convertToTestMethodDetailDto)
+                        .collect(Collectors.toList());
+            } catch (Exception e) {
+                System.err.println("Error searching code pattern: " + e.getMessage());
+                e.printStackTrace();
+                return List.of();
+            }
+        }
+        return List.of();
+    }
+
+    /**
+     * List all repositories for MCP discovery
+     */
+    public List<String> listRepositoriesForMcp() {
+        if (persistenceReadFacade.isPresent()) {
+            try {
+                return persistenceReadFacade.get().listAllRepositories().stream()
+                        .map(RepositoryRecord::getRepositoryName)
+                        .sorted()
+                        .collect(Collectors.toList());
+            } catch (Exception e) {
+                System.err.println("Error listing repositories for MCP: " + e.getMessage());
+                return List.of();
+            }
+        }
+        return List.of();
+    }
+
+    /**
+     * Get source code for a test method for MCP
+     */
+    public String getTestMethodSourceForMcp(Long methodId) {
+        return getTestMethodSource(methodId)
+                .map(dto -> "File: " + dto.getFilePath() + "\n\n" + dto.getClassContent())
+                .orElse("Source code not found for method ID: " + methodId);
+    }
+
+    /**
      * Helper method to get the latest scan session ID for each active repository
      */
-    private Map<Long, Long> getLatestScanSessionIds() {
+    protected Map<Long, Long> getLatestScanSessionIds() {
         if (persistenceReadFacade.isEmpty()) {
             return Map.of();
         }

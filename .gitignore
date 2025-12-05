@@ -60,3 +60,5 @@ testcraft-images-20251020.tar
 
 deployment/production-images/
 deployment/*.tar.gz
+
+deployment/ssh-keys

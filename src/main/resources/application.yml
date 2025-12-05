@@ -4,6 +4,10 @@ server:
     context-path: /api
 
 spring:
+  ai:
+    mcp:
+      server:
+        stdio: false
   application:
     name: testcraft-dashboard
   
