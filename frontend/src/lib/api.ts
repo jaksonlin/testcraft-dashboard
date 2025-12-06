@@ -7,6 +7,7 @@ let authToken: string | null = null;
 
 export const setAuthToken = (token: string | null) => {
   authToken = token;
+  console.log('DEBUG setAuthToken: Token set =', !!token, token ? `length: ${token.length}` : 'null');
 };
 
 // Shared Axios client used across the app so auth headers & logging are consistent
@@ -18,12 +19,50 @@ export const apiClient = axios.create({
   },
 });
 
+// Helper function to decode JWT (without verification)
+const decodeJWT = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+};
+
 // Request interceptor for auth + logging
 apiClient.interceptors.request.use(
   (config) => {
     if (authToken) {
       config.headers = config.headers ?? {};
       config.headers['Authorization'] = `Bearer ${authToken}`;
+      // Debug logging for generate-token endpoint
+      if (config.url?.includes('/auth/generate-token')) {
+        console.log('DEBUG: Setting Authorization header for generate-token');
+        console.log('DEBUG: authToken exists =', !!authToken);
+        console.log('DEBUG: authToken length =', authToken?.length);
+        console.log('DEBUG: Authorization header =', config.headers['Authorization']?.substring(0, 20) + '...');
+        
+        // Decode JWT to check token details
+        const decoded = decodeJWT(authToken);
+        if (decoded) {
+          console.log('DEBUG: JWT payload:', decoded);
+          console.log('DEBUG: Token type =', decoded.type || 'access');
+          console.log('DEBUG: Token expires =', decoded.exp ? new Date(decoded.exp * 1000).toISOString() : 'N/A');
+          console.log('DEBUG: Token expired?', decoded.exp ? (Date.now() > decoded.exp * 1000) : 'N/A');
+          console.log('DEBUG: Token subject =', decoded.sub);
+        } else {
+          console.warn('DEBUG: Failed to decode JWT token');
+        }
+      }
+    } else {
+      // Debug logging if no token
+      if (config.url?.includes('/auth/generate-token')) {
+        console.warn('DEBUG: No authToken available for generate-token request!');
+      }
     }
     console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
@@ -43,7 +82,16 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
 
     // Handle 401 Unauthorized: Session expired or invalid credentials
+    // But don't logout for certain endpoints that might return 401 for other reasons
     if (status === 401) {
+      const url = error.config?.url || '';
+      // Don't auto-logout for token generation endpoint - let the component handle the error
+      if (url.includes('/auth/generate-token')) {
+        // Just reject the promise, don't logout
+        console.error('Token generation failed:', error.response?.data || error.message);
+        return Promise.reject(error);
+      }
+      
       setAuthToken(null);
       // Explicitly clear localStorage to prevent infinite redirect loops
       window.localStorage.removeItem('testcraft-auth');
@@ -76,9 +124,18 @@ apiClient.interceptors.response.use(
 // Types for API responses
 export interface LoginResponse {
   token: string;
+  refreshToken?: string;
   username: string;
   roles: string[];
   defaultPasswordInUse: boolean;
+}
+
+export interface TokenGenerationResponse {
+  token: string;
+  refreshToken: string;
+  username: string;
+  tokenType: string;
+  expiresIn: number; // milliseconds
 }
 
 export interface UserSummary {
@@ -374,6 +431,8 @@ export const api = {
       apiClient.post('/auth/login', { username, password }).then(res => res.data),
     changePassword: (currentPassword: string, newPassword: string): Promise<void> =>
       apiClient.post('/auth/change-password', { currentPassword, newPassword }).then(res => res.data),
+    generateToken: (): Promise<TokenGenerationResponse> =>
+      apiClient.post('/auth/generate-token').then(res => res.data),
   },
 
   users: {

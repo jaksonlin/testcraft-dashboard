@@ -16,6 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -23,17 +24,19 @@ import org.springframework.http.MediaType;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CorsConfigurationSource corsConfigurationSource;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          CorsConfigurationSource corsConfigurationSource) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.corsConfigurationSource = corsConfigurationSource;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> {
-                })
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
@@ -45,11 +48,17 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Allow all CORS preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Auth & health endpoints (only login is anonymous; password change requires
+                        // Auth & health endpoints (only login and refresh are anonymous; password change requires
                         // auth)
-                        .requestMatchers("/auth/login", "/actuator/health", "/dashboard/health", "/scan/health",
-                                "/sse/**", "/mcp/**")
+                        .requestMatchers("/auth/login", "/auth/refresh", "/actuator/health", "/dashboard/health", "/scan/health",
+                                "/mcp/**", "/sse/**")
                         .permitAll()
+                        // Auth endpoints that require authentication (password change, token generation)
+                        .requestMatchers("/auth/change-password", "/auth/generate-token")
+                        .authenticated()
+                        // MCP endpoints require OAuth/JWT authentication
+                        .requestMatchers("/mcp/**")
+                        .authenticated()
                         // Read‑only scan information can be viewed by any authenticated user
                         .requestMatchers(HttpMethod.GET, "/scan/config", "/scan/status", "/scan/sessions",
                                 "/scan/*/report")

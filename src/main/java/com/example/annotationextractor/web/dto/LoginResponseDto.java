@@ -5,6 +5,7 @@ import java.util.List;
 public class LoginResponseDto {
 
     private String token;
+    private String refreshToken;
     private String username;
     private List<String> roles;
     // Indicates whether the user's default (initial) password is still in use
@@ -15,6 +16,14 @@ public class LoginResponseDto {
 
     public LoginResponseDto(String token, String username, List<String> roles, boolean defaultPasswordInUse) {
         this.token = token;
+        this.username = username;
+        this.roles = roles;
+        this.defaultPasswordInUse = defaultPasswordInUse;
+    }
+
+    public LoginResponseDto(String token, String refreshToken, String username, List<String> roles, boolean defaultPasswordInUse) {
+        this.token = token;
+        this.refreshToken = refreshToken;
         this.username = username;
         this.roles = roles;
         this.defaultPasswordInUse = defaultPasswordInUse;
@@ -50,6 +59,14 @@ public class LoginResponseDto {
 
     public void setDefaultPasswordInUse(boolean defaultPasswordInUse) {
         this.defaultPasswordInUse = defaultPasswordInUse;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 }
 

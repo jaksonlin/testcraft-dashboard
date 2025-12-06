@@ -8,6 +8,7 @@ import SystemConfigTab from '../components/settings/SystemConfigTab';
 import NotificationsTab from '../components/settings/NotificationsTab';
 import AdvancedConfigTab from '../components/settings/AdvancedConfigTab';
 import UserManagementTab from '../components/settings/UserManagementTab';
+import TokenGenerationTab from '../components/settings/TokenGenerationTab';
 
 const SettingsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -140,6 +141,8 @@ const SettingsView: React.FC = () => {
         {activeTab === 'notifications' && <NotificationsTab />}
 
         {activeTab === 'users' && <UserManagementTab />}
+
+        {activeTab === 'tokens' && <TokenGenerationTab />}
 
         {activeTab === 'advanced' && (
           <AdvancedConfigTab

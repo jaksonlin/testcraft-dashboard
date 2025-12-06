@@ -45,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (state.token) {
+      console.log('DEBUG AuthContext: Setting authToken, length =', state.token.length);
       setAuthToken(state.token);
       window.localStorage.setItem(
         STORAGE_KEY,
@@ -56,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }),
       );
     } else {
+      console.log('DEBUG AuthContext: Clearing authToken');
       setAuthToken(null);
       window.localStorage.removeItem(STORAGE_KEY);
     }

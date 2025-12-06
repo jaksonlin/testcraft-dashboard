@@ -7,7 +7,10 @@ spring:
   ai:
     mcp:
       server:
-        stdio: false
+        name: book-management-server
+        version: 1.0.0
+        streamable: true
+        sse-message-endpoint: /mcp/message
   application:
     name: testcraft-dashboard
   
@@ -78,8 +81,13 @@ testcraft:
   # Security configuration
   security:
     jwt:
-      # 24 hours in milliseconds
+      # JWT secret key (CHANGE THIS IN PRODUCTION!)
+      # Generate a secure secret: openssl rand -base64 64
+      secret: ${JWT_SECRET:change-me-default-secret-change-me-default-secret-change-me-default-secret-change-me}
+      # 24 hours in milliseconds (default token validity)
       validity-ms: 86400000
+      # Refresh token validity: 7 days in milliseconds
+      refresh-validity-ms: 604800000
     
 # Logging configuration
 logging:
