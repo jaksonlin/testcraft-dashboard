@@ -1,0 +1,66 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "refresh": "Refresh",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "reset": "Reset",
+    "clear": "Clear",
+    "apply": "Apply",
+    "select": "Select",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "noData": "No data available",
+    "noResults": "No results found",
+    "actions": "Actions",
+    "status": "Status",
+    "name": "Name",
+    "description": "Description",
+    "created": "Created",
+    "updated": "Updated",
+    "createdAt": "Created At",
+    "updatedAt": "Updated At"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "repositories": "Repositories",
+    "testMethods": "Test Methods",
+    "testCases": "Test Cases",
+    "analytics": "Analytics",
+    "teams": "Teams",
+    "settings": "Settings",
+    "classLevel": "Class Level",
+    "logout": "Logout",
+    "login": "Login"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "username": "Username",
+    "password": "Password",
+    "loginFailed": "Login failed",
+    "invalidCredentials": "Invalid username or password",
+    "sessionExpired": "Your session has expired. Please login again."
+  },
+  "language": {
+    "english": "English",
+    "chinese": "简体中文",
+    "switchLanguage": "Switch Language"
+  }
+}
+

@@ -1,6 +1,7 @@
 import AppRouter from './routes';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import { AuthProvider } from './contexts/AuthContext';
+import './lib/i18n'; // Initialize i18n
 import './App.css';
 
 function App() {

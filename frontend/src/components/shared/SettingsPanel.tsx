@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Settings, Palette, Columns, Bell, RotateCcw, X, Monitor, Sun, Moon } from 'lucide-react';
+import { Settings, Palette, Columns, Bell, RotateCcw, X, Monitor, Sun, Moon, Globe } from 'lucide-react';
 import { usePreferences, type Theme, type Density } from '../../contexts/PreferencesContext';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface SettingsPanelProps {
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
   const { preferences, updatePreference, resetPreferences, getEffectiveTheme } = usePreferences();
+  const { currentLanguage, changeLanguage, t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'appearance' | 'tables' | 'notifications' | 'advanced'>('appearance');
 
   if (!isOpen) return null;
@@ -144,6 +146,38 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {option.description}
                         </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Language Selection */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('language.switchLanguage')}</h3>
+                <div className="space-y-3">
+                  {(['en', 'zh-CN'] as const).map((lang) => (
+                    <label
+                      key={lang}
+                      className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
+                        currentLanguage === lang
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="language"
+                        value={lang}
+                        checked={currentLanguage === lang}
+                        onChange={() => changeLanguage(lang)}
+                        className="sr-only"
+                      />
+                      <div className="flex items-center">
+                        <Globe className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                        <span className="ml-3 text-sm font-medium text-gray-900 dark:text-white">
+                          {lang === 'en' ? t('language.english') : t('language.chinese')}
+                        </span>
                       </div>
                     </label>
                   ))}
