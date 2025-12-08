@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Spring Boot Backend
 
 # Development Stage
-FROM maven:3.9-eclipse-temurin-17 AS development
+FROM maven:3.9-eclipse-temurin-21 AS development
 WORKDIR /app
 
 # Copy Maven files
@@ -23,7 +23,7 @@ EXPOSE 8090 5005
 CMD ["mvn", "spring-boot:run", "-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]
 
 # Build Stage
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
 # Copy Maven files
@@ -39,7 +39,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests -B
 
 # Production Stage
-FROM eclipse-temurin:17-jre-alpine AS production
+FROM eclipse-temurin:21-jre-alpine AS production
 WORKDIR /app
 
 # Install required packages for Git operations and user switching
