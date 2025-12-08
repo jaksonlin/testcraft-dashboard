@@ -18,14 +18,12 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // NOTE:
-        // The application already uses a servlet context-path of "/api" (see application.yml).
-        // CORS mappings here are defined *after* the context-path, so they should NOT start with "/api".
-        // Using "/**" ensures all API endpoints under the context-path participate in CORS.
+
         registry.addMapping("/**")
                 .allowedOrigins("http://localhost", "http://127.0.0.1",
                                "http://localhost:3000", "http://127.0.0.1:3000", 
-                               "http://localhost:5173", "http://127.0.0.1:5173")
+                               "http://localhost:5173", "http://127.0.0.1:5173",
+                               "http://localhost:6274", "http://127.0.0.1:6274")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
@@ -33,7 +31,8 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/repositories/**")
                 .allowedOrigins("http://localhost", "http://127.0.0.1",
                                "http://localhost:3000", "http://127.0.0.1:3000", 
-                               "http://localhost:5173", "http://127.0.0.1:5173")
+                               "http://localhost:5173", "http://127.0.0.1:5173",
+                               "http://localhost:6274", "http://127.0.0.1:6274")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
@@ -41,7 +40,8 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/teams/**")
                 .allowedOrigins("http://localhost", "http://127.0.0.1",
                                "http://localhost:3000", "http://127.0.0.1:3000", 
-                               "http://localhost:5173", "http://127.0.0.1:5173")
+                               "http://localhost:5173", "http://127.0.0.1:5173",
+                               "http://localhost:6274", "http://127.0.0.1:6274")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
@@ -70,7 +70,8 @@ public class WebConfig implements WebMvcConfigurer {
         CorsConfiguration defaultConfiguration = new CorsConfiguration();
         defaultConfiguration.setAllowedOriginPatterns(Arrays.asList("http://localhost", "http://127.0.0.1",
                                                              "http://localhost:3000", "http://127.0.0.1:3000", 
-                                                             "http://localhost:5173", "http://127.0.0.1:5173"));
+                                                             "http://localhost:5173", "http://127.0.0.1:5173",
+                                                             "http://localhost:6274", "http://127.0.0.1:6274"));
         defaultConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         defaultConfiguration.setAllowedHeaders(Arrays.asList("*"));
         defaultConfiguration.setAllowCredentials(true);
@@ -93,8 +94,7 @@ public class WebConfig implements WebMvcConfigurer {
         sseConfiguration.setMaxAge(3600L); // Cache preflight for 1 hour
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Same reasoning as above: path patterns here are relative to the servlet context-path,
-        // so they should not be prefixed with "/api". Use "/**" so all endpoints are covered.
+
         source.registerCorsConfiguration("/**", defaultConfiguration);
         source.registerCorsConfiguration("/mcp/**", mcpConfiguration);
         source.registerCorsConfiguration("/sse/**", sseConfiguration);

@@ -28,7 +28,7 @@ public class TestCaseController {
     /**
      * Upload Excel file and get preview with auto-detected mappings
      * 
-     * POST /api/testcases/upload/preview
+     * POST /testcases/upload/preview
      */
     @PostMapping("/upload/preview")
     public ResponseEntity<?> previewExcel(@RequestParam("file") MultipartFile file) {

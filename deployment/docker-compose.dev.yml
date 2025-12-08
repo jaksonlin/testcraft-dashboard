@@ -54,7 +54,7 @@ services:
       - testcraft-network
     # Health check to ensure backend is ready
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/api/actuator/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,7 +67,7 @@ services:
       dockerfile: ./deployment/Dockerfile.frontend
       target: development
     environment:
-      VITE_API_URL: http://localhost/api
+      VITE_API_URL: /
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "5173:5173"  # Vite dev server

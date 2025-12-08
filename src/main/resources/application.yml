@@ -1,7 +1,5 @@
 server:
   port: 8090
-  servlet:
-    context-path: /api
 
 spring:
   ai:
@@ -10,7 +8,6 @@ spring:
         name: testcraft-mcp-server
         version: 1.0.0
         streamable: true
-        sse-message-endpoint: /api/mcp/message
         type: SYNC
         annotation-scanner:
           enabled: true

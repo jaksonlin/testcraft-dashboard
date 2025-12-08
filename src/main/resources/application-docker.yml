@@ -3,10 +3,23 @@
 
 server:
   port: ${SERVER_PORT:8090}
-  servlet:
-    context-path: /api
 
 spring:
+  ai:
+      mcp:
+        server:
+          name: testcraft-mcp-server
+          version: 1.0.0
+          streamable: true
+          type: SYNC
+          annotation-scanner:
+            enabled: true
+          capabilities:
+            tool: true
+            resource: true
+            prompt: true
+            completion: true
+          keep-alive-interval: 120s
   application:
     name: testcraft-dashboard
   

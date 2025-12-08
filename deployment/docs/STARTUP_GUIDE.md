@@ -68,7 +68,7 @@ SSH_KEY_PATH=./ssh-keys
 
 # Application settings
 SPRING_PROFILE=docker
-VITE_API_URL=/api
+VITE_API_URL=/
 REPOSITORY_HUB_PATH=/app/repos
 ```
 

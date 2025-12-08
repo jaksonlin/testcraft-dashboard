@@ -109,7 +109,7 @@ public class ExportService {
             status.setMessage("Export completed successfully");
             status.setCompletedAt(LocalDateTime.now());
             status.setFilename(filename);
-            status.setDownloadUrl("/api/export/download/" + jobId);
+            status.setDownloadUrl("/export/download/" + jobId);
             status.setTotalRecords(totalRecords);
             status.setProcessedRecords(totalRecords);
 

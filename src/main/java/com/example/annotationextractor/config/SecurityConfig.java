@@ -48,16 +48,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Allow all CORS preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Auth & health endpoints (only login and refresh are anonymous; password change requires
-                        // auth)
-                        .requestMatchers("/auth/login", "/auth/refresh", "/actuator/health", "/dashboard/health", "/scan/health",
-                                "/mcp/**", "/sse/**")
+                        // MCP endpoints - separate from API, public access (OAuth2 will be implemented later)
+                        .requestMatchers("/mcp/**", "/sse/**")
+                        .permitAll()
+                        // Auth & health endpoints (only login and refresh are anonymous; password change requires auth)
+                        .requestMatchers("/auth/login", "/auth/refresh", "/actuator/health", "/dashboard/health", "/scan/health")
                         .permitAll()
                         // Auth endpoints that require authentication (password change, token generation)
                         .requestMatchers("/auth/change-password", "/auth/generate-token")
-                        .authenticated()
-                        // MCP endpoints require OAuth/JWT authentication
-                        .requestMatchers("/mcp/**")
                         .authenticated()
                         // Read‑only scan information can be viewed by any authenticated user
                         .requestMatchers(HttpMethod.GET, "/scan/config", "/scan/status", "/scan/sessions",

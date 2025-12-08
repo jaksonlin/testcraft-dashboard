@@ -35,7 +35,7 @@ RUN npm ci
 COPY frontend/ .
 
 # Build the application
-ARG VITE_API_URL=/api
+ARG VITE_API_URL=/
 ENV VITE_API_URL=$VITE_API_URL
 RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
