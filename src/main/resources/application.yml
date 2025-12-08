@@ -7,10 +7,19 @@ spring:
   ai:
     mcp:
       server:
-        name: book-management-server
+        name: testcraft-mcp-server
         version: 1.0.0
         streamable: true
-        sse-message-endpoint: /mcp/message
+        sse-message-endpoint: /api/mcp/message
+        type: SYNC
+        annotation-scanner:
+          enabled: true
+        capabilities:
+          tool: true
+          resource: true
+          prompt: true
+          completion: true
+        keep-alive-interval: 120s
   application:
     name: testcraft-dashboard
   
