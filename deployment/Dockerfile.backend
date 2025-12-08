@@ -8,7 +8,19 @@ WORKDIR /app
 COPY pom.xml .
 
 # create maven settings.xml file
-RUN echo '<mirror><id>aliyunmaven</id><mirrorOf>*</mirrorOf><name>aliyun maven</name><url>https://maven.aliyun.com/repository/public</url></mirror>' > settings.xml
+RUN echo '<?xml version="1.0" encoding="UTF-8"?>' > settings.xml && \
+    echo '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"' >> settings.xml && \
+    echo '          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' >> settings.xml && \
+    echo '          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">' >> settings.xml && \
+    echo '  <mirrors>' >> settings.xml && \
+    echo '    <mirror>' >> settings.xml && \
+    echo '      <id>aliyunmaven</id>' >> settings.xml && \
+    echo '      <mirrorOf>*</mirrorOf>' >> settings.xml && \
+    echo '      <name>aliyun maven</name>' >> settings.xml && \
+    echo '      <url>https://maven.aliyun.com/repository/public</url>' >> settings.xml && \
+    echo '    </mirror>' >> settings.xml && \
+    echo '  </mirrors>' >> settings.xml && \
+    echo '</settings>' >> settings.xml
 
 # Download dependencies (cached layer)
 RUN mvn dependency:go-offline -B -s settings.xml
@@ -29,14 +41,29 @@ WORKDIR /app
 # Copy Maven files
 COPY pom.xml .
 
+# create maven settings.xml file
+RUN echo '<?xml version="1.0" encoding="UTF-8"?>' > settings.xml && \
+    echo '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"' >> settings.xml && \
+    echo '          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' >> settings.xml && \
+    echo '          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">' >> settings.xml && \
+    echo '  <mirrors>' >> settings.xml && \
+    echo '    <mirror>' >> settings.xml && \
+    echo '      <id>aliyunmaven</id>' >> settings.xml && \
+    echo '      <mirrorOf>*</mirrorOf>' >> settings.xml && \
+    echo '      <name>aliyun maven</name>' >> settings.xml && \
+    echo '      <url>https://maven.aliyun.com/repository/public</url>' >> settings.xml && \
+    echo '    </mirror>' >> settings.xml && \
+    echo '  </mirrors>' >> settings.xml && \
+    echo '</settings>' >> settings.xml
+
 # Download dependencies
-RUN mvn dependency:go-offline -B
+RUN mvn dependency:go-offline -B -s settings.xml
 
 # Copy source code
 COPY src ./src
 
 # Build the application
-RUN mvn clean package -DskipTests -B
+RUN mvn clean package -DskipTests -B -s settings.xml
 
 # Production Stage
 FROM eclipse-temurin:21-jre-alpine AS production

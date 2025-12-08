@@ -87,7 +87,7 @@ const addRepositoriesSheet = (workbook: ExcelJS.Workbook, repositories: Reposito
       testClassCount: repo.testClassCount,
       testMethodCount: repo.testMethodCount,
       annotatedMethodCount: repo.annotatedMethodCount || 0,
-      coverageRate: repo.coverageRate.toFixed(2),
+      coverageRate: (repo.coverageRate ?? 0).toFixed(2),
       lastScanDate: new Date(repo.lastScanDate).toLocaleString()
     });
   });
@@ -122,7 +122,7 @@ const addTeamsSheet = (workbook: ExcelJS.Workbook, teams: TeamMetrics[]): void =
       totalTestClasses: team.totalTestClasses,
       totalTestMethods: team.totalTestMethods,
       totalAnnotatedMethods: team.totalAnnotatedMethods || 0,
-      averageCoverageRate: team.averageCoverageRate.toFixed(2),
+      averageCoverageRate: (team.averageCoverageRate ?? 0).toFixed(2),
       lastScanDate: team.lastScanDate ? new Date(team.lastScanDate).toLocaleString() : 'N/A'
     });
   });
@@ -151,7 +151,7 @@ const addAnalyticsSheet = (workbook: ExcelJS.Workbook, analytics: DailyMetric[])
       totalTestClasses: metric.totalTestClasses,
       totalTestMethods: metric.totalTestMethods,
       totalAnnotatedMethods: metric.totalAnnotatedMethods,
-      overallCoverageRate: metric.overallCoverageRate.toFixed(2),
+      overallCoverageRate: (metric.overallCoverageRate ?? 0).toFixed(2),
       newTestMethods: metric.newTestMethods,
       newAnnotatedMethods: metric.newAnnotatedMethods
     });
@@ -306,7 +306,7 @@ export const exportToCSV = (data: ExportData, filename: string): void => {
         repo.testClassCount,
         repo.testMethodCount,
         repo.annotatedMethodCount || 0,
-        repo.coverageRate.toFixed(2),
+        (repo.coverageRate ?? 0).toFixed(2),
         `"${new Date(repo.lastScanDate).toLocaleString()}"`
       ].join(',') + '\n';
     });
@@ -328,7 +328,7 @@ export const exportToCSV = (data: ExportData, filename: string): void => {
         team.totalTestClasses,
         team.totalTestMethods,
         team.totalAnnotatedMethods || 0,
-        team.averageCoverageRate.toFixed(2),
+        (team.averageCoverageRate ?? 0).toFixed(2),
         `"${team.lastScanDate ? new Date(team.lastScanDate).toLocaleString() : 'N/A'}"`
       ].join(',') + '\n';
     });
@@ -347,7 +347,7 @@ export const exportToCSV = (data: ExportData, filename: string): void => {
         metric.totalTestClasses,
         metric.totalTestMethods,
         metric.totalAnnotatedMethods,
-        metric.overallCoverageRate.toFixed(2),
+        (metric.overallCoverageRate ?? 0).toFixed(2),
         metric.newTestMethods,
         metric.newAnnotatedMethods
       ].join(',') + '\n';
@@ -599,7 +599,7 @@ const createLegacyCSVContent = (data: {
   csvContent += 'Repositories\n';
   csvContent += 'Repository Name,Team,Test Methods,Annotated Methods,Coverage Rate,Last Scan Date,Git URL\n';
   repositories.forEach((repo: RepositorySummary) => {
-    csvContent += `"${repo.repositoryName}","${repo.teamName}",${repo.testMethodCount},${repo.annotatedMethodCount},${repo.coverageRate.toFixed(2)}%,"${new Date(repo.lastScanDate).toLocaleDateString()}","${repo.gitUrl}"\n`;
+    csvContent += `"${repo.repositoryName}","${repo.teamName}",${repo.testMethodCount},${repo.annotatedMethodCount},${(repo.coverageRate ?? 0).toFixed(2)}%,"${new Date(repo.lastScanDate).toLocaleDateString()}","${repo.gitUrl}"\n`;
   });
   csvContent += '\n';
 

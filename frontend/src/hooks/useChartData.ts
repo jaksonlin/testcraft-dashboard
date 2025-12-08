@@ -8,9 +8,10 @@ const formatDate = (dateString: string) => {
   });
 };
 
-export const useChartData = (dailyMetrics: DailyMetric[], teams: TeamMetrics[]) => {
+export const useChartData = (dailyMetrics: DailyMetric[] | null | undefined, teams: TeamMetrics[] | null | undefined) => {
   const chartData = useMemo(() => {
-    return dailyMetrics.map(metric => ({
+    const metrics = Array.isArray(dailyMetrics) ? dailyMetrics : [];
+    return metrics.map(metric => ({
       date: formatDate(metric.date),
       fullDate: metric.date,
       coverage: metric.overallCoverageRate,
@@ -23,7 +24,8 @@ export const useChartData = (dailyMetrics: DailyMetric[], teams: TeamMetrics[]) 
   }, [dailyMetrics]);
 
   const teamComparisonData = useMemo(() => {
-    return teams.map(team => ({
+    const teamsArray = Array.isArray(teams) ? teams : [];
+    return teamsArray.map(team => ({
       name: team.teamName,
       repositories: team.repositoryCount,
       coverage: team.averageCoverageRate,
@@ -33,10 +35,11 @@ export const useChartData = (dailyMetrics: DailyMetric[], teams: TeamMetrics[]) 
   }, [teams]);
 
   const coverageDistribution = useMemo(() => {
+    const teamsArray = Array.isArray(teams) ? teams : [];
     return [
-      { name: 'High Coverage (≥80%)', value: teams.filter(t => t.averageCoverageRate >= 80).length, color: '#10b981' },
-      { name: 'Medium Coverage (60-79%)', value: teams.filter(t => t.averageCoverageRate >= 60 && t.averageCoverageRate < 80).length, color: '#f59e0b' },
-      { name: 'Low Coverage (<60%)', value: teams.filter(t => t.averageCoverageRate < 60).length, color: '#ef4444' }
+      { name: 'High Coverage (≥80%)', value: teamsArray.filter(t => t.averageCoverageRate >= 80).length, color: '#10b981' },
+      { name: 'Medium Coverage (60-79%)', value: teamsArray.filter(t => t.averageCoverageRate >= 60 && t.averageCoverageRate < 80).length, color: '#f59e0b' },
+      { name: 'Low Coverage (<60%)', value: teamsArray.filter(t => t.averageCoverageRate < 60).length, color: '#ef4444' }
     ].filter(item => item.value > 0); // Only show categories with teams
   }, [teams]);
 

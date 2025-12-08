@@ -54,17 +54,17 @@ const ExpandableClassCard: React.FC<ExpandableClassCardProps> = ({
             <div className="flex items-center mt-1 space-x-4 text-sm text-gray-600 dark:text-gray-400">
               <span>{classGroup.methodCount} methods</span>
               <span>{classGroup.annotatedCount} annotated</span>
-              <span className={`font-medium ${getCoverageColor(classGroup.coverageRate)}`}>
-                {classGroup.coverageRate.toFixed(1)}% coverage
+              <span className={`font-medium ${getCoverageColor(classGroup.coverageRate ?? 0)}`}>
+                {(classGroup.coverageRate ?? 0).toFixed(1)}% coverage
               </span>
             </div>
           </div>
         </div>
         
         <div className="flex items-center space-x-2">
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${getCoverageBgColor(classGroup.coverageRate)}`}>
-            <span className={getCoverageColor(classGroup.coverageRate)}>
-              {classGroup.coverageRate.toFixed(1)}%
+          <div className={`px-3 py-1 rounded-full text-sm font-medium ${getCoverageBgColor(classGroup.coverageRate ?? 0)}`}>
+            <span className={getCoverageColor(classGroup.coverageRate ?? 0)}>
+              {(classGroup.coverageRate ?? 0).toFixed(1)}%
             </span>
           </div>
           

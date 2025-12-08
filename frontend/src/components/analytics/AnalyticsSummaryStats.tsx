@@ -33,7 +33,7 @@ const AnalyticsSummaryStats: React.FC<AnalyticsSummaryStatsProps> = ({
       />
       <StatCard
         title="Average Coverage"
-        value={`${averageCoverage.toFixed(1)}%`}
+        value={`${(averageCoverage ?? 0).toFixed(1)}%`}
         icon={<TrendingUp className="h-5 w-5" />}
         color="orange"
       />

@@ -84,8 +84,9 @@ export const getAnnotationStatusIcon = (method: TestMethodDetail): 'check' | 'x'
 /**
  * Formats coverage rate for display
  */
-export const formatCoverageRate = (rate: number): string => {
-  return `${rate.toFixed(1)}%`;
+export const formatCoverageRate = (rate: number | null | undefined): string => {
+  const numRate = typeof rate === 'number' && !isNaN(rate) ? rate : 0;
+  return `${numRate.toFixed(1)}%`;
 };
 
 /**

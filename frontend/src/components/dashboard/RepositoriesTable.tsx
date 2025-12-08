@@ -63,7 +63,7 @@ const RepositoriesTable: React.FC<RepositoriesTableProps> = ({ repositories, onR
                   {repo.testMethodCount}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                  {repo.coverageRate.toFixed(1)}%
+                  {(repo.coverageRate ?? 0).toFixed(1)}%
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {new Date(repo.lastScanDate).toLocaleDateString()}

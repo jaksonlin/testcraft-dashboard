@@ -36,22 +36,22 @@ const TeamPerformanceTable: React.FC<TeamPerformanceTableProps> = ({ teams }) =>
                     <div className="w-20 rounded-full h-2 mr-3" style={{ backgroundColor: 'var(--color-border)' }}>
                       <div
                         className={`h-2 rounded-full ${
-                          team.averageCoverageRate >= 80 ? 'bg-green-500' :
-                          team.averageCoverageRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                          (team.averageCoverageRate ?? 0) >= 80 ? 'bg-green-500' :
+                          (team.averageCoverageRate ?? 0) >= 60 ? 'bg-yellow-500' : 'bg-red-500'
                         }`}
-                        style={{ width: `${Math.min(team.averageCoverageRate, 100)}%` }}
+                        style={{ width: `${Math.min(team.averageCoverageRate ?? 0, 100)}%` }}
                       />
                     </div>
-                    <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{team.averageCoverageRate.toFixed(1)}%</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>{(team.averageCoverageRate ?? 0).toFixed(1)}%</span>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    team.averageCoverageRate >= 80 ? 'bg-green-100 text-green-800' :
-                    team.averageCoverageRate >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                    (team.averageCoverageRate ?? 0) >= 80 ? 'bg-green-100 text-green-800' :
+                    (team.averageCoverageRate ?? 0) >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
                   }`}>
-                    {team.averageCoverageRate >= 80 ? 'Excellent' :
-                     team.averageCoverageRate >= 60 ? 'Good' : 'Needs Improvement'}
+                    {(team.averageCoverageRate ?? 0) >= 80 ? 'Excellent' :
+                     (team.averageCoverageRate ?? 0) >= 60 ? 'Good' : 'Needs Improvement'}
                   </span>
                 </td>
               </tr>

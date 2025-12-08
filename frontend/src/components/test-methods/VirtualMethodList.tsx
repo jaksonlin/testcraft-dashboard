@@ -10,8 +10,10 @@ interface VirtualMethodListProps {
 
 const VirtualMethodList: React.FC<VirtualMethodListProps> = ({ methods, maxVisible = 10 }) => {
   const [showAll, setShowAll] = useState(false);
-  const visibleMethods = showAll ? methods : methods.slice(0, maxVisible);
-  const hasMore = methods.length > maxVisible;
+  // Normalize methods to ensure it's always an array
+  const methodsArray = Array.isArray(methods) ? methods : [];
+  const visibleMethods = showAll ? methodsArray : methodsArray.slice(0, maxVisible);
+  const hasMore = methodsArray.length > maxVisible;
 
   return (
     <div className="space-y-2">
@@ -55,7 +57,7 @@ const VirtualMethodList: React.FC<VirtualMethodListProps> = ({ methods, maxVisib
           onClick={() => setShowAll(true)}
           className="w-full p-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
         >
-          Show {methods.length - maxVisible} more methods...
+          Show {methodsArray.length - maxVisible} more methods...
         </button>
       )}
       {showAll && hasMore && (

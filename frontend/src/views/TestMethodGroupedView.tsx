@@ -60,7 +60,17 @@ const TestMethodGroupedView: React.FC = () => {
   }, [fetchGroupedData]);
 
   // Data is already filtered at backend level - just use it directly
-  const filteredData = groupedData;
+  // Ensure filteredData has proper structure with teams array and summary
+  const filteredData = groupedData ? {
+    ...groupedData,
+    teams: Array.isArray(groupedData.teams) ? groupedData.teams : [],
+    summary: groupedData.summary || {
+      totalTeams: 0,
+      totalClasses: 0,
+      totalMethods: 0,
+      overallCoverageRate: 0
+    }
+  } : null;
 
   const handleExport = async (option: ExportOption) => {
     if (!filteredData) return;
@@ -103,7 +113,7 @@ const TestMethodGroupedView: React.FC = () => {
     );
   }
 
-  if (!filteredData || filteredData.teams.length === 0) {
+  if (!filteredData || !Array.isArray(filteredData.teams) || filteredData.teams.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">

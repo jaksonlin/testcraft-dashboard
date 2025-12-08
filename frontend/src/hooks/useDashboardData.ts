@@ -37,9 +37,10 @@ export const useDashboardData = (showConfigPanel: boolean = false): UseDashboard
       ]);
       
       setOverview(overviewData);
-      setTeamMetrics(teamsData);
+      // Normalize array responses to ensure they're always arrays
+      setTeamMetrics(Array.isArray(teamsData) ? teamsData : []);
       setScanStatus(statusData);
-      setScanHistory(historyData);
+      setScanHistory(Array.isArray(historyData) ? historyData : []);
       
       // Only fetch config data if not skipping and config modal is not open
       if (!skipConfig && !showConfigPanel) {

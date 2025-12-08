@@ -64,9 +64,10 @@ export const usePaginatedData = <T, F = Record<string, unknown>>({
       const result = await fetchFunction(page, size, currentFilters);
 
       if (!abortControllerRef.current.signal.aborted) {
-        setData(result.content);
-        setTotalElements(result.totalElements);
-        setTotalPages(result.totalPages);
+        // Normalize response to ensure content is always an array
+        setData(Array.isArray(result?.content) ? result.content : []);
+        setTotalElements(result?.totalElements ?? 0);
+        setTotalPages(result?.totalPages ?? 0);
       }
     } catch (err: unknown) {
       if (!abortControllerRef.current?.signal.aborted) {

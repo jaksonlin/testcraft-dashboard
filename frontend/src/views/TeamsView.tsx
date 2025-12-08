@@ -41,7 +41,8 @@ const TeamsView: React.FC = () => {
         sortBy,
         sortOrder
       );
-      setTeams(response.content);
+      // Normalize response to ensure content is always an array
+      setTeams(Array.isArray(response?.content) ? response.content : []);
       setPagination(response);
 
       try {
@@ -212,7 +213,7 @@ const TeamsView: React.FC = () => {
     ?? teams.reduce((sum, team) => sum + team.totalTestMethods, 0);
   const averageCoverage = overview?.overallCoverageRate
     ?? (teams.length > 0
-      ? teams.reduce((sum, team) => sum + team.averageCoverageRate, 0) / teams.length
+      ? teams.reduce((sum, team) => sum + (team.averageCoverageRate || 0), 0) / teams.length
       : 0);
 
   return (
@@ -388,7 +389,7 @@ const TeamsView: React.FC = () => {
                         />
                       </div>
                       <span className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>
-                        {team.averageCoverageRate.toFixed(1)}%
+                        {(team.averageCoverageRate ?? 0).toFixed(1)}%
                       </span>
                     </div>
                   </td>

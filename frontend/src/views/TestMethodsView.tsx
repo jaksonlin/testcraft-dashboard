@@ -87,9 +87,22 @@ const TestMethodsView: React.FC = () => {
           filters.repositoryName || undefined,
           filters.annotated
         );
-        setGlobalStats(stats);
+        // Normalize stats to ensure all values are numbers
+        setGlobalStats({
+          totalMethods: stats?.totalMethods ?? 0,
+          totalAnnotated: stats?.totalAnnotated ?? 0,
+          totalNotAnnotated: stats?.totalNotAnnotated ?? 0,
+          coverageRate: stats?.coverageRate ?? 0
+        });
       } catch (error) {
         console.error('Failed to load global stats:', error);
+        // Reset to defaults on error
+        setGlobalStats({
+          totalMethods: 0,
+          totalAnnotated: 0,
+          totalNotAnnotated: 0,
+          coverageRate: 0
+        });
       }
     };
     loadGlobalStats();
@@ -582,7 +595,7 @@ const TestMethodsView: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Coverage Rate</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                  {globalStats.coverageRate.toFixed(1)}%
+                  {(globalStats.coverageRate ?? 0).toFixed(1)}%
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-500">
                   Global coverage

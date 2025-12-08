@@ -30,13 +30,16 @@ const ClassLevelView: React.FC = () => {
       // Fetch test methods for this repository using repository API
       const fetchedMethods = await api.repositories.getTestMethods(parseInt(id));
       
-      if (fetchedMethods.length === 0) {
+      // Normalize methods to ensure it's always an array
+      const methodsArray = Array.isArray(fetchedMethods) ? fetchedMethods : [];
+      
+      if (methodsArray.length === 0) {
         setError('No test methods found for this repository');
         return;
       }
       
-      setRepositoryName(fetchedMethods[0]?.repository || 'Unknown Repository');
-      setMethods(fetchedMethods);
+      setRepositoryName(methodsArray[0]?.repository || 'Unknown Repository');
+      setMethods(methodsArray);
       
     } catch (err) {
       console.error('Error fetching class data:', err);

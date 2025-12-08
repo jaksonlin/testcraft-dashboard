@@ -23,9 +23,11 @@ const ReportsSection: React.FC<ReportsSectionProps> = () => {
   const fetchScanHistory = async () => {
     try {
       const history = await api.scan.getHistory(10);
-      setScanHistory(history);
+      // Normalize response to ensure it's an array
+      setScanHistory(Array.isArray(history) ? history : []);
     } catch (error) {
       console.error('Error fetching scan history:', error);
+      setScanHistory([]);
     }
   };
 

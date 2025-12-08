@@ -19,21 +19,24 @@ const VirtualizedList = <T,>({
 }: VirtualizedListProps<T>) => {
   const [scrollTop, setScrollTop] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Normalize items to ensure it's always an array
+  const itemsArray = Array.isArray(items) ? items : [];
 
   const visibleRange = useMemo(() => {
     const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
     const endIndex = Math.min(
-      items.length - 1,
+      itemsArray.length - 1,
       Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan
     );
     return { startIndex, endIndex };
-  }, [scrollTop, itemHeight, containerHeight, items.length, overscan]);
+  }, [scrollTop, itemHeight, containerHeight, itemsArray.length, overscan]);
 
   const visibleItems = useMemo(() => {
-    return items.slice(visibleRange.startIndex, visibleRange.endIndex + 1);
-  }, [items, visibleRange]);
+    return itemsArray.slice(visibleRange.startIndex, visibleRange.endIndex + 1);
+  }, [itemsArray, visibleRange]);
 
-  const totalHeight = items.length * itemHeight;
+  const totalHeight = itemsArray.length * itemHeight;
   const offsetY = visibleRange.startIndex * itemHeight;
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {

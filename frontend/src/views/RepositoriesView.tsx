@@ -115,7 +115,8 @@ const RepositoriesView: React.FC = () => {
       );
 
       setPagination(response);
-      setRepositories(response.content);
+      // Normalize response to ensure content is always an array
+      setRepositories(Array.isArray(response?.content) ? response.content : []);
     } catch (err) {
       console.error('Error fetching repositories:', err);
     } finally {
@@ -128,7 +129,9 @@ const RepositoriesView: React.FC = () => {
     const loadTeamOptions = async () => {
       try {
         const teams = await api.teams.getAll();
-        const teamOptionsList = teams.map(team => ({ value: team.teamName, label: team.teamName }));
+        // Normalize teams to ensure it's always an array
+        const teamsArray = Array.isArray(teams) ? teams : [];
+        const teamOptionsList = teamsArray.map(team => ({ value: team.teamName, label: team.teamName }));
         setTeamOptions(teamOptionsList);
       } catch (err) {
         console.error('Error loading team options:', err);

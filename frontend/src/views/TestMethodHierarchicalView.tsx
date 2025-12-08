@@ -30,15 +30,15 @@ const TestMethodHierarchicalView: React.FC = () => {
       if (currentLevel.level === 'ROOT') {
         // Load teams
         const teams = await api.dashboard.getHierarchy('TEAM');
-        setCurrentNodes(teams);
+        setCurrentNodes(Array.isArray(teams) ? teams : []);
       } else if (currentLevel.level === 'TEAM' && currentLevel.teamName) {
         // Load packages within team
         const packages = await api.dashboard.getHierarchy('PACKAGE', currentLevel.teamName);
-        setCurrentNodes(packages);
+        setCurrentNodes(Array.isArray(packages) ? packages : []);
       } else if (currentLevel.level === 'PACKAGE' && currentLevel.teamName && currentLevel.packageName) {
         // Load classes within package
         const classes = await api.dashboard.getHierarchy('CLASS', currentLevel.teamName, currentLevel.packageName);
-        setCurrentNodes(classes);
+        setCurrentNodes(Array.isArray(classes) ? classes : []);
       }
     } catch (err) {
       console.error('Error loading hierarchy:', err);
@@ -95,7 +95,9 @@ const TestMethodHierarchicalView: React.FC = () => {
           );
 
           const newCache = new Map(methodsCache);
-          newCache.set(node.id!, allMethods.content);
+          // Normalize methods to ensure content is always an array
+          const methodsArray = Array.isArray(allMethods?.content) ? allMethods.content : [];
+          newCache.set(node.id!, methodsArray);
           setMethodsCache(newCache);
         } catch (err) {
           console.error('Error loading methods:', err);
@@ -275,8 +277,8 @@ const TestMethodHierarchicalView: React.FC = () => {
                             <div className="text-gray-600 dark:text-gray-400">
                               <span className="font-medium">{node.annotatedCount}</span> annotated
                             </div>
-                            <div className={`px-2 py-1 rounded text-xs font-semibold ${getCoverageBadgeColor(node.coverageRate)}`}>
-                              {node.coverageRate.toFixed(1)}%
+                            <div className={`px-2 py-1 rounded text-xs font-semibold ${getCoverageBadgeColor(node.coverageRate ?? 0)}`}>
+                              {(node.coverageRate ?? 0).toFixed(1)}%
                             </div>
                           </div>
 
@@ -363,7 +365,7 @@ const TestMethodHierarchicalView: React.FC = () => {
               <p className="text-sm text-gray-600 dark:text-gray-400">Average Coverage</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {currentNodes.length > 0
-                  ? (currentNodes.reduce((sum, n) => sum + n.coverageRate, 0) / currentNodes.length).toFixed(1)
+                  ? (currentNodes.reduce((sum, n) => sum + (n.coverageRate ?? 0), 0) / currentNodes.length).toFixed(1)
                   : '0.0'
                 }%
               </p>

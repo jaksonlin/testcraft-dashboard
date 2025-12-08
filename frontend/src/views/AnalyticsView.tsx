@@ -34,8 +34,9 @@ const AnalyticsView: React.FC = () => {
         api.teams.getComparison().catch(() => [])
       ]);
 
-      setDailyMetrics(metricsData);
-      setTeams(teamsData);
+      // Normalize responses to ensure they're arrays (handle null/undefined)
+      setDailyMetrics(Array.isArray(metricsData) ? metricsData : []);
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
     } catch (err) {
       setError('Failed to fetch analytics data');
       console.error('Error fetching analytics:', err);

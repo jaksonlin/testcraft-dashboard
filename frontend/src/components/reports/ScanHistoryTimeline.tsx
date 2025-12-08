@@ -11,6 +11,8 @@ const ScanHistoryTimeline: React.FC<ScanHistoryTimelineProps> = ({
   sessions, 
   onSessionClick 
 }) => {
+  // Normalize sessions to ensure it's an array
+  const sessionsArray = Array.isArray(sessions) ? sessions : [];
   const formatDuration = (ms: number) => {
     const seconds = Math.round(ms / 1000);
     return seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)}m ${seconds % 60}s`;
@@ -37,8 +39,10 @@ const ScanHistoryTimeline: React.FC<ScanHistoryTimelineProps> = ({
   };
 
   const getCoverageRate = (session: ScanSession) => {
-    if (session.totalTestMethods === 0) return 0;
-    return ((session.totalAnnotatedMethods / session.totalTestMethods) * 100).toFixed(1);
+    if (!session || session.totalTestMethods === 0) return '0.0';
+    const annotated = session.totalAnnotatedMethods ?? 0;
+    const total = session.totalTestMethods ?? 0;
+    return ((annotated / total) * 100).toFixed(1);
   };
 
   return (
@@ -51,14 +55,14 @@ const ScanHistoryTimeline: React.FC<ScanHistoryTimelineProps> = ({
       </div>
       
       <div className="p-6">
-        {sessions.length === 0 ? (
+        {sessionsArray.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <Database className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
             <p>No scan history available</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {sessions.map((session, index) => {
+            {sessionsArray.map((session, index) => {
               const { date, time, relative } = formatDate(session.scanDate);
               const coverageRate = getCoverageRate(session);
               const isSuccess = session.scanStatus === 'COMPLETED';
